@@ -32,5 +32,9 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@0xpixelninja/conveno-protocol": "workspace:*",
+    "zod": "4.6.7"
   }
 }
