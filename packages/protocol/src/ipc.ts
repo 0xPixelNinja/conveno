@@ -9,7 +9,14 @@ import {
   SystemContent,
   TextContent,
 } from "./message.js";
-import { CliKind, DeliveryTier, IsoTimestamp, SessionName, SessionStatus } from "./primitives.js";
+import {
+  CliKind,
+  DeliveryTier,
+  IsoTimestamp,
+  SessionName,
+  SessionStatus,
+  Sha256Hex,
+} from "./primitives.js";
 import type { RpcErrorObject } from "./rpc.js";
 import { makeError, RpcErrorCode, RpcId, RpcRequestEnvelope } from "./rpc.js";
 import { RepoInfo, Session, STATUS_TEXT_MAX } from "./session.js";
@@ -22,14 +29,25 @@ export const CLIENT_KINDS = ["mcp", "cli", "adapter"] as const;
 export const ClientKind = z.enum(CLIENT_KINDS);
 export type ClientKind = z.infer<typeof ClientKind>;
 
+const Hex32 = z.string().regex(/^[0-9a-f]{64}$/, "expected 32 bytes as lowercase hex");
+
 const HelloParams = z.object({
   protocolVersion: z.string().min(1),
   client: ClientKind,
-  authToken: z.string().min(1),
+  /** 32 random bytes, hex. The daemon proves it knows the token by signing this. */
+  nonce: Hex32,
 });
 const HelloResult = z.object({
   protocolVersion: z.literal(PROTOCOL_VERSION),
   daemonVersion: z.string().min(1),
+  /** `HMAC-SHA256(token, "conveno/1 daemon " + nonce)`, hex. */
+  proof: Sha256Hex,
+  /** 32 random bytes, hex. The client signs this in `auth`. */
+  challenge: Hex32,
+});
+const AuthParams = z.object({
+  /** `HMAC-SHA256(token, "conveno/1 client " + challenge)`, hex. */
+  proof: Sha256Hex,
 });
 
 /* ---------- sessions ---------- */
@@ -156,6 +174,7 @@ export function makeEventNotification(payload: EventPayload): EventNotification 
 
 export const ipcMethods = {
   hello: { params: HelloParams, result: HelloResult },
+  auth: { params: AuthParams, result: z.object({ ok: z.literal(true) }) },
   "session.register": { params: RegisterParams, result: SessionResult },
   "session.heartbeat": {
     params: z.object(sid),
