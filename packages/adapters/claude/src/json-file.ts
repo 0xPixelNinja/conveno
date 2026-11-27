@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { applyEdits, modify } from "jsonc-parser";
 
 export type JsonObject = Record<string, unknown>;
 
@@ -47,6 +48,28 @@ function detectIndent(raw: string): string | number {
   return m[1].startsWith("\t") ? "\t" : m[1].length;
 }
 
-export function serialize(file: LoadedJson, value: JsonObject): string {
-  return JSON.stringify(value, null, file.indent) + (file.trailingNewline ? "\n" : "");
+/** One change: set `value` at `path`, or delete the key when `value` is undefined. */
+export interface JsonEdit {
+  path: (string | number)[];
+  value: unknown;
+}
+
+/**
+ * Apply edits to the file's own text. Only the touched keys change: other keys, duplicate keys,
+ * escapes, key order and line endings stay as they were, byte for byte.
+ */
+export function editJson(file: LoadedJson, edits: JsonEdit[]): string {
+  const bom = file.raw?.charCodeAt(0) === 0xfeff;
+  let text = file.raw === null || file.raw.trim() === "" ? "{}\n" : file.raw;
+  if (bom) text = text.slice(1);
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const formattingOptions = {
+    insertSpaces: file.indent !== "\t",
+    tabSize: typeof file.indent === "number" ? file.indent : 2,
+    eol,
+  };
+  for (const e of edits) {
+    text = applyEdits(text, modify(text, e.path, e.value, { formattingOptions }));
+  }
+  return (bom ? "\uFEFF" : "") + text;
 }

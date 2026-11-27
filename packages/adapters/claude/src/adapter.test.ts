@@ -240,6 +240,25 @@ describe("plan", () => {
   });
 });
 
+describe("byte-exact edits", () => {
+  const original =
+    '{\r\n  "a": 1,\r\n  "a": 2,\r\n  "path": "C:\\\\x\\u00e9\\/y",\r\n  "mcpServers": {"other": {"command": "x"}}\r\n}\r\n';
+
+  it("keeps duplicate keys, escapes and line endings outside our key", async () => {
+    await put(mcpPath(), original);
+    const [c] = await claudeAdapter.plan(env());
+    const after = c?.after ?? "";
+    expect(after).toContain('"a": 1,\r\n  "a": 2,\r\n  "path": "C:\\\\x\\u00e9\\/y"');
+    expect(after).not.toMatch(/[^\r]\n/);
+    expect(JSON.parse(after).mcpServers.conveno.command).toBe("conveno");
+    // Removing our key again gives back every other byte.
+    await writeFile(mcpPath(), after);
+    const [u] = await claudeAdapter.uninstallPlan(env());
+    expect(JSON.parse(u?.after ?? "").mcpServers).toEqual({ other: { command: "x" } });
+    expect(u?.after).toContain('"a": 1,\r\n  "a": 2,\r\n  "path": "C:\\\\x\\u00e9\\/y"');
+  });
+});
+
 describe("uninstallPlan", () => {
   it("is empty when nothing is installed", async () => {
     expect(await claudeAdapter.uninstallPlan(env())).toEqual([]);

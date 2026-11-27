@@ -33,4 +33,6 @@ Checked 2026-11-27.
 - Hooks format, SessionStart and UserPromptSubmit input and `additionalContext` output, timeout in seconds: https://code.claude.com/docs/en/hooks
 - Settings file locations, `CLAUDE_CONFIG_DIR`: https://code.claude.com/docs/en/settings
 
+Dependency: `jsonc-parser` (already used by the OpenCode adapter). The file fallback edits the existing text with `modify` and `applyEdits`, so only our keys change; duplicate keys, string escapes, key order and line endings elsewhere stay byte for byte. Claude Code rewrites `~/.claude.json` constantly, so a whole-file rewrite would lose or reformat its data.
+
 The docs do not show the exact user-scope layout of `~/.claude.json`. The `mcpServers` top-level key and the `type`/`command`/`args`/`env` entry shape follow what `claude mcp add` writes; verify with `claude mcp get conveno`.
