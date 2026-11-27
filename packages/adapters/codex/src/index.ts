@@ -20,8 +20,6 @@ import {
   serverOf,
 } from "./toml.js";
 
-export const PACKAGE_NAME = "@conveno/adapter-codex";
-
 const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit"] as const;
 type HookEvent = (typeof HOOK_EVENTS)[number];
 /** Seconds. The hook gives up after 2 s on its own; this leaves room for Node startup. Same as Claude. */

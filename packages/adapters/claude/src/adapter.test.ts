@@ -235,7 +235,7 @@ describe("plan", () => {
     const settings = changes[1] as ConfigChange;
     const command = JSON.parse(settings.after).hooks.UserPromptSubmit[0].hooks[0].command;
     expect(command).toBe(
-      '"C:/Program Files/nodejs/node.exe" "C:/Users/Dev User/AppData/Roaming/npm/node_modules/conveno/dist/bin.js" hook claude UserPromptSubmit',
+      '"C:/Program Files/nodejs/node.exe" "C:/Users/Dev User/AppData/Roaming/npm/node_modules/@conveno/cli/dist/bin.js" hook claude UserPromptSubmit',
     );
     // No backslash survives into the command, so neither the JSON file nor bash needs escapes.
     expect(command).not.toContain("\\");

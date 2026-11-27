@@ -129,7 +129,7 @@ describe("hook command on Windows", () => {
     );
     const command = JSON.parse(changes[1]?.after ?? "").hooks.SessionStart[0].hooks[0].command;
     expect(command).toBe(
-      '"C:/Program Files/nodejs/node.exe" "C:/Users/Dev User/AppData/Roaming/npm/node_modules/conveno/dist/bin.js" hook codex SessionStart',
+      '"C:/Program Files/nodejs/node.exe" "C:/Users/Dev User/AppData/Roaming/npm/node_modules/@conveno/cli/dist/bin.js" hook codex SessionStart',
     );
     expect(command).not.toContain("\\");
     expect(command).not.toContain("'");
