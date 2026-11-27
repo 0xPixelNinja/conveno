@@ -1,9 +1,9 @@
 # Contributing to Conveno
 
-Conveno is pre-alpha. The M1 local core is in progress. The protocol, daemon, client, core, MCP server
-and CLI are implemented, along with the Claude, Codex and OpenCode adapters. The relay, crypto, redact
-and account-web packages and the Antigravity, Copilot and Cursor adapters are still stubs, so the most
-useful contributions right now are protocol review, tests, docs and adapter research. Open an issue
+Conveno is pre-alpha. The local mesh is implemented: protocol, daemon, client, core, MCP server and
+CLI, with the Claude, Codex and OpenCode adapters. The relay, crypto, redact and account-web packages
+and the Antigravity, Copilot and Cursor adapters are planned and not implemented, so the most useful
+contributions right now are protocol review, tests, docs and adapter research. Open an issue
 before starting anything large.
 
 By taking part you agree to follow the [Code of Conduct](./CODE_OF_CONDUCT.md). Report security problems
@@ -28,16 +28,25 @@ node packages/cli/dist/bin.js init
 |---|---|
 | `pnpm lint` | Biome check (format, imports, lint) |
 | `pnpm format` | Biome format, writes changes |
+| `pnpm deps:check` | List outdated dependencies across the workspace (`pnpm outdated -r`); exits 1 when any are |
 | `pnpm typecheck` | `tsc` in every package, through turbo |
-| `pnpm smoke:pack` | Pack the publishable packages, install them with npm in a temp project and run the installed `conveno` |
+| `pnpm smoke:pack` | Pack `@conveno/cli`, install the tarball with npm in a temp project and run the installed `conveno` |
 | `pnpm build` | `tsdown` in every package, through turbo |
 | `pnpm test` | `vitest run` in every package, through turbo |
+| `pnpm check:release` | Check that the published package and the workspace versions agree |
 
-CI runs lint and typecheck once, then build and test on Ubuntu (Node 24 and 26) and Windows (Node
-24), plus an install check from packed tarballs. macOS joins on pushes to main and on request
-(`gh workflow run ci.yml --ref <branch> -f full=true`).
-Run them locally in that order before you push. Code must work on all three operating systems, so
-use `node:path` and avoid shell-specific commands.
+Run the scripts through pnpm, not `pnpm -r`: turbo runs the `generate` step that `build`,
+`typecheck` and `test` need.
+
+CI runs lint and typecheck once, then build and test on Ubuntu (Node 24 and 26), Windows and macOS
+(Node 24), plus an install check from the packed tarball on all three. It runs on every pull request
+and on pushes to main. A branch without a pull request can be checked with
+`gh workflow run ci.yml --ref <branch>`. Run the scripts locally in that order before you push. Code
+must work on all three operating systems, so use `node:path` and avoid shell-specific commands.
+
+Only `@conveno/cli` is published. The other packages are private workspace packages that `tsdown`
+bundles into it, so a third-party dependency of any of them must also be a dependency of
+`@conveno/cli` at the same exact version (`pnpm check:release` checks this).
 
 `packages/brand` generates its TypeScript and CSS from `brand/` in a turbo `generate` task that build, typecheck
 and test depend on. Edit `brand/tokens.json`, not the generated files.
@@ -48,8 +57,8 @@ Use Conventional Commits: `type(scope): subject`.
 
 - Subject in lowercase imperative mood, no trailing period, 72 characters or fewer.
 - Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `build`, `style`, `perf`.
-- Scopes: `brand`, `protocol`, `cli`, `daemon`, `mcp`, `core`, `crypto`, `relay`, `adapters`, `repo`,
-  `deps`.
+- Scopes: `brand`, `protocol`, `cli`, `client`, `daemon`, `mcp`, `core`, `crypto`, `relay`, `redact`,
+  `adapters`, `e2e`, `site`, `release`, `repo`, `deps`.
 - Use the body to say why, when the diff does not make it obvious.
 
 Examples:
@@ -72,20 +81,30 @@ docs(repo): explain delivery tiers
 
 ## Adding a CLI adapter
 
-Adapters live in `packages/adapters/<cli>`. Each one covers the same five jobs, and each declares the
-CLI versions it was tested on:
+Adapters live in `packages/adapters/<cli>` and implement the `Adapter` interface from
+`packages/core/src/adapter.ts`:
 
-1. **Detect** whether the CLI is installed and which version.
-2. **Install** the MCP server entry and hooks into the CLI's config, backing up every file it changes
-   so `conveno uninstall` can restore it.
-3. **Deliver** messages: live push if the CLI offers it, next-turn injection through a hook, and the
-   `inbox` fallback. Report which tier is active for `conveno doctor`.
-4. **Spawn** the unmodified official binary, visible or headless, with ACP where the CLI supports it.
-5. **Read transcripts** into the common `Turn[]` shape for `peek`. On an unknown format, return the raw
-   tail with a warning rather than failing.
+1. `detect(env)` reports whether the CLI is installed, its version and the config paths it uses.
+2. `plan(env)` returns the `ConfigChange` list that adds the Conveno MCP server entry and hooks to the
+   CLI's config. It is idempotent: empty when already installed. `conveno init` applies it and backs up
+   every file it changes. `uninstallPlan(env)` returns the reverse, for `conveno uninstall`.
+3. `hook(event, input, ctx)` handles a hook call from the CLI and returns its output. An adapter with
+   `deliveryTier: "next_turn"` injects pending messages into the next turn. One with
+   `deliveryTier: "inbox"` returns empty output, and the agent reads messages with the `inbox` tool.
+   `conveno doctor` reports the tier.
 
-Start with the CLI adapter request issue template, and add recorded hook payloads and transcripts as
-test fixtures for each supported version. Use only documented, official mechanisms.
+Use only documented, official mechanisms. Start with the CLI adapter request issue template, and add
+recorded hook payloads as test fixtures. Copy the layout of an existing adapter (`src/index.ts` plus
+focused modules and tests).
+
+Planned and not implemented yet: spawning the CLI (with ACP where it offers it), reading transcripts
+for `peek`, live push, and declaring the tested CLI versions.
+
+## Labels
+
+`.github/labels.yml` lists the issue and pull request labels: type, area (one per package), tier,
+`good first issue`, `help wanted`, `compliance` and `security`. A maintainer applies them with
+`gh label create --force`. Pick the area label that matches the package you change.
 
 ## Compliance rules
 

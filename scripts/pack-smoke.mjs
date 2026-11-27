@@ -1,6 +1,6 @@
-// Pack smoke test: packs every publishable package, installs the tarballs into a clean temp
-// project with plain npm (as a user would), then drives the installed `conveno` with an isolated
-// home and data directory. Run it after `pnpm build`: `pnpm smoke:pack`.
+// Pack smoke test: packs @conveno/cli, the one published package, installs the tarball into a clean
+// temp project with plain npm (as a user would), checks what landed, then drives the installed
+// `conveno` with an isolated home and data directory. Run it after `pnpm build`: `pnpm smoke:pack`.
 //
 // Exits non-zero on the first failure. Everything it creates lives under one temp directory that
 // is removed at the end, and the daemon is stopped before that.
@@ -78,7 +78,7 @@ async function mustRun(label, command, args, opts) {
   return r;
 }
 
-/** Packageable workspace members: every package.json under packages/ that is not private. */
+/** Publishable workspace members: every package.json under packages/ that is not private. */
 function publishablePackages() {
   const dirs = [];
   for (const top of readdirSync(join(root, "packages"), { withFileTypes: true })) {
@@ -99,23 +99,21 @@ function publishablePackages() {
 
 async function main(work) {
   const pkgs = publishablePackages();
-  check(pkgs.length > 0, "no publishable packages found");
-  const cli = pkgs.find((p) => p.manifest.name === "@conveno/cli");
-  check(cli, "@conveno/cli is not publishable");
-  log(`packing ${pkgs.map((p) => p.manifest.name).join(", ")}`);
+  check(
+    pkgs.length === 1 && pkgs[0].manifest.name === "@conveno/cli",
+    `only @conveno/cli may be published, found: ${pkgs.map((p) => p.manifest.name).join(", ") || "none"}`,
+  );
+  const cli = pkgs[0];
+  log(`packing ${cli.manifest.name}`);
 
   const tarballs = join(work, "tarballs");
   mkdirSync(tarballs);
-  for (const { dir, manifest } of pkgs) {
-    check(existsSync(join(dir, "dist")), `${manifest.name} has no dist, run pnpm build first`);
-    await mustRun(`pnpm pack ${manifest.name}`, "pnpm", ["pack", "--pack-destination", tarballs], {
-      cwd: dir,
-    });
-  }
+  check(existsSync(join(cli.dir, "dist", "bin.js")), "no dist/bin.js, run pnpm build first");
+  await mustRun("pnpm pack", "pnpm", ["pack", "--pack-destination", tarballs], { cwd: cli.dir });
   const files = readdirSync(tarballs)
     .filter((f) => f.endsWith(".tgz"))
     .map((f) => join(tarballs, f));
-  check(files.length === pkgs.length, `expected ${pkgs.length} tarballs, got ${files.length}`);
+  check(files.length === 1, `expected 1 tarball, got ${files.length}`);
 
   const project = join(work, "project");
   mkdirSync(project);
@@ -127,6 +125,8 @@ async function main(work) {
     ["install", "--no-audit", "--no-fund", "--loglevel=error", ...files],
     { cwd: project, timeout: 300_000 },
   );
+
+  checkInstalled(project);
 
   // Isolated identity: nothing here may touch the real home, data directory or daemon.
   const home = join(work, "home");
@@ -190,6 +190,25 @@ async function main(work) {
   } finally {
     if (daemonMayRun) await run(bin, ["daemon", "stop"], { cwd: home, env }).catch(() => {});
   }
+}
+
+/**
+ * What npm installed: the files the package promises, the daemon entry beside the command, and no
+ * other @conveno package (they are bundled, so nothing may resolve to a workspace copy).
+ */
+function checkInstalled(project) {
+  const installed = join(project, "node_modules", "@conveno", "cli");
+  for (const f of ["README.md", "LICENSE", "NOTICE", "dist/bin.js", "dist/daemon.js"]) {
+    check(existsSync(join(installed, f)), `the installed package is missing ${f}`);
+  }
+  const top = readdirSync(installed).sort();
+  check(
+    top.every((n) => ["README.md", "LICENSE", "NOTICE", "dist", "package.json"].includes(n)),
+    `unexpected files in the installed package: ${top.join(", ")}`,
+  );
+  const scope = readdirSync(join(project, "node_modules", "@conveno"));
+  check(scope.length === 1, `other @conveno packages were installed: ${scope.join(", ")}`);
+  log(`installed files ok (${top.join(", ")})`);
 }
 
 const EXPECTED_TOOLS = [

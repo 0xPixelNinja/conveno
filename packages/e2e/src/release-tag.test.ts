@@ -32,7 +32,7 @@ describe("check-release.mjs", () => {
   const script = resolve(import.meta.dirname, "../../../scripts/check-release.mjs");
   const run = (...args: string[]) =>
     spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
-  const version = run().stdout.match(/at (\S+),/)?.[1] ?? "";
+  const version = run().stdout.match(/@conveno\/cli (\S+),/)?.[1] ?? "";
 
   it("prints the dist-tag for the matching tag", () => {
     const r = run(`v${version}`, "--print-dist-tag");

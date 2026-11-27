@@ -1,6 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
-import type { Adapter, AdapterEnv, ConfigChange, Detection, HookOutput } from "@conveno/core";
+import {
+  type Adapter,
+  type AdapterEnv,
+  type ConfigChange,
+  type Detection,
+  type HookOutput,
+  parseCliVersion,
+} from "@conveno/core";
 import { applyEdits, modify, type ParseError, parse, printParseErrorCode } from "jsonc-parser";
 
 const SERVER_NAME = "conveno";
@@ -148,7 +155,7 @@ async function detect(env: AdapterEnv): Promise<Detection> {
   try {
     const res = await env.exec("opencode", ["--version"]);
     if (res.code !== 0) return { installed: false, configPaths };
-    const version = res.stdout.trim().split(/\s+/).pop();
+    const version = parseCliVersion(res.stdout);
     return { installed: true, binary: "opencode", configPaths, ...(version ? { version } : {}) };
   } catch {
     return { installed: false, configPaths };
@@ -211,7 +218,7 @@ async function uninstallPlan(env: AdapterEnv): Promise<ConfigChange[]> {
 }
 
 async function hook(): Promise<HookOutput> {
-  // OpenCode has no hook injection in M1; delivery is through the inbox tool.
+  // OpenCode has no hook injection yet; delivery is through the inbox tool.
   return { stdout: "", exitCode: 0 };
 }
 

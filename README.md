@@ -11,6 +11,8 @@
 
 Conveno lets AI coding CLI sessions on one machine find each other, send messages, and route work to the one session you pick as the orchestrator. You keep using each CLI the way you do today.
 
+[conveno.dev](https://conveno.dev) · [npm](https://www.npmjs.com/package/@conveno/cli) · [GitHub](https://github.com/0xPixelNinja/conveno) · [Issues](https://github.com/0xPixelNinja/conveno/issues)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="brand/assets/readme-terminal-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="brand/assets/readme-terminal-light.svg">
@@ -187,15 +189,26 @@ pnpm build       # tsdown through turbo
 pnpm test        # vitest through turbo
 ```
 
-The packages are under [`packages/`](./packages). `packages/brand` generates its sources from
-`brand/` on every build, typecheck and test, so run the scripts through pnpm.
-[CONTRIBUTING.md](./CONTRIBUTING.md) has the commit style, the pull request flow and how to add a CLI
-adapter.
+The packages are under [`packages/`](./packages). Only `@conveno/cli` is published to npm; it bundles
+the protocol, core, client, daemon, MCP server, brand and adapter packages, which are private
+workspace packages. `packages/brand` generates its sources from `brand/` on every build, typecheck
+and test, so run the scripts through pnpm. [CONTRIBUTING.md](./CONTRIBUTING.md) has the commit
+style, the pull request flow and how to add a CLI adapter, and [RELEASING.md](./RELEASING.md) how a
+release is made.
+
+### Planned
+
+These packages are placeholders. They are not implemented, not published and not used by the CLI:
+[`relay`](./packages/relay), [`crypto`](./packages/crypto), [`redact`](./packages/redact),
+[`account-web`](./packages/account-web), and the
+[Antigravity](./packages/adapters/antigravity), [Cursor](./packages/adapters/cursor) and
+[Copilot](./packages/adapters/copilot) adapters.
 
 ## License
 
-The code is Apache-2.0, except [`packages/relay`](./packages/relay), which is AGPL-3.0-only. See
-[LICENSE](./LICENSE) and each package's own `LICENSE`.
+The code is Apache-2.0, except the planned [`packages/relay`](./packages/relay), which is
+AGPL-3.0-only and has its own `LICENSE`. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
 
 The brand assets in [`brand/`](./brand) are copyright 0xPixelNinja and have their own terms in
 [`brand/LICENSE.md`](./brand/LICENSE.md). You may use them to refer to Conveno, not for other products.
+The `@conveno/cli` package on npm contains none of them.

@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { chmod, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import claudeAdapter from "@conveno/adapter-claude";
 import codexAdapter from "@conveno/adapter-codex";
 import { connect } from "@conveno/client";
@@ -485,7 +487,10 @@ describe("daemon", () => {
       const c = await make();
       const inner = fakeDaemon(c);
       const wrapped = c.connect;
-      c.connect = ((o: { autoStart?: boolean }) => (seen.push(o), wrapped(o as never))) as never;
+      c.connect = ((o: { autoStart?: boolean }) => {
+        seen.push(o);
+        return wrapped(o as never);
+      }) as never;
       expect(await main(["daemon", "stop"], c)).toBe(0);
       expect(inner.shutdowns).toBe(1);
       expect(seen.length).toBeGreaterThan(0);
@@ -638,7 +643,10 @@ describe("daemon", () => {
         daemonEntry: "/work/conveno/packages/daemon/dist/bin.js",
         isAlive: (pid) => alive.has(pid),
         commandLineOf: async () => "node /work/conveno/packages/daemon/dist/bin.js",
-        kill: (pid) => (killed.push(pid), void alive.delete(pid)),
+        kill: (pid) => {
+          killed.push(pid);
+          void alive.delete(pid);
+        },
       });
       await seed(dataPaths(c.platform, c.dataDir).lock, JSON.stringify({ pid: 4242 }));
       expect(await main(["daemon", "stop"], c)).toBe(0);
@@ -777,15 +785,15 @@ describe("hook", () => {
   it("delivers queued messages through the adapter, matching the hook's host pid to the session", async () => {
     const asked: number[] = [];
     const c = await make({
-      ancestry: async (ms) => (
-        asked.push(ms),
-        {
+      ancestry: async (ms) => {
+        asked.push(ms);
+        return {
           entries: [{ pid: process.pid }],
           pids: [process.pid],
           hostPid: process.pid,
           complete: true,
-        }
-      ),
+        };
+      },
       readStdin: async () => '{"hook_event_name":"SessionStart"}',
     });
     await withPair(c, { hostPid: process.pid, hostPids: [process.pid] }, async () => {
@@ -883,7 +891,10 @@ describe("hook", () => {
     const seen: { autoStart?: boolean }[] = [];
     const c = await make();
     const real = c.connect;
-    c.connect = ((o: { autoStart?: boolean }) => (seen.push(o), real(o as never))) as never;
+    c.connect = ((o: { autoStart?: boolean }) => {
+      seen.push(o);
+      return real(o as never);
+    }) as never;
     expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
     expect(c.outText()).toBe("");
     expect(c.errText()).toBe("");
@@ -960,10 +971,23 @@ describe("conveno command and daemon entry", () => {
     },
   );
 
-  it("resolves the daemon entry through this package's own dependency", () => {
-    const entry = resolveDaemonEntry();
-    expect(entry).toBeDefined();
-    expect(entry).toMatch(/conveno-daemon|daemon/);
-    expect(existsSync(entry as string)).toBe(true);
+  it("finds daemon.js next to the running script", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cvdaemon-"));
+    try {
+      await writeFile(join(dir, "daemon.js"), "");
+      const entry = resolveDaemonEntry(pathToFileURL(join(dir, "bin.js")));
+      expect(entry).toBe(join(dir, "daemon.js"));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("has no daemon entry when daemon.js is not built next to the script", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cvdaemon-"));
+    try {
+      expect(resolveDaemonEntry(pathToFileURL(join(dir, "bin.js")))).toBeUndefined();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

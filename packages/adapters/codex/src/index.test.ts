@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type AdapterEnv, type ConfigChange, type ConvenoClient } from "@conveno/core";
+import type { AdapterEnv, ConfigChange, ConvenoClient } from "@conveno/core";
 import { type Message, newMessageId, newSessionId } from "@conveno/protocol";
 import { parse } from "@decimalturn/toml-patch";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -47,7 +47,17 @@ const textMessage = (text: string): Message =>
     fromName: "codex@api-2",
     fromCli: "codex",
   }) as Message;
-const asToml = (s: string) => parse(s) as Record<string, any>;
+const asToml = (s: string): unknown => parse(s);
+
+/** Reads a nested value from parsed config; undefined when any step is missing. */
+function at(root: unknown, ...path: string[]): unknown {
+  let cur = root;
+  for (const key of path) {
+    if (typeof cur !== "object" || cur === null) return undefined;
+    cur = (cur as Record<string, unknown>)[key];
+  }
+  return cur;
+}
 
 describe("exports", () => {
   it("default and named export are the adapter", () => {
@@ -86,7 +96,7 @@ describe("plan on an empty home", () => {
     // `codex mcp add` cannot set the approval mode, so the whole entry is written directly.
     expect(mcp.viaCommand).toBeUndefined();
     expect(mcp.description).toContain("without asking each time");
-    expect(asToml(mcp.after).mcp_servers.conveno).toEqual({
+    expect(at(asToml(mcp.after), "mcp_servers", "conveno")).toEqual({
       command: "conveno",
       args: ["mcp", "--cli", "codex"],
       default_tools_approval_mode: "approve",
@@ -105,9 +115,14 @@ describe("plan on an empty home", () => {
     const changes = await named.plan(
       env({ conveno: { command: ["node", "/opt/my tools/conveno.js"] } }),
     );
-    const mcp = asToml(changes[0]?.after ?? "").mcp_servers.conveno;
-    expect(mcp.command).toBe("node");
-    expect(mcp.args).toEqual(["/opt/my tools/conveno.js", "mcp", "--cli", "codex"]);
+    const mcp = asToml(changes[0]?.after ?? "");
+    expect(at(mcp, "mcp_servers", "conveno", "command")).toBe("node");
+    expect(at(mcp, "mcp_servers", "conveno", "args")).toEqual([
+      "/opt/my tools/conveno.js",
+      "mcp",
+      "--cli",
+      "codex",
+    ]);
     expect(JSON.parse(changes[1]?.after ?? "").hooks.SessionStart[0].hooks[0].command).toBe(
       "node '/opt/my tools/conveno.js' hook codex SessionStart",
     );
@@ -122,14 +137,14 @@ describe("hook command on Windows", () => {
         conveno: {
           command: [
             "C:\\Program Files\\nodejs\\node.exe",
-            "C:\\Users\\Dev User\\AppData\\Roaming\\npm\\node_modules\\conveno\\dist\\bin.js",
+            "C:\\Users\\Dev User\\AppData\\Roaming\\npm\\node_modules\\@conveno\\cli\\dist\\bin.js",
           ],
         },
       }),
     );
     const command = JSON.parse(changes[1]?.after ?? "").hooks.SessionStart[0].hooks[0].command;
     expect(command).toBe(
-      '"C:/Program Files/nodejs/node.exe" "C:/Users/Dev User/AppData/Roaming/npm/node_modules/conveno/dist/bin.js" hook codex SessionStart',
+      '"C:/Program Files/nodejs/node.exe" "C:/Users/Dev User/AppData/Roaming/npm/node_modules/@conveno/cli/dist/bin.js" hook codex SessionStart',
     );
     expect(command).not.toContain("\\");
     expect(command).not.toContain("'");
@@ -163,14 +178,14 @@ model = "mini"
     expect(mcp?.before).toBe(existing);
     expect(mcp?.after.startsWith(existing)).toBe(true);
     const doc = asToml(mcp?.after ?? "");
-    expect(doc.mcp_servers.docs.command).toBe("npx");
-    expect(doc.mcp_servers.conveno.command).toBe("conveno");
-    expect(doc.profiles.fast.model).toBe("mini");
+    expect(at(doc, "mcp_servers", "docs", "command")).toBe("npx");
+    expect(at(doc, "mcp_servers", "conveno", "command")).toBe("conveno");
+    expect(at(doc, "profiles", "fast", "model")).toBe("mini");
   });
   it("adds a separator when the file has no trailing newline", async () => {
     await write(cfg(), 'model = "x"');
     const [mcp] = await named.plan(env());
-    expect(asToml(mcp?.after ?? "").mcp_servers.conveno.command).toBe("conveno");
+    expect(at(asToml(mcp?.after ?? ""), "mcp_servers", "conveno", "command")).toBe("conveno");
     expect(mcp?.after.startsWith('model = "x"\n\n[mcp_servers.conveno]')).toBe(true);
   });
   it("keeps other hooks and unrelated hooks.json keys", async () => {
@@ -197,10 +212,12 @@ model = "mini"
     const changes = await named.plan(moved);
     expect(changes).toHaveLength(2);
     expect(changes[0]?.viaCommand).toBeUndefined();
-    expect(asToml(changes[0]?.after ?? "").mcp_servers.conveno.default_tools_approval_mode).toBe(
-      "approve",
+    expect(
+      at(asToml(changes[0]?.after ?? ""), "mcp_servers", "conveno", "default_tools_approval_mode"),
+    ).toBe("approve");
+    expect(at(asToml(changes[0]?.after ?? ""), "mcp_servers", "conveno", "command")).toBe(
+      "/new/conveno",
     );
-    expect(asToml(changes[0]?.after ?? "").mcp_servers.conveno.command).toBe("/new/conveno");
     const h = JSON.parse(changes[1]?.after ?? "");
     expect(h.hooks.SessionStart).toHaveLength(1);
     expect(h.hooks.SessionStart[0].hooks[0].command).toBe("/new/conveno hook codex SessionStart");
@@ -215,9 +232,9 @@ describe("tool approval", () => {
     );
     const changes = await named.plan(env());
     const mcp = changes.find((c) => c.path === cfg());
-    expect(asToml(mcp?.after ?? "").mcp_servers.conveno.default_tools_approval_mode).toBe(
-      "approve",
-    );
+    expect(
+      at(asToml(mcp?.after ?? ""), "mcp_servers", "conveno", "default_tools_approval_mode"),
+    ).toBe("approve");
     expect(mcp?.description).toMatch(/^Update/);
   });
   it("keeps a mode the user set on the conveno server", async () => {
@@ -231,7 +248,7 @@ describe("tool approval", () => {
     await write(cfg(), `[mcp_servers.docs]\ncommand = "d"\n`);
     const mcp = (await named.plan(env())).find((c) => c.path === cfg());
     const doc = asToml(mcp?.after ?? "");
-    expect(doc.mcp_servers.docs).toEqual({ command: "d" });
+    expect(at(doc, "mcp_servers", "docs")).toEqual({ command: "d" });
     expect(mcp?.after.match(/default_tools_approval_mode/g)).toHaveLength(1);
   });
 });
@@ -280,10 +297,10 @@ describe("idempotence and uninstall", () => {
   it("falls back to a patch when conveno is defined inline", async () => {
     await write(cfg(), `# c\n[mcp_servers]\nconveno = { command = "old", args = [] }\n`);
     const [c] = await named.plan(env());
-    expect(asToml(c?.after ?? "").mcp_servers.conveno.command).toBe("conveno");
+    expect(at(asToml(c?.after ?? ""), "mcp_servers", "conveno", "command")).toBe("conveno");
     expect(c?.after).toContain("# c");
     const [u] = await named.uninstallPlan(env());
-    expect(asToml(u?.after ?? "").mcp_servers?.conveno).toBeUndefined();
+    expect(at(asToml(u?.after ?? ""), "mcp_servers", "conveno")).toBeUndefined();
   });
 });
 
@@ -322,8 +339,14 @@ describe("hook", () => {
   it("passes the host pid to session.byHost and the session id to deliver", async () => {
     const calls: unknown[] = [];
     const client = fakeClient({
-      "session.byHost": async (p: unknown) => (calls.push(p), { session }),
-      "message.deliver": async (p: unknown) => (calls.push(p), { messages: [], remaining: 0 }),
+      "session.byHost": async (p: unknown) => {
+        calls.push(p);
+        return { session };
+      },
+      "message.deliver": async (p: unknown) => {
+        calls.push(p);
+        return { messages: [], remaining: 0 };
+      },
     });
     await named.hook("UserPromptSubmit", {}, { client, hostPid: 7 });
     expect(calls).toEqual([{ pid: 7 }, { sessionId: session.id }]);

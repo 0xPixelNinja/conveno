@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { messageFixture, NOW, sessionFixture } from "./fixtures.js";
 import { newMessageId, newSessionId, newTicketId } from "./ids.js";
 import {
   EVENT_NAMES,
@@ -11,6 +10,7 @@ import {
   parseIpcRequest,
 } from "./ipc.js";
 import { makeRequest, RpcErrorCode, RpcResponse } from "./rpc.js";
+import { messageFixture, NOW, sessionFixture } from "./test-utils.js";
 import { PROTOCOL_VERSION } from "./version.js";
 
 const sid = newSessionId();

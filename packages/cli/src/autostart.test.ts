@@ -14,7 +14,10 @@ async function recording() {
   ctxs.push(c);
   const seen: { autoStart?: boolean }[] = [];
   const real = c.connect;
-  c.connect = ((o: { autoStart?: boolean }) => (seen.push(o), real(o as never))) as never;
+  c.connect = ((o: { autoStart?: boolean }) => {
+    seen.push(o);
+    return real(o as never);
+  }) as never;
   return { c, seen };
 }
 

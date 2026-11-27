@@ -1,5 +1,6 @@
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { dataPaths } from "@conveno/core";
 import type { Ctx } from "./ctx.js";
 import { VERSION } from "./version.js";
 
@@ -20,7 +21,7 @@ export async function writeErrorLog(
   e: unknown,
 ): Promise<string | undefined> {
   try {
-    const dir = join(ctx.dataDir, "logs");
+    const dir = dataPaths(ctx.platform, ctx.dataDir).logs;
     await mkdir(dir, { recursive: true, mode: 0o700 });
     const stamp = ctx.now().toISOString().replace(/[:.]/g, "-");
     const file = join(dir, `${stamp}-error.log`);

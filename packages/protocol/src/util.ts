@@ -11,7 +11,7 @@ export function utf8ByteLength(s: string): number {
  */
 export function sanitizeLine(s: string): string {
   return s
-    .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ")
+    .replace(/[\p{Cc}\u2028\u2029]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

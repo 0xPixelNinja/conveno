@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 import { isConvenoDaemonCommand } from "./daemon.js";
 
 describe("isConvenoDaemonCommand", () => {
-  it("accepts the installed daemon entry on every OS", () => {
+  it("accepts the daemon.js of an installed @conveno/cli on every OS", () => {
+    for (const line of [
+      "node /usr/lib/node_modules/@conveno/cli/dist/daemon.js",
+      '"C:\\Program Files\\nodejs\\node.exe" C:\\Users\\u\\AppData\\Roaming\\npm\\node_modules\\@conveno\\cli\\dist\\daemon.js',
+      "/usr/bin/node /home/u/.local/share/pnpm/global/5/.pnpm/@conveno+cli@0.1.1/node_modules/@conveno/cli/dist/daemon.js",
+    ]) {
+      expect(isConvenoDaemonCommand(line), line).toBe(true);
+    }
+  });
+
+  it("still accepts the daemon package of releases before 0.1.1", () => {
     for (const line of [
       "node /usr/lib/node_modules/@conveno/cli/node_modules/@conveno/daemon/dist/bin.js",
       '"C:\\Program Files\\nodejs\\node.exe" C:\\Users\\u\\AppData\\Roaming\\npm\\node_modules\\@conveno\\cli\\node_modules\\@conveno\\daemon\\dist\\bin.js',
@@ -30,6 +40,8 @@ describe("isConvenoDaemonCommand", () => {
       "/usr/bin/vim notes-about-@conveno/daemon.txt",
       "node /x/@conveno/daemon/dist/other.js",
       "node /x/@conveno/daemon-extras/dist/bin.js",
+      "node /x/@conveno/cli/dist/bin.js",
+      "node /x/@conveno/cli-extras/dist/daemon.js",
     ]) {
       expect(isConvenoDaemonCommand(line, "/work/conveno/packages/daemon/dist/bin.js"), line).toBe(
         false,

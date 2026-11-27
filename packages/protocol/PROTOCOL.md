@@ -125,8 +125,8 @@ auto-answer on timeout.
   username is taken from `USERNAME`, with characters outside `[A-Za-z0-9._-]` replaced by `_`.
 - Helper: `defaultSocketPath(platform, env, homedir?)` (pure function).
 - Unix socket paths are limited to roughly 104 (macOS) to 108 (Linux) bytes.
-- A per-boot auth token file readable only by the user is the shared secret for the mutual
-  handshake in section 6.4. The token itself is never sent over the socket.
+- An auth token file (`daemon.token`, mode 0600) is the shared secret for the mutual handshake in
+  section 6.4. The daemon creates it on first start and keeps it until the user deletes it. The token itself is never sent over the socket.
 
 ### 6.2 Framing
 
@@ -190,7 +190,7 @@ Session-scoped methods carry the caller's `sessionId` explicitly. The last colum
 `session.setStatus` strips control characters (newlines included) from `statusText` and collapses
 whitespace before storing it.
 
-Session-to-connection binding is deferred to M2: any authenticated connection can act as any
+Session-to-connection binding is not yet implemented: any authenticated connection can act as any
 session id it knows. The token is the only boundary, and it is per user.
 
 `session.list` takes its filter fields at the top level of `params` (not nested under a `filter`
@@ -242,7 +242,7 @@ connection:
 | `session.updated` | `{ session, change: "registered"\|"updated"\|"unregistered"\|"offline" }` |
 | `orchestrator.changed` | `{ orchestrator: SessionId\|null, previous: SessionId\|null }` |
 
-## 7. Relay wire (M4; schemas only for now)
+## 7. Relay wire (planned; schemas only for now)
 
 Transport: one WebSocket per device to the account's relay room; each WebSocket text message is
 one JSON frame. Frames are discriminated by `t`. All frames except `ack` and `error` carry
@@ -250,7 +250,7 @@ one JSON frame. Frames are discriminated by `t`. All frames except `ack` and `er
 
 | `t` | Fields |
 |---|---|
-| `hello` | `v, accountId, deviceId, sig, ts`. First frame. `sig` is an Ed25519 signature (base64) by the device's signing key over the canonical string defined with the crypto package in M4. |
+| `hello` | `v, accountId, deviceId, sig, ts`. First frame. `sig` is an Ed25519 signature (base64) by the device's signing key over the canonical string defined with the crypto package (planned). |
 | `envelope` | `v, id: MessageId, fromDevice, toDevice, nonce, ciphertext, sig, ts`. `nonce` is a 24-byte `crypto_box` nonce (base64, 32 chars). `ciphertext` is base64, at most 524,288 chars. `sig` is the sender device's Ed25519 signature over the envelope fields. |
 | `ack` | `id: MessageId`. Receiver confirms an envelope; the relay may then drop it from the offline queue. |
 | `error` | `code: string (1..64), message: string (<= 1000)` |

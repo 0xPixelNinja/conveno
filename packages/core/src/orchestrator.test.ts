@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ConvenoError, NO_ORCHESTRATOR_MESSAGE } from "./errors.js";
 import { claimOrchestrator, effectiveHolder, holderAfterDeparture } from "./orchestrator.js";
 import { resolveRecipient } from "./recipient.js";
-import { sess } from "./testing.js";
+import { sess } from "./test-utils.js";
 
 describe("orchestrator", () => {
   const a = sess("claude@api-1");

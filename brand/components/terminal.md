@@ -265,7 +265,7 @@ The default is `N`. Without a terminal and without `--yes` it fails with exit 2,
 
 ### `conveno status`
 
-In M1 there is no relay, so the first line says `relay: off (local only)`. The first line has no leading `✓`. Sessions are grouped by repo; the grouping by device below applies once devices are paired.
+Until the relay exists, so the first line says `relay: off (local only)`. The first line has no leading `✓`. Sessions are grouped by repo; the grouping by device below applies once devices are paired.
 
 ```text
 $ conveno status

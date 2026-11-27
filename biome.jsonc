@@ -21,7 +21,15 @@
     "lineWidth": 100,
     "lineEnding": "lf"
   },
-  "linter": { "enabled": true, "rules": { "preset": "none" } },
+  "linter": { "enabled": true, "rules": { "preset": "recommended" } },
+  "overrides": [
+    {
+      // site/ is one static page with hand-ordered rules, and its CSS is only fixed for facts.
+      // Moving rules to satisfy this check would change the page for no reader benefit.
+      "includes": ["site/**"],
+      "linter": { "rules": { "style": { "noDescendingSpecificity": "off" } } }
+    }
+  ],
   "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
   "javascript": {
     "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all" }

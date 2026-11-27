@@ -1,7 +1,7 @@
 {
   "name": "@conveno/cli",
   "version": "0.1.1-rc.1",
-  "description": "The conveno command: connect AI coding CLI sessions so they can message each other.",
+  "description": "Connect AI coding CLI sessions so they can message each other.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -26,18 +26,11 @@
   "bin": {
     "conveno": "./dist/bin.js"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "engines": {
     "node": ">=24"
@@ -49,9 +42,16 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "prepack": "node ../../scripts/copy-license.mjs"
+    "prepack": "node ../../scripts/copy-legal.mjs"
   },
   "dependencies": {
+    "@decimalturn/toml-patch": "3.3.3",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "jsonc-parser": "3.3.1",
+    "ulid": "3.0.2",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
     "@conveno/adapter-claude": "workspace:*",
     "@conveno/adapter-codex": "workspace:*",
     "@conveno/adapter-opencode": "workspace:*",

@@ -34,7 +34,10 @@ describe("evaluateLiveness", () => {
   });
   it("passes the pid to isAlive", () => {
     const seen: number[] = [];
-    evaluateLiveness({ lastSeenMs: 0, hostPid: 77 }, 1, (p) => (seen.push(p), true));
+    evaluateLiveness({ lastSeenMs: 0, hostPid: 77 }, 1, (p) => {
+      seen.push(p);
+      return true;
+    });
     expect(seen).toEqual([77]);
   });
   it("maps verdicts to status", () => {

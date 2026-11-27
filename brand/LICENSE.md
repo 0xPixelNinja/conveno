@@ -19,7 +19,7 @@ code must use its own name and its own mark.
 
 The brand uses Schibsted Grotesk, IBM Plex Sans and IBM Plex Mono. All three are licensed under the
 SIL Open Font License 1.1 (https://openfontlicense.org). Font files are not stored in this
-repository; the scripts download them from the Google Fonts repository. The wordmark in `assets/`
+repository; they are available from Google Fonts (https://fonts.google.com). The wordmark in `assets/`
 is outlined from Schibsted Grotesk and the glyphs in some motion SVGs are outlined from IBM Plex
 Mono, as the OFL permits.
 

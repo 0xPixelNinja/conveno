@@ -1,4 +1,4 @@
-import { RpcErrorCode } from "@conveno/protocol";
+import type { RpcErrorCode } from "@conveno/protocol";
 
 /** A rule violation that maps directly onto a JSON-RPC error the daemon can return. */
 export class ConvenoError extends Error {

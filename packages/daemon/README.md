@@ -4,6 +4,8 @@
 Unix socket or Windows named pipe, stores sessions and messages in SQLite, and tracks which sessions
 are alive. All rules (naming, liveness, orchestrator, mailbox) come from `@conveno/core`.
 
+This is a private workspace package. `@conveno/cli` bundles it and ships it as `dist/daemon.js`.
+
 ## API
 
 ```ts
@@ -19,7 +21,7 @@ startDaemon(opts: {
 ```
 
 `sweep()` runs one liveness and idle check immediately; tests use it with a fake clock.
-The `convenod` bin (`dist/bin.js`) reads the data directory from core's `dataDir()` and exits on
+The daemon entry (`src/bin.ts`, shipped as `dist/daemon.js` inside `@conveno/cli`) reads the data directory from core's `dataDir()` and exits on
 SIGINT or SIGTERM after closing cleanly.
 
 ## Behaviour
@@ -35,6 +37,7 @@ SIGINT or SIGTERM after closing cleanly.
 - Single instance: `<data>/daemon.lock` holds the pid and socket path of the owner. A lock is stale
   unless its pid is alive and the socket recorded in the lock answers (or the lock is under 5 s old). On POSIX a leftover socket file is removed only when nothing answers on it.
 - Shutdown: `daemon.shutdown` replies `{ ok: true }`, then stops listening, closes the store, removes the socket (POSIX) and the lock file, and exits 0. `conveno daemon stop` uses it.
+- Log: unexpected errors, with their stacks, go to `<data>/logs/daemon.log` (mode 0600). At 1 MiB the file moves to `daemon.log.1`, replacing the older one. Request parameters are never logged. The reply to the client names this path.
 - Hook lookup: `session.byHost` takes the hook's host pid and returns the one online session whose `hostPid` equals it. No walking to ancestors; none or two matches give `null`.
 - Liveness: every 15 s sessions with no heartbeat for 45 s, or whose `hostPid` (the CLI hosting the MCP server) is gone, go `offline`.
   The orchestrator role is vacated, never passed on. After a daemon restart each session gets a full
@@ -52,13 +55,13 @@ SIGINT or SIGTERM after closing cleanly.
   run of the CLI registers as a new session. Online sessions are never deleted.
 - Status text is reduced to one line: control characters become spaces and whitespace collapses.
 - Clients cannot send `system` messages, and `conveno`, `orchestrator`, `system` and `user` are
-  reserved session names. Binding a session to the connection that registered it is deferred to M2.
+  reserved session names. Binding a session to the connection that registered it is planned.
 - Idle exit: after `idleExitMs` with no online sessions.
 - `session.unregister` marks the session offline (the row stays so old messages keep their sender).
 - `session.list` `repo` matches the repo root path or its basename.
-- `ticket.*`, `spawn.*` and `peek.*` return `-32601` until their milestones.
+- `ticket.*`, `spawn.*` and `peek.*` return `-32601` because they are not implemented yet.
 
-Known gap, deferred to M2: there is no socket backpressure. A client that stops reading can make the
+Known gap, planned: there is no socket backpressure. A client that stops reading can make the
 daemon buffer its pending writes in memory.
 
 No runtime dependencies beyond `protocol` and `core`.

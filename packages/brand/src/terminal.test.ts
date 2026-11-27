@@ -91,7 +91,7 @@ describe("paint", () => {
     const t = createTheme({ env: { COLORTERM: "truecolor" }, isTTY: true, platform: "linux" });
     expect(t.paint("ink", "x")).toBe("x");
     expect(t.paint("ink", "x", { bold: true })).toBe("\u001b[1mx\u001b[0m");
-    expect(t.mark()).toMatch(/^c\u001b\[/);
+    expect(t.mark().startsWith("c\u001b[")).toBe(true);
     expect(t.status("busy")).toBe("●");
   });
   it("emits the 256 index and the 16-colour code", () => {

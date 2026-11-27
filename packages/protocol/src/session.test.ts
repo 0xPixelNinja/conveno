@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { sessionFixture } from "./fixtures.js";
 import { newSessionId } from "./ids.js";
 import { CLI_KINDS, SessionName } from "./primitives.js";
 import { Session } from "./session.js";
+import { sessionFixture } from "./test-utils.js";
 
 describe("SessionName", () => {
   it.each(["a", "claude@repo-1", "codex.2", "0abc", "a_b", "x".repeat(64)])("accepts %s", (n) => {

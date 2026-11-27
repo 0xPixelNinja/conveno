@@ -4,4 +4,9 @@ packages:
 
 allowBuilds:
   esbuild: true
-  skills: false
+
+# tsdown ships agent skills for its own docs. Conveno does not use them.
+# https://pnpm.io/settings/build#permissions
+permissions:
+  tsdown:
+    skills: false

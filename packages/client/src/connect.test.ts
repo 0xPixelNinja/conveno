@@ -3,14 +3,14 @@ import { join } from "node:path";
 import { ConvenoError } from "@conveno/core";
 import { type EventPayload, newSessionId, RpcErrorCode } from "@conveno/protocol";
 import { afterEach, describe, expect, it } from "vitest";
+import { connect } from "./index.js";
 import {
   type FakeServer,
   startFakeServer,
   TOKEN,
   tempDataDir,
   tempSocketPath,
-} from "./fakeServer.js";
-import { connect } from "./index.js";
+} from "./test-utils.js";
 
 const servers: FakeServer[] = [];
 const closers: Array<() => Promise<void>> = [];
@@ -151,6 +151,13 @@ describe("connect", () => {
     await expect(
       connect({ kind: "cli", dataDir: dir, socketPath: tempSocketPath(dir), autoStart: false }),
     ).rejects.toThrow(/No Conveno daemon is listening.*conveno daemon start/);
+  });
+
+  it("will not guess where the daemon program is when auto-start has no daemonEntry", async () => {
+    const dir = await tempDataDir();
+    await expect(
+      connect({ kind: "cli", dataDir: dir, socketPath: tempSocketPath(dir) }),
+    ).rejects.toThrow(/Cannot find the Conveno daemon program.*daemonEntry/);
   });
 
   it.skipIf(process.platform === "win32")(

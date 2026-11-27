@@ -35,7 +35,17 @@ async function seed(name: string, text: string): Promise<string> {
 
 const ENTRY = { type: "local", command: ["conveno", "mcp", "--cli", "opencode"] };
 
-const parsed = (s: string | undefined): any => parse(s ?? "");
+const parsed = (s: string | undefined): unknown => parse(s ?? "");
+
+/** Reads a nested value from parsed config; undefined when any step is missing. */
+function at(root: unknown, ...path: string[]): unknown {
+  let cur = root;
+  for (const key of path) {
+    if (typeof cur !== "object" || cur === null) return undefined;
+    cur = (cur as Record<string, unknown>)[key];
+  }
+  return cur;
+}
 
 describe("opencodeAdapter", () => {
   it("has the expected identity", () => {
@@ -57,9 +67,9 @@ describe("opencodeAdapter", () => {
     );
     const [c] = await opencodeAdapter.plan(envFor());
     const after = parsed(c?.after);
-    expect(after.theme).toBe("x");
-    expect(after.mcp.servers.other).toEqual({ type: "local", command: ["a"] });
-    expect(after.mcp.servers.conveno).toEqual(ENTRY);
+    expect(at(after, "theme")).toBe("x");
+    expect(at(after, "mcp", "servers", "other")).toEqual({ type: "local", command: ["a"] });
+    expect(at(after, "mcp", "servers", "conveno")).toEqual(ENTRY);
   });
 
   it("preserves comments and trailing commas in JSONC", async () => {
@@ -80,7 +90,7 @@ describe("opencodeAdapter", () => {
     expect(c?.after).toContain("// my theme");
     expect(c?.after).toContain("/* inline */");
     expect(c?.after).toContain("// keep me");
-    expect(parsed(c?.after).mcp.servers.conveno).toEqual(ENTRY);
+    expect(at(parsed(c?.after), "mcp", "servers", "conveno")).toEqual(ENTRY);
   });
 
   it("is idempotent when already installed", async () => {
@@ -94,7 +104,7 @@ describe("opencodeAdapter", () => {
       JSON.stringify({ mcp: { servers: { conveno: { type: "local", command: ["old"] } } } }),
     );
     const [c] = await opencodeAdapter.plan(envFor());
-    expect(parsed(c?.after).mcp.servers.conveno).toEqual(ENTRY);
+    expect(at(parsed(c?.after), "mcp", "servers", "conveno")).toEqual(ENTRY);
   });
 
   it("refuses a malformed config without changing it", async () => {
@@ -114,8 +124,8 @@ describe("opencodeAdapter", () => {
     );
     const [c] = await opencodeAdapter.uninstallPlan(envFor());
     const after = parsed(c?.after);
-    expect(after.mcp.servers.conveno).toBeUndefined();
-    expect(after.mcp.servers.other).toBeDefined();
+    expect(at(after, "mcp", "servers", "conveno")).toBeUndefined();
+    expect(at(after, "mcp", "servers", "other")).toBeDefined();
     expect(c?.after).toContain("// note");
   });
 
@@ -179,9 +189,9 @@ describe("opencodeAdapter V1 fallback", () => {
     await seed("opencode.json", v1Config);
     const [c] = await opencodeAdapter.plan(ver("1.19.6"));
     const after = parsed(c?.after);
-    expect(after.mcp.conveno).toEqual(V1_ENTRY);
-    expect(after.mcp.servers).toBeUndefined();
-    expect(after.mcp.other).toBeDefined();
+    expect(at(after, "mcp", "conveno")).toEqual(V1_ENTRY);
+    expect(at(after, "mcp", "servers")).toBeUndefined();
+    expect(at(after, "mcp", "other")).toBeDefined();
   });
 
   it("writes V1 for a 1.x version with no config at all", async () => {
@@ -196,21 +206,25 @@ describe("opencodeAdapter V1 fallback", () => {
     );
     const [c] = await opencodeAdapter.plan(ver("1.19.6"));
     const after = parsed(c?.after);
-    expect(after.mcp.conveno).toEqual(V1_ENTRY);
-    expect(after.mcp.servers.x).toBeDefined();
+    expect(at(after, "mcp", "conveno")).toEqual(V1_ENTRY);
+    expect(at(after, "mcp", "servers", "x")).toBeDefined();
   });
 
   it("unknown version: V1 when there is no mcp key", async () => {
     await seed("opencode.json", "{}");
     const [c] = await opencodeAdapter.plan(ver(null));
-    expect(parsed(c?.after).mcp.conveno).toEqual(V1_ENTRY);
+    expect(at(parsed(c?.after), "mcp", "conveno")).toEqual(V1_ENTRY);
   });
 
   it("unknown version: V1 when the config uses V1 keys or an empty mcp", async () => {
     await seed("opencode.json", v1Config);
-    expect(parsed((await opencodeAdapter.plan(ver(null)))[0]?.after).mcp.conveno).toEqual(V1_ENTRY);
+    expect(at(parsed((await opencodeAdapter.plan(ver(null)))[0]?.after), "mcp", "conveno")).toEqual(
+      V1_ENTRY,
+    );
     await seed("opencode.json", '{"mcp":{}}');
-    expect(parsed((await opencodeAdapter.plan(ver(null)))[0]?.after).mcp.conveno).toEqual(V1_ENTRY);
+    expect(at(parsed((await opencodeAdapter.plan(ver(null)))[0]?.after), "mcp", "conveno")).toEqual(
+      V1_ENTRY,
+    );
   });
 
   it("unknown version: V2 when the config has the mcp.servers envelope", async () => {
@@ -219,14 +233,14 @@ describe("opencodeAdapter V1 fallback", () => {
       JSON.stringify({ mcp: { servers: { x: { type: "local", command: ["x"] } } } }),
     );
     const [c] = await opencodeAdapter.plan(ver(null));
-    expect(parsed(c?.after).mcp.servers.conveno).toEqual(ENTRY);
+    expect(at(parsed(c?.after), "mcp", "servers", "conveno")).toEqual(ENTRY);
   });
 
   it("writes V2 for 2.2.0 and later even when the config has V1 keys", async () => {
     await seed("opencode.json", v1Config);
     for (const v of ["2.2.0", "2.4.2", "3.0.0"]) {
       const [c] = await opencodeAdapter.plan(ver(v));
-      expect(parsed(c?.after).mcp.servers.conveno).toEqual(ENTRY);
+      expect(at(parsed(c?.after), "mcp", "servers", "conveno")).toEqual(ENTRY);
     }
   });
 
@@ -244,28 +258,28 @@ describe("opencodeAdapter V1 fallback", () => {
     await seed("opencode.jsonc", text);
     const [c] = await opencodeAdapter.plan(ver("2.3.2"));
     const after = parsed(c?.after);
-    expect(after.mcp.servers.conveno).toEqual(ENTRY);
-    expect(after.mcp.docs).toEqual({
+    expect(at(after, "mcp", "servers", "conveno")).toEqual(ENTRY);
+    expect(at(after, "mcp", "docs")).toEqual({
       type: "local",
       command: ["npx", "-y", "docs-mcp"],
       enabled: true,
     });
-    expect(after.mcp.remote.url).toBe("https://example.com/mcp");
-    expect(after.mcp.conveno).toBeUndefined();
+    expect(at(after, "mcp", "remote", "url")).toBe("https://example.com/mcp");
+    expect(at(after, "mcp", "conveno")).toBeUndefined();
     expect(c?.after).toContain("// my servers");
     expect(c?.description).toContain("mcp.servers.conveno");
     // Planning again on the result finds nothing to do, and uninstall leaves the legacy entries.
     await seed("opencode.jsonc", c?.after ?? "");
     expect(await opencodeAdapter.plan(ver("2.3.2"))).toEqual([]);
     const [u] = await opencodeAdapter.uninstallPlan(ver("2.3.2"));
-    expect(parsed(u?.after).mcp.docs.enabled).toBe(true);
-    expect(parsed(u?.after).mcp.servers?.conveno).toBeUndefined();
+    expect(at(parsed(u?.after), "mcp", "docs", "enabled")).toBe(true);
+    expect(at(parsed(u?.after), "mcp", "servers", "conveno")).toBeUndefined();
   });
 
   it("treats 2.1.9 as V1", async () => {
     await seed("opencode.json", "{}");
     const [c] = await opencodeAdapter.plan(ver("2.1.9"));
-    expect(parsed(c?.after).mcp.conveno).toEqual(V1_ENTRY);
+    expect(at(parsed(c?.after), "mcp", "conveno")).toEqual(V1_ENTRY);
   });
 
   it("is idempotent for an installed V1 entry on an old version", async () => {
@@ -277,8 +291,8 @@ describe("opencodeAdapter V1 fallback", () => {
     await seed("opencode.json", JSON.stringify({ mcp: { conveno: V1_ENTRY } }));
     const [c] = await opencodeAdapter.plan(ver("2.4.2"));
     const after = parsed(c?.after);
-    expect(after.mcp.conveno).toBeUndefined();
-    expect(after.mcp.servers.conveno).toEqual(ENTRY);
+    expect(at(after, "mcp", "conveno")).toBeUndefined();
+    expect(at(after, "mcp", "servers", "conveno")).toEqual(ENTRY);
   });
 
   it("uninstall removes a V1 entry and keeps the rest", async () => {
@@ -288,8 +302,8 @@ describe("opencodeAdapter V1 fallback", () => {
     );
     const [c] = await opencodeAdapter.uninstallPlan(envFor());
     const after = parsed(c?.after);
-    expect(after.mcp.conveno).toBeUndefined();
-    expect(after.mcp.other).toBeDefined();
+    expect(at(after, "mcp", "conveno")).toBeUndefined();
+    expect(at(after, "mcp", "other")).toBeDefined();
     expect(c?.after).toContain("// c");
   });
 
@@ -305,8 +319,8 @@ describe("opencodeAdapter V1 fallback", () => {
     );
     const [c] = await opencodeAdapter.uninstallPlan(envFor());
     const after = parsed(c?.after);
-    expect(after.mcp.conveno).toBeUndefined();
-    expect(after.mcp.servers.conveno).toBeUndefined();
-    expect(after.mcp.servers.keep).toBeDefined();
+    expect(at(after, "mcp", "conveno")).toBeUndefined();
+    expect(at(after, "mcp", "servers", "conveno")).toBeUndefined();
+    expect(at(after, "mcp", "servers", "keep")).toBeDefined();
   });
 });

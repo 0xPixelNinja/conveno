@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, rmSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import {
   ackEntries,
   baseName,
@@ -64,6 +64,7 @@ import {
   ensureDir,
   loadOrCreateToken,
 } from "./lifecycle.js";
+import { createDaemonLog, type DaemonLog } from "./log.js";
 import { type SessionRow, Store, toSession } from "./store.js";
 
 export const DAEMON_VERSION = "0.1.1-rc.1";
@@ -149,6 +150,7 @@ class Daemon {
     private readonly idleExitMs: number,
     private readonly requestIdleExit: () => void,
     private readonly requestShutdown: () => void,
+    private readonly log: DaemonLog,
     private readonly authTimeoutMs: number = AUTH_TIMEOUT_MS,
   ) {
     this.deviceId = store.deviceId();
@@ -249,21 +251,22 @@ class Daemon {
       const flushed = req.method === "daemon.shutdown" ? this.requestShutdown : undefined;
       this.send(conn, makeResult(req.id, result), flushed);
     } catch (e) {
-      this.sendError(conn, req.id, e);
+      this.sendError(conn, req.id, req.method, e);
       if (req.method === "hello" || req.method === "auth") conn.socket.end();
     }
   }
 
-  private sendError(conn: Conn, id: RpcId, e: unknown): void {
+  private sendError(conn: Conn, id: RpcId, method: string, e: unknown): void {
     if (e instanceof ConvenoError) {
       this.send(conn, makeError(id, e.code, e.message));
     } else {
+      this.log.error(`internal error in ${method}`, e);
       this.send(
         conn,
         makeError(
           id,
           RpcErrorCode.InternalError,
-          'The Conveno daemon hit an internal error. Check the daemon log, then run "conveno daemon stop" and try again.',
+          `The Conveno daemon hit an internal error. Check the daemon log at ${this.log.path}, then run "conveno daemon stop" and try again.`,
         ),
       );
     }
@@ -376,7 +379,7 @@ class Daemon {
   private emit(payload: EventPayload, onlyTo?: SessionId): void {
     for (const c of this.conns) {
       const sub = c.sub;
-      if (!sub || !sub.topics.has(payload.event)) continue;
+      if (!sub?.topics.has(payload.event)) continue;
       if (onlyTo !== undefined && sub.sessionId !== onlyTo) continue;
       this.send(c, makeEventNotification(payload));
     }
@@ -777,6 +780,7 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
       () => {
         void close().then(() => opts.onShutdown?.());
       },
+      createDaemonLog(paths.daemonLog, { now }),
       opts.authTimeoutMs ?? AUTH_TIMEOUT_MS,
     );
 

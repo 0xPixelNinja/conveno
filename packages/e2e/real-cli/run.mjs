@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Real-CLI check for the owner's machine. Plain Node (>= 24), no dependencies.
-// Runs on the REAL home directory, because the real CLIs need the owner's logins.
+// Real-CLI check for a developer's machine. Plain Node (>= 24), no dependencies.
+// Runs on the REAL home directory, because the real CLIs need your logins.
 // It prints what it will change and does not apply anything without approval.
 // See README.md in this folder. Results go to a JSON report.
 

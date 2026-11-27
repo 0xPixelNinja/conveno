@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { NOW } from "./fixtures.js";
 import { newSessionId, newTicketId } from "./ids.js";
+import { NOW } from "./test-utils.js";
 import { Ticket } from "./ticket.js";
 
 const open = () => ({

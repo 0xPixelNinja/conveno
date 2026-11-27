@@ -1,11 +1,11 @@
 # Conveno brand lock: deliverables spec
 
-Direction: **Minutes**. Mark: **variant C, "lowercase c"** (`mark.svg`): a heavy spine with two arms forming a c (the record and its entries), and the accent point sitting in the opening (the orchestrator / the decision). Chosen by the owner 2026-11-27.
-Everything below derives from the mark's grid and the Minutes tokens. Nothing ships until the owner approves the brand book.
+Direction: **Minutes**. Mark: the lowercase c (`mark.svg`): a heavy spine with two arms forming a c (the record and its entries), and the accent point sitting in the opening (the orchestrator / the decision).
+Everything below derives from the mark's grid and the Minutes tokens.
 
 ## 0. Foundations (locked first)
-- Final mark: `mark.svg` (variant C, lowercase c). Optical sizes in `assets/mark-16|24|32.svg`.
-- Tokens (refined from the Minutes exploration, which stays in git history): colour light/dark, semantic colours (ok / warn / error / info, separate from the entry accent), type scale, spacing (4-based), radius, stroke widths, motion (easing + durations).
+- Mark: `mark.svg` (lowercase c). Optical sizes in `assets/mark-16|24|32.svg`.
+- Tokens: colour light/dark, semantic colours (ok / warn / error / info, separate from the entry accent), type scale, spacing (4-based), radius, stroke widths, motion (easing + durations).
 - Type: Schibsted Grotesk (display), IBM Plex Sans (body), IBM Plex Mono (mono, timestamps, terminal).
 
 ## 1. Custom icon set

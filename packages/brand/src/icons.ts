@@ -6,9 +6,12 @@ export { ICON_NAMES, ICON_NAMES_WITH_16 };
 /** Every icon in the sprite, e.g. `"session"`, `"handoff"`, `"status-waiting"`. */
 export type IconName = (typeof ICON_NAMES)[number];
 
-/** Absolute path of the SVG sprite. Inline it in a page, then reference icons with `<use>`. */
-export const SPRITE_PATH: string = fileURLToPath(
-  new URL("./generated/sprite.svg", import.meta.url),
+/**
+ * Absolute path of the SVG sprite. Inline it in a page, then reference icons with `<use>`.
+ * The pure annotation lets a bundler that does not use this export (the CLI) drop the call.
+ */
+export const SPRITE_PATH: string = /* @__PURE__ */ fileURLToPath(
+  /* @__PURE__ */ new URL("./generated/sprite.svg", import.meta.url),
 );
 
 /** The `<symbol>` id to pass to `<use href="#...">`. Pass `16` for the hand-tuned small variant. */

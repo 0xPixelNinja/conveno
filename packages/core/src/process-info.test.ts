@@ -82,7 +82,7 @@ describe("isConvenoLauncher", () => {
     "sh -c conveno mcp --cli claude",
     // Windows: cmd.exe running the npm shim, with the quoting the shim runner uses
     String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""C:\Users\u\AppData\Roaming\npm\conveno.cmd" hook claude X"`,
-    String.raw`cmd.exe /d /s /c "conveno.cmd mcp --cli claude"`,
+    'cmd.exe /d /s /c "conveno.cmd mcp --cli claude"',
     String.raw`cmd /d /s /c "^"C:\npm\conveno.cmd^" ^"hook^" ^"claude^""`,
     // PowerShell running the .ps1 shim
     String.raw`powershell.exe -NoProfile -File C:\Users\u\AppData\Roaming\npm\conveno.ps1 mcp --cli codex`,
@@ -332,9 +332,10 @@ describe("readCommandLine", () => {
     const io: ProcessIo = {
       platform: "darwin",
       readFile: async () => "",
-      run: async (file, args, timeoutMs) => (
-        calls.push({ file, args, timeoutMs }), " node /d/bin.js\n"
-      ),
+      run: async (file, args, timeoutMs) => {
+        calls.push({ file, args, timeoutMs });
+        return " node /d/bin.js\n";
+      },
     };
     expect(await readCommandLine(77, io, 900)).toBe("node /d/bin.js");
     expect(calls).toEqual([{ file: "ps", args: ["-o", "command=", "-p", "77"], timeoutMs: 900 }]);
@@ -345,10 +346,10 @@ describe("readCommandLine", () => {
     const io: ProcessIo = {
       platform: "win32",
       readFile: async () => "",
-      run: async (file, args, timeoutMs) => (
-        calls.push({ file, args, timeoutMs }),
-        '"C:\\node.exe" C:\\x\\@conveno\\daemon\\dist\\bin.js\r\n'
-      ),
+      run: async (file, args, timeoutMs) => {
+        calls.push({ file, args, timeoutMs });
+        return '"C:\\node.exe" C:\\x\\@conveno\\daemon\\dist\\bin.js\r\n';
+      },
     };
     expect(await readCommandLine(77, io)).toBe(
       '"C:\\node.exe" C:\\x\\@conveno\\daemon\\dist\\bin.js',

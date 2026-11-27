@@ -28,6 +28,6 @@ for (const r of rows) {
   );
 }
 console.log(
-  "\nGitHub Actions are not covered: check `gh api repos/<owner>/<action>/releases/latest`.",
+  "\nGitHub Actions are not covered here: Dependabot updates them (see .github/dependabot.yml).",
 );
 process.exit(1);

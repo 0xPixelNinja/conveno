@@ -1,4 +1,4 @@
-# Label set for this repository. Applied with `gh label create --force`; see CONTRIBUTING.md.
+# Label set for this repository. Applied with `gh label create --force`; see the Labels section of CONTRIBUTING.md.
 - name: "type: bug"
   color: "B3202A"
   description: "Something does not work as documented"
@@ -64,10 +64,10 @@
   description: "OpenCode adapter"
 - name: "tier-a"
   color: "1E7B3A"
-  description: "Tier A CLI: Claude Code, Codex"
+  description: "Tier A: next_turn delivery (Claude Code, Codex)"
 - name: "tier-b"
   color: "8A5200"
-  description: "Tier B CLI: Antigravity, Cursor, Copilot, OpenCode"
+  description: "Tier B: inbox delivery only (OpenCode)"
 - name: "good first issue"
   color: "2346D9"
   description: "Small, well-scoped, good for a first contribution"

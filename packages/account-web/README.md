@@ -1,3 +1,5 @@
 # @conveno/account-web
 
-Minimal account page: login, devices, billing. Stub: not implemented yet.
+Planned. Not implemented yet, and not published.
+
+A small account page for the relay: login, devices and billing.

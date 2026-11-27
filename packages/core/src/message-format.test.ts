@@ -6,8 +6,8 @@ import {
   formatHookContext,
   formatInbox,
   NOT_FROM_USER_NOTICE,
-} from "./framing.js";
-import { textMessage } from "./testing.js";
+} from "./message-format.js";
+import { textMessage } from "./test-utils.js";
 
 const base = {
   id: newMessageId(),
@@ -46,7 +46,7 @@ const kinds: Message[] = [
   },
 ];
 
-describe("framing", () => {
+describe("message format", () => {
   it("puts the reply reference in the header line", () => {
     const target = newMessageId();
     const out = formatFramedMessage(textMessage("hi", { replyTo: target }));

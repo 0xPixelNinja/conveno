@@ -7,14 +7,8 @@ import { RpcErrorCode } from "@conveno/protocol";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FakeDaemon } from "./fake-client.js";
-import {
-  createServer,
-  formatAge,
-  formatSessionTable,
-  PACKAGE_NAME,
-  SERVER_INSTRUCTIONS,
-} from "./index.js";
+import { createServer, formatAge, formatSessionTable, SERVER_INSTRUCTIONS } from "./index.js";
+import { FakeDaemon } from "./test-utils.js";
 
 interface Peer {
   mcp: ReturnType<typeof createServer>;
@@ -63,10 +57,6 @@ afterEach(async () => {
 });
 
 describe("package", () => {
-  it("exports its package name", () => {
-    expect(PACKAGE_NAME).toBe("@conveno/mcp");
-  });
-
   it("reports the version in package.json", async () => {
     const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     const peer = await startPeer(root);
@@ -102,7 +92,7 @@ describe("instructions", () => {
 });
 
 describe("tools", () => {
-  it("lists exactly the M1 tools", async () => {
+  it("lists exactly the tools the server offers", async () => {
     const p = await startPeer(root);
     const { tools } = await p.client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(

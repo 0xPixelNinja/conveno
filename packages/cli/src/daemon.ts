@@ -46,13 +46,14 @@ async function waitFor(done: () => boolean | Promise<boolean>, ms: number): Prom
 const norm = (text: string): string => text.replaceAll("\\", "/").toLowerCase();
 
 /**
- * Does this command line belong to the Conveno daemon? It must run the daemon's entry script:
- * the one this install resolved, or any `@conveno/daemon` package's `bin.js`.
+ * Does this command line belong to the Conveno daemon? It must run the daemon's entry script: the
+ * one this install resolved, any installed `@conveno/cli`'s `daemon.js`, or the `bin.js` of the
+ * `@conveno/daemon` package that releases before 0.1.1 started.
  */
 export function isConvenoDaemonCommand(commandLine: string, daemonEntry?: string): boolean {
   const line = norm(commandLine);
   if (daemonEntry !== undefined && line.includes(norm(daemonEntry))) return true;
-  return /@conveno\/daemon\/(?:[^ ]+\/)?bin\.js/.test(line);
+  return /@conveno\/cli\/(?:[^ ]+\/)?daemon\.js|@conveno\/daemon\/(?:[^ ]+\/)?bin\.js/.test(line);
 }
 
 const STOP_FIX = (t: Ctx["theme"]) => `then run ${cmd(t, "conveno daemon status")}`;

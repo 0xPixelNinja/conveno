@@ -1,6 +1,6 @@
 # Real-CLI check
 
-Runs Conveno against the real Claude Code, OpenCode and (if installed) Codex on the owner's machine. The CI tests use fake CLIs; this is the only check that uses the real ones.
+Runs Conveno against the real Claude Code, OpenCode and (if installed) Codex on your machine. The CI tests use fake CLIs; this is the only check that uses the real ones.
 
 It runs on your real home directory because the real CLIs need your logins. It changes CLI config only through `conveno init`, prints the plan first, and does not apply anything without approval.
 
@@ -8,12 +8,12 @@ It runs on your real home directory because the real CLIs need your logins. It c
 
 ```sh
 node packages/e2e/real-cli/run.mjs                 # asks before applying (needs a terminal)
-node packages/e2e/real-cli/run.mjs --approve-init  # no terminal: owner has approved the plan
+node packages/e2e/real-cli/run.mjs --approve-init  # no terminal: you have approved the plan
 ```
 
 Options: `--conveno <cmd or script>` (a `.js` or `.mjs` path runs through the current Node, so no `.cmd` shim is needed), `--clis claude,opencode,codex`, `--keep-installed`, `--manual`, `--data-dir`, `--report <file>`, `--timeout <sec>`, `--print-manual`.
 
-Without a terminal and without `--approve-init` the script prints the plan, writes the report and exits with code 2. A session that runs it for the owner should show the owner that plan, then re-run with `--approve-init` once the owner agrees.
+Without a terminal and without `--approve-init` the script prints the plan, writes the report and exits with code 2. A script or agent that runs it for someone else should show them that plan, then re-run with `--approve-init` once they agree.
 
 ## Prerequisites
 
@@ -70,7 +70,7 @@ This is the one place hook delivery to the next turn can be seen, because it nee
 4. Expected: Terminal 2 knows the message text after step 2 without having called `inbox`; the `inbox` output starts with `[conveno] Message from <terminal 1 name> (claude)` and says it is "not from the user".
 5. Press Enter in the script. It checks the database for the nonce and records the mailbox states.
 
-For OpenCode, replace `claude` with `opencode`. OpenCode has no hook delivery in M1, so only `inbox` applies.
+For OpenCode, replace `claude` with `opencode`. OpenCode has no hook delivery yet, so only `inbox` applies.
 
 ## Notes
 

@@ -1,5 +1,8 @@
 name: Release
 
+# Publishes @conveno/cli to npm when a v* tag is pushed. It uses npm trusted publishing (OIDC), so
+# there is no npm token anywhere. The one-time setup on npmjs.com is described in RELEASING.md.
+# https://docs.npmjs.com/trusted-publishers
 on:
   push:
     tags:
@@ -7,19 +10,19 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  publish:
-    name: Publish to npm
+  verify:
+    name: Verify and pack
     runs-on: ubuntu-latest
+    outputs:
+      dist_tag: ${{ steps.release.outputs.dist_tag }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
           # Release builds never restore a cache (see the npm publishing docs).
           package-manager-cache: false
       - run: pnpm install --frozen-lockfile
@@ -30,17 +33,53 @@ jobs:
       - run: pnpm smoke:pack
       # Fails when the tag and the package versions disagree. A prerelease version (v1.2.3-rc.1)
       # gets the dist-tag "next"; a plain version (v1.2.3) gets "latest".
-      - name: Check the tag against every package version
+      - name: Check the tag against the package versions
         id: release
         env:
           TAG: ${{ github.ref_name }}
         run: |
           node scripts/check-release.mjs "$TAG"
           echo "dist_tag=$(node scripts/check-release.mjs "$TAG" --print-dist-tag)" >> "$GITHUB_OUTPUT"
-      # Provenance is off: npm provenance needs a public repository. Turn it on (--provenance), or
-      # switch to trusted publishing, when the repo goes public.
+      # The publish job gets this exact tarball and runs no repository code.
+      - name: Pack
+        run: pnpm pack --pack-destination "$RUNNER_TEMP/tarball"
+        working-directory: packages/cli
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tarball
+          path: ${{ runner.temp }}/tarball/*.tgz
+          if-no-files-found: error
+
+  publish:
+    name: Publish to npm
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets npm exchange the workflow's OIDC token for a short-lived publish credential.
+      id-token: write
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      # Trusted publishing needs npm 11.5.1 or later (Node 24 ships a newer npm).
+      - name: Check the npm version
+        run: |
+          node -e '
+            const [major, minor, patch] = process.argv[1].split(".").map(Number);
+            const ok = major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1)));
+            if (!ok) { console.error(`npm ${process.argv[1]} is older than 11.5.1`); process.exit(1); }
+          ' "$(npm --version)"
+          npm --version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tarball
+          path: tarball
+      # Provenance is attached automatically for trusted publishing from a public repository; the
+      # flag makes the publish fail instead of skipping it if that ever stops being true.
       - name: Publish
-        run: pnpm -r publish --access public --no-git-checks --tag "$DIST_TAG"
+        run: npm publish ./tarball/*.tgz --access public --provenance --tag "$DIST_TAG"
         env:
-          DIST_TAG: ${{ steps.release.outputs.dist_tag }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DIST_TAG: ${{ needs.verify.outputs.dist_tag }}

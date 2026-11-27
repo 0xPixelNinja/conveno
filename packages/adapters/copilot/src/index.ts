@@ -1,2 +1,2 @@
-/** Placeholder: Conveno adapter for copilot. Not implemented yet. */
+/** Planned, not implemented yet. An adapter for GitHub Copilot, with the same detect, install and hook jobs as the Claude Code and Codex adapters. */
 export const PACKAGE_NAME = "@conveno/adapter-copilot";
