@@ -30,5 +30,7 @@ describe("dataDir", () => {
     expect(dataPaths("linux", "/d/conveno").token).toBe("/d/conveno/daemon.token");
     expect(dataPaths("win32", "C:\\d\\conveno").token).toBe("C:\\d\\conveno\\daemon.token");
     expect(dataPaths("darwin", "/d").backups).toBe("/d/backups");
+    expect(dataPaths("linux", "/d").daemonLog).toBe("/d/logs/daemon.log");
+    expect(dataPaths("win32", "C:\\d").daemonLog).toBe("C:\\d\\logs\\daemon.log");
   });
 });

@@ -38,6 +38,9 @@ export function dataPaths(platform: string, dir: string) {
     database: p.join(dir, "conveno.db"),
     lock: p.join(dir, "daemon.lock"),
     backups: p.join(dir, "backups"),
+    /** The CLI writes its error logs here, and the daemon writes `daemon.log`. */
+    logs: p.join(dir, "logs"),
+    daemonLog: p.join(dir, "logs", "daemon.log"),
     manifest: p.join(dir, "install-manifest.json"),
   };
 }

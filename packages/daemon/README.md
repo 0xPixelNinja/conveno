@@ -35,6 +35,7 @@ SIGINT or SIGTERM after closing cleanly.
 - Single instance: `<data>/daemon.lock` holds the pid and socket path of the owner. A lock is stale
   unless its pid is alive and the socket recorded in the lock answers (or the lock is under 5 s old). On POSIX a leftover socket file is removed only when nothing answers on it.
 - Shutdown: `daemon.shutdown` replies `{ ok: true }`, then stops listening, closes the store, removes the socket (POSIX) and the lock file, and exits 0. `conveno daemon stop` uses it.
+- Log: unexpected errors, with their stacks, go to `<data>/logs/daemon.log` (mode 0600). At 1 MiB the file moves to `daemon.log.1`, replacing the older one. Request parameters are never logged. The reply to the client names this path.
 - Hook lookup: `session.byHost` takes the hook's host pid and returns the one online session whose `hostPid` equals it. No walking to ancestors; none or two matches give `null`.
 - Liveness: every 15 s sessions with no heartbeat for 45 s, or whose `hostPid` (the CLI hosting the MCP server) is gone, go `offline`.
   The orchestrator role is vacated, never passed on. After a daemon restart each session gets a full
