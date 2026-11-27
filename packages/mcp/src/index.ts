@@ -409,6 +409,9 @@ export function createServer(opts: CreateServerOptions): McpServer {
 
 /** Run the MCP server over stdio until stdin closes or SIGTERM arrives. */
 export async function runStdio(opts: { cli: CliKind; daemonEntry?: string }): Promise<void> {
+  // Read once, with no time budget. Started first so it overlaps with starting the daemon;
+  // nothing waits on it but this session's registration.
+  const hostPids = readAncestry({ timeoutMs: 30_000 }).then((a) => a.pids);
   const client = await connect({
     kind: "mcp",
     autoStart: true,
@@ -417,8 +420,7 @@ export async function runStdio(opts: { cli: CliKind; daemonEntry?: string }): Pr
   const mcp = createServer({
     cli: opts.cli,
     client,
-    // Read once, with no time budget: nothing waits on it but this session's registration.
-    hostPids: readAncestry({ timeoutMs: 30_000 }).then((a) => a.pids),
+    hostPids,
     cwd: process.cwd(),
   });
 
