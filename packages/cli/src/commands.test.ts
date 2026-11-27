@@ -455,6 +455,23 @@ describe("daemon", () => {
       },
     );
 
+    it("waits for the daemon process to exit, not only for its socket and lock", async () => {
+      let checks = 0;
+      // The process outlives its socket and lock for three polls, as a daemon still closing its
+      // database does.
+      const c = await make({ isAlive: (pid) => pid === 4242 && ++checks <= 3 });
+      const lock = dataPaths(c.platform, c.dataDir).lock;
+      try {
+        await seed(lock, JSON.stringify({ pid: 4242 }));
+        fakeDaemon(c);
+        expect(await main(["daemon", "stop"], c)).toBe(0);
+        expect(checks).toBeGreaterThan(3);
+        expect(c.outText()).toContain("Stopped the daemon (pid 4242)");
+      } finally {
+        await rm(lock, { force: true });
+      }
+    });
+
     it("connects without autoStart", async () => {
       const seen: { autoStart?: boolean }[] = [];
       const c = await make();
@@ -468,9 +485,14 @@ describe("daemon", () => {
     });
 
     it("stops a real daemon and waits until its socket and lock are gone", async () => {
-      const c = await make();
+      // This daemon runs inside the test process, so the pid in its lock (ours) never exits.
+      // Count that pid as exited once the daemon has let go of its lock, as a real one would.
+      let lock = "";
+      const c = await make({
+        isAlive: (pid) => pid !== process.pid || existsSync(lock),
+      });
       const d = await startTestDaemon(c);
-      const lock = dataPaths(c.platform, c.dataDir).lock;
+      lock = dataPaths(c.platform, c.dataDir).lock;
       try {
         expect(existsSync(lock)).toBe(true);
         expect(await main(["daemon", "stop"], c)).toBe(0);

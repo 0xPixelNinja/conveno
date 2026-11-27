@@ -89,14 +89,19 @@ async function stopDaemon(ctx: Ctx): Promise<number> {
       });
     }
     await client.close().catch(() => undefined);
+    // Stopped means the process has exited, not only that it let go of the socket and the lock:
+    // until it exits it can still hold files open (on Windows that blocks deleting them).
     const gone = await waitFor(
-      async () => !(await reachable(ctx)) && !(await lockExists(ctx)),
+      async () =>
+        !(await reachable(ctx)) && !(await lockExists(ctx)) && (pid === null || !ctx.isAlive(pid)),
       ctx.stopTimeoutMs,
     );
     if (!gone) {
       return fail(ctx, {
         what: `The daemon${named} is still running after ${Math.round(ctx.stopTimeoutMs / 1000)}s`,
-        detail: ["It accepted the stop request, but its socket or lock file is still there."],
+        detail: [
+          "It accepted the stop request, but its process, socket or lock file is still there.",
+        ],
         fix: `${pid === null ? "Stop the process that owns the daemon socket yourself" : `Stop pid ${pid} yourself`}, ${STOP_FIX(t)}.`,
         exit: 1,
         ref: "e_daemon_stop",
