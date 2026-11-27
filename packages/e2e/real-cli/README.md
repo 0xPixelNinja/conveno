@@ -37,6 +37,7 @@ Without a terminal and without `--approve-init` the script prints the plan, writ
 | `pair-codex-claude` | Same, with `codex exec` as the sender. `conveno init` writes `default_tools_approval_mode = "approve"` on the `conveno` server in `~/.codex/config.toml`, so Codex does not ask before each Conveno tool call, and the run needs no approval flag. |
 | `liveness` | After the CLIs exit, no test session is shown as online. |
 | `manual` (only with `--manual`) | The two-terminal interactive check below. |
+| `forget` | `conveno forget '*@conveno-real-*-<nonce>-*' --yes`: removes this run's own test sessions from the daemon. It runs first in the `finally` block, while the daemon is still up, and also with `--keep-installed`. A session whose CLI still runs is skipped. Skipped when no daemon is running. |
 | `uninstall` | `conveno daemon stop`, `conveno uninstall --yes`, then `conveno doctor`. Runs in a `finally` block, so it also runs after a failed init or pair. Skipped with `--keep-installed`. |
 | `stale-cleanup` | Only when an earlier run was killed. See below. |
 
@@ -48,7 +49,7 @@ The script does not read any CLI config or credential file. To confirm the files
 
 A `finally` block cannot run after SIGKILL (a low-memory reaper can send it), so the uninstall step is skipped and Conveno stays installed. To catch this, the script writes `real-cli-run.json` in Conveno's data directory before `conveno init` and removes it after `conveno uninstall` succeeds. It writes none with `--keep-installed`.
 
-At the start of a run, if that file exists, the script shows it (start time, pid, CLIs, nonce) and runs `conveno daemon stop` and `conveno uninstall --yes` before anything else. That edits your config, so the approval rules are the same as for init: it asks in a terminal, and without one it changes nothing and exits with code 2 unless `--approve-init` is given. If the cleanup fails, the file stays and the next run tries again. Delete the file by hand only if you have already removed Conveno yourself.
+At the start of a run, if that file exists, the script shows it (start time, pid, CLIs, nonce) and runs `conveno forget` for that run's sessions, `conveno daemon stop` and `conveno uninstall --yes` before anything else. That edits your config, so the approval rules are the same as for init: it asks in a terminal, and without one it changes nothing and exits with code 2 unless `--approve-init` is given. If the cleanup fails, the file stays and the next run tries again. Delete the file by hand only if you have already removed Conveno yourself.
 
 ## Report
 
