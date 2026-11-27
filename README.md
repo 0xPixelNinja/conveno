@@ -11,8 +11,6 @@ Connect AI coding CLI sessions across every platform. Peer-to-peer, end-to-end e
 [![Node >=24](https://img.shields.io/badge/node-%3E%3D24-2346D9)](./.nvmrc)
 [![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-9A5700)](#status-and-roadmap)
 
-The hero image is an animated SVG. Renderers that do not play it show the static banner instead.
-
 ## What it is
 
 Conveno lets AI coding CLI sessions find each other, send each other messages, start each other and
