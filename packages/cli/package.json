@@ -1,6 +1,6 @@
 {
   "name": "@conveno/cli",
-  "version": "0.1.1-rc.2",
+  "version": "0.1.1-rc.3",
   "description": "Connect AI coding CLI sessions so they can message each other.",
   "license": "Apache-2.0",
   "repository": {
