@@ -73,7 +73,7 @@ describe("conveno forget against the real daemon", () => {
     if (t) await removeEnv(t);
   });
 
-  it("the sweep forgets an offline session whose folder was deleted, and keeps the others", async () => {
+  it("forgets one offline session by name and keeps the others", async () => {
     expect((await gone.call("send", { to: keepName, text: "from gone" })).isError).toBe(false);
     expect((await keep.call("send", { to: goneName, text: "to gone" })).isError).toBe(false);
 
@@ -93,12 +93,24 @@ describe("conveno forget against the real daemon", () => {
     }
     gone.killHost();
 
-    // One sweep marks both offline, the next removes the ghost. The other offline session stays,
-    // because its folder exists and a day has not passed.
-    await waitFor("the ghost session to be forgotten", async () => {
-      return !(await listed()).includes(ghostName);
+    // One sweep marks both offline. The ghost's folder is missing, but the daemon waits 5 minutes
+    // before it forgets such a session (the daemon tests cover that rule with a fake clock), so
+    // here it is forgotten by name.
+    await waitFor("both hosts to be seen as offline", async () => {
+      const client = await cliClient(t);
+      try {
+        const { sessions } = await client["session.list"]({ includeOffline: true });
+        const offline = sessions.filter((s) => s.status === "offline").map((s) => s.name);
+        return offline.includes(ghostName) && offline.includes(goneName);
+      } finally {
+        await client.close();
+      }
     });
+    const r = await conveno(t, "forget", ghostName, "--yes");
+    expect(r.code).toBe(0);
+    expect(r.out).toContain("Done. Forgot 1 session.");
     const names = await listed();
+    expect(names).not.toContain(ghostName);
     expect(names).toContain(goneName);
     expect(names).toContain(keepName);
   });

@@ -239,9 +239,9 @@ A connection that has not finished `auth` within 5 seconds is closed.
 
 Daemon limits: the periodic sweep deletes offline sessions with their mailbox. A session with
 unread messages goes after 7 days offline, one replaced by a newer live session with the same name,
-CLI and repo after 5 minutes, and any other after 24 hours. Independently of age, the sweep also forgets an offline session whose
-recorded working directory or repository root no longer exists on disk, unless its host process is
-still running (it could still come back).
+CLI and repo after 5 minutes, and any other after 24 hours. The sweep also forgets an offline session whose
+recorded working directory or repository root has been missing for 5 minutes, unless it has unread
+messages or its host process is still running (it could still come back).
 
 ### 6.5 Events
 

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PRUNE_MISSING_FOLDER_AFTER_MS } from "./server.js";
 import { type Harness, type RawClient, register, startHarness } from "./test-utils.js";
 
 const HOUR = 3_600_000;
@@ -23,6 +24,12 @@ const make = async (name: string, hostPid: number, over: Record<string, unknown>
 function takeOffline(hostPid: number): void {
   h.dead.add(hostPid);
   h.clock.ms += 1_000;
+  h.daemon.sweep();
+}
+
+/** Let the missing-folder grace pass, then sweep. */
+function sweepAfterGrace(): void {
+  h.clock.ms += PRUNE_MISSING_FOLDER_AFTER_MS;
   h.daemon.sweep();
 }
 
@@ -162,7 +169,7 @@ describe("auto-forget of a missing folder", () => {
     takeOffline(7001);
     takeOffline(7002);
     gone.add("/tmp/ghost-repo");
-    h.daemon.sweep();
+    sweepAfterGrace();
     expect(await listed()).toEqual(["home"]);
   });
 
@@ -173,21 +180,47 @@ describe("auto-forget of a missing folder", () => {
     });
     takeOffline(7001);
     gone.add("/tmp/repo");
-    h.daemon.sweep();
+    sweepAfterGrace();
     expect(await listed()).toEqual([]);
+  });
+
+  it("waits out the grace before forgetting, so a briefly missing drive is harmless", async () => {
+    await make("ghost", 7001, { cwd: "/tmp/ghost-repo" });
+    takeOffline(7001);
+    gone.add("/tmp/ghost-repo");
+    h.daemon.sweep();
+    expect(await listed()).toEqual(["ghost"]);
+    gone.delete("/tmp/ghost-repo");
+    sweepAfterGrace();
+    expect(await listed()).toEqual(["ghost"]);
+  });
+
+  it("keeps an offline session with unread mail, leaving it to the unread rule", async () => {
+    const ghost = await make("ghost", 7001, { cwd: "/tmp/ghost-repo" });
+    const sender = await make("sender", 7002, { cwd: "/tmp/home-repo" });
+    await c.call("message.send", {
+      sessionId: sender.id,
+      to: ghost.name,
+      kind: "text",
+      body: { text: "still for you" },
+    });
+    takeOffline(7001);
+    gone.add("/tmp/ghost-repo");
+    sweepAfterGrace();
+    expect(await listed()).toEqual(["ghost", "sender"]);
   });
 
   it("keeps an offline session whose folder still exists", async () => {
     await make("stay", 7001, { cwd: "/tmp/present" });
     takeOffline(7001);
-    h.daemon.sweep();
+    sweepAfterGrace();
     expect(await listed()).toEqual(["stay"]);
   });
 
   it("never forgets an online session, whatever its folder", async () => {
     await make("live", 7001, { cwd: "/tmp/ghost-repo" });
     gone.add("/tmp/ghost-repo");
-    h.daemon.sweep();
+    sweepAfterGrace();
     expect(await listed()).toEqual(["live"]);
   });
 
@@ -195,30 +228,12 @@ describe("auto-forget of a missing folder", () => {
     await make("slow", 7001, { cwd: "/tmp/ghost-repo" });
     // Missed heartbeats, but the host process is alive.
     h.clock.ms += 60_000;
-    h.daemon.sweep();
+    sweepAfterGrace();
     expect((await c.call("session.list", { includeOffline: true })).sessions[0]?.status).toBe(
       "offline",
     );
     gone.add("/tmp/ghost-repo");
-    h.daemon.sweep();
+    sweepAfterGrace();
     expect(await listed()).toEqual(["slow"]);
-  });
-
-  it("deletes the mailbox together with the session", async () => {
-    const a = await make("ghost", 7001, { cwd: "/tmp/ghost-repo" });
-    const b = await make("sender", 7002);
-    await c.call("message.send", {
-      sessionId: b.id,
-      to: "ghost",
-      kind: "text",
-      body: { text: "hi" },
-    });
-    takeOffline(7001);
-    gone.add("/tmp/ghost-repo");
-    await c.call("session.heartbeat", { sessionId: b.id });
-    h.daemon.sweep();
-    expect(await listed()).toEqual(["sender"]);
-    const err = await c.rpc("message.inbox", { sessionId: a.id });
-    expect(err.error?.code).toBe(-32002);
   });
 });

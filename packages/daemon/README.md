@@ -53,10 +53,10 @@ SIGINT or SIGTERM after closing cleanly.
   session with the same name, CLI and repo is deleted 5 minutes after it went offline. It cannot come
   back, because a heartbeat is refused while another live session holds its name. (3) Any other
   offline session is deleted after 24 hours: it returns only while its host process lives, and a new
-  run of the CLI registers as a new session. (4) Whatever its age or mail, an offline session whose
-  recorded working directory, or repository root when it has one, no longer exists on disk is
-  deleted with its mailbox at the next sweep, unless its host process still runs (it can come back
-  with a heartbeat). This clears the sessions of deleted temp repos and old checkouts. Online
+  run of the CLI registers as a new session. (4) An offline session whose recorded working directory, or
+  repository root when it has one, has been missing from disk for 5 minutes is deleted, unless it
+  has unread messages (rule 1 applies instead) or its host process still runs (it can come back
+  with a heartbeat). The grace keeps a briefly unmounted drive or share from wiping its sessions. This clears the sessions of deleted temp repos and old checkouts. Online
   sessions are never deleted.
 - Forget: `session.forget` removes offline sessions on request (`conveno forget`), by id, by name or
   `*` glob, and by how long ago they were last seen. It never removes an online session and reports

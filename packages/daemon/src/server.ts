@@ -93,6 +93,11 @@ export const PRUNE_SUPERSEDED_AFTER_MS = 5 * 60_000;
  * say, so mail sent to a closed session survives a weekend. Then the session and its mailbox go.
  */
 export const PRUNE_UNREAD_AFTER_MS = 7 * 24 * 3_600_000;
+/**
+ * An offline session whose folder is missing is forgotten after this grace, not at once, so a
+ * drive or network share that is briefly unavailable does not wipe its sessions.
+ */
+export const PRUNE_MISSING_FOLDER_AFTER_MS = 5 * 60_000;
 
 /** Sender id on `system` messages made by the daemon itself (no session sent them). */
 export const DAEMON_SENDER_ID = SessionId.parse("0".repeat(26));
@@ -588,10 +593,14 @@ class Daemon {
   }
 
   /**
-   * An offline session whose working folder (or repository root) no longer exists is forgotten.
-   * One whose host process still runs is kept, because it can come back with a heartbeat.
+   * An offline session whose working folder (or repository root) has been missing for
+   * PRUNE_MISSING_FOLDER_AFTER_MS is forgotten. One with unread messages is left to the unread
+   * rule, so queued mail is never dropped early. One whose host process still runs is kept,
+   * because it can come back with a heartbeat.
    */
-  private workspaceGone(row: SessionRow): boolean {
+  private workspaceGone(row: SessionRow, nowMs: number): boolean {
+    if (nowMs - Date.parse(row.lastSeenAt) < PRUNE_MISSING_FOLDER_AFTER_MS) return false;
+    if (this.store.unreadCount(row.id) > 0) return false;
     if (row.hostPid !== undefined && this.isAlive(row.hostPid)) return false;
     return (
       !this.pathExists(row.cwd) || (row.repoRoot !== undefined && !this.pathExists(row.repoRoot))
@@ -750,7 +759,7 @@ class Daemon {
    * 2. Replaced by a newer live session with the same name, CLI and repo: delete after
    *    PRUNE_SUPERSEDED_AFTER_MS.
    * 3. Otherwise delete after PRUNE_OFFLINE_AFTER_MS.
-   * Independent of these rules, `workspaceGone` forgets an offline session whose folder is gone.
+   * Besides these rules, `workspaceGone` forgets an offline session whose folder has been gone a while.
    */
   private shouldPrune(row: SessionRow, all: SessionRow[], nowMs: number): boolean {
     const offlineMs = nowMs - Date.parse(row.lastSeenAt);
@@ -774,7 +783,7 @@ class Daemon {
     const rows = this.store.allSessions();
     for (const row of rows) {
       if (row.status === "offline") {
-        if (this.shouldPrune(row, rows, nowMs) || this.workspaceGone(row)) {
+        if (this.shouldPrune(row, rows, nowMs) || this.workspaceGone(row, nowMs)) {
           this.forgetRows([row]);
         }
         continue;
