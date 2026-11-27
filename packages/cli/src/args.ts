@@ -54,9 +54,9 @@ export const COMMANDS: CommandSpec[] = [
   },
   {
     name: "status",
-    usage: "conveno status",
-    summary: "List sessions by repo",
-    flags: {},
+    usage: "conveno status [--all]",
+    summary: "List online sessions by repo",
+    flags: { all: { type: "boolean", help: "Also list offline sessions" } },
   },
   {
     name: "doctor",

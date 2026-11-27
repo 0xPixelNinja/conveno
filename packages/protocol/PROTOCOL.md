@@ -221,8 +221,9 @@ Handshake. The shared secret is the token; it never crosses the socket.
 
 A connection that has not finished `auth` within 5 seconds is closed.
 
-Daemon limits: sessions offline and unseen for 7 days are deleted, with their read messages, by the
-periodic sweep.
+Daemon limits: the periodic sweep deletes offline sessions with their mailbox. A session with
+unread messages goes after 7 days offline, one replaced by a newer live session with the same name,
+CLI and repo after 5 minutes, and any other after 24 hours.
 
 ### 6.5 Events
 

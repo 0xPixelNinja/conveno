@@ -39,7 +39,7 @@ Usage: conveno <command> [options]
 
   init [--yes] [--dry-run] [--cli <list>]  Set up Claude Code, Codex and OpenCode
   uninstall [--yes]                        Undo what init changed
-  status                                   List sessions by repo
+  status [--all]                           List online sessions by repo
   doctor                                   Check each CLI and the daemon
   daemon start|stop|status                 Manage the background daemon
   mcp --cli <cli>                          MCP server on stdio (CLIs launch this)

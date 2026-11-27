@@ -73,8 +73,24 @@ export const SWEEP_INTERVAL_MS = 15_000;
 export const AUTH_TIMEOUT_MS = 5_000;
 /** Unread messages one session may hold. */
 export const MAX_UNREAD_PER_SESSION = 1000;
-/** Offline sessions not seen for this long are deleted by the sweep. */
-export const PRUNE_OFFLINE_AFTER_MS = 7 * 24 * 3_600_000;
+/**
+ * How long an offline session stays listed (`conveno status --all`) before the sweep deletes it.
+ * A closed session does not come back after a day: it returns only while its host process is alive,
+ * and a new run of the CLI registers as a new session. 24 h keeps a working day's history visible
+ * without piling up months of test sessions. It applies only when nothing is waiting for it.
+ */
+export const PRUNE_OFFLINE_AFTER_MS = 24 * 3_600_000;
+/**
+ * An offline session that a newer live session has replaced (same name, CLI and repo) is deleted
+ * after this grace. It cannot come back: a heartbeat is refused while another live session holds
+ * its name.
+ */
+export const PRUNE_SUPERSEDED_AFTER_MS = 5 * 60_000;
+/**
+ * An offline session with unread (queued) messages keeps them this long, whatever the other rules
+ * say, so mail sent to a closed session survives a weekend. Then the session and its mailbox go.
+ */
+export const PRUNE_UNREAD_AFTER_MS = 7 * 24 * 3_600_000;
 
 /** Sender id on `system` messages made by the daemon itself (no session sent them). */
 export const DAEMON_SENDER_ID = SessionId.parse("0".repeat(26));
@@ -675,12 +691,36 @@ class Daemon {
 
   /* ---- liveness and idle ---- */
 
+  /**
+   * Prune rules for an offline session, in order:
+   * 1. With unread messages waiting, keep it for PRUNE_UNREAD_AFTER_MS, then delete it and its mail.
+   * 2. Replaced by a newer live session with the same name, CLI and repo: delete after
+   *    PRUNE_SUPERSEDED_AFTER_MS.
+   * 3. Otherwise delete after PRUNE_OFFLINE_AFTER_MS.
+   */
+  private shouldPrune(row: SessionRow, all: SessionRow[], nowMs: number): boolean {
+    const offlineMs = nowMs - Date.parse(row.lastSeenAt);
+    if (this.store.unreadCount(row.id) > 0) return offlineMs >= PRUNE_UNREAD_AFTER_MS;
+    const place = (r: SessionRow) => r.repoRoot ?? r.cwd;
+    const superseded = all.some(
+      (o) =>
+        o.id !== row.id &&
+        o.status !== "offline" &&
+        o.name === row.name &&
+        o.cli === row.cli &&
+        place(o) === place(row) &&
+        Date.parse(o.startedAt) > Date.parse(row.startedAt),
+    );
+    return offlineMs >= (superseded ? PRUNE_SUPERSEDED_AFTER_MS : PRUNE_OFFLINE_AFTER_MS);
+  }
+
   sweep(): void {
     const nowMs = this.now().getTime();
     let online = 0;
-    for (const row of this.store.allSessions()) {
+    const rows = this.store.allSessions();
+    for (const row of rows) {
       if (row.status === "offline") {
-        if (nowMs - Date.parse(row.lastSeenAt) >= PRUNE_OFFLINE_AFTER_MS) {
+        if (this.shouldPrune(row, rows, nowMs)) {
           this.store.tx(() => this.store.deleteSession(row.id));
         }
         continue;
