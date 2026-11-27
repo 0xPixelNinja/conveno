@@ -208,7 +208,14 @@ importers:
 
   packages/adapters/antigravity: {}
 
-  packages/adapters/claude: {}
+  packages/adapters/claude:
+    dependencies:
+      '@0xpixelninja/conveno-core':
+        specifier: workspace:*
+        version: link:../../core
+      '@0xpixelninja/conveno-protocol':
+        specifier: workspace:*
+        version: link:../../protocol
 
   packages/adapters/codex: {}
 
