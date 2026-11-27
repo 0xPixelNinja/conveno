@@ -211,7 +211,7 @@ async function uninstallPlan(env: AdapterEnv): Promise<ConfigChange[]> {
 }
 
 async function hook(): Promise<HookOutput> {
-  // OpenCode has no hook injection in M1; delivery is through the inbox tool.
+  // OpenCode has no hook injection yet; delivery is through the inbox tool.
   return { stdout: "", exitCode: 0 };
 }
 

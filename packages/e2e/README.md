@@ -13,4 +13,4 @@ Each test file starts the real `convenod` (`packages/daemon/dist/bin.js`) in a t
 
 Run `pnpm build` at the repo root first (the tests use `dist/`), then `pnpm --filter @conveno/e2e test`. The liveness test takes about 16 s.
 
-`real-cli/` has a script for the owner's machine that uses the real CLIs: see `real-cli/README.md`.
+`real-cli/` has a script for a developer machine that uses the real CLIs: see `real-cli/README.md`.

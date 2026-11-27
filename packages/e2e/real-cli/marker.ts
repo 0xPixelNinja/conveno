@@ -56,7 +56,7 @@ export function removeMarker(path: string): void {
   rmSync(path, { force: true });
 }
 
-/** Plain-language lines that tell the owner what the earlier run left behind. */
+/** Plain-language lines that tell the user what the earlier run left behind. */
 export function describeMarker(path: string, state: MarkerState): string[] {
   const head = `An earlier real-CLI run did not clean up (marker: ${path}).`;
   if (state.kind === "unreadable") {
@@ -85,7 +85,7 @@ export interface CleanupDeps {
   conveno(...args: string[]): CommandResult;
   /** `--approve-init` was given. */
   approved: boolean;
-  /** Ask the owner a yes/no question. Null when there is no terminal. */
+  /** Ask the user a yes/no question. Null when there is no terminal. */
   ask(question: string): Promise<string | null>;
   log(line: string): void;
 }
@@ -95,7 +95,7 @@ export interface CleanupDeps {
  * - `none`: no marker, nothing to do.
  * - `cleaned`: Conveno was stopped and uninstalled, and the marker removed.
  * - `no-approval`: no terminal and no `--approve-init`; nothing was changed.
- * - `declined`: the owner said no; nothing was changed.
+ * - `declined`: the user said no; nothing was changed.
  * - `failed`: a cleanup command failed; the marker stays so the next run tries again.
  */
 export type CleanupOutcome = "none" | "cleaned" | "no-approval" | "declined" | "failed";

@@ -52,13 +52,13 @@ SIGINT or SIGTERM after closing cleanly.
   run of the CLI registers as a new session. Online sessions are never deleted.
 - Status text is reduced to one line: control characters become spaces and whitespace collapses.
 - Clients cannot send `system` messages, and `conveno`, `orchestrator`, `system` and `user` are
-  reserved session names. Binding a session to the connection that registered it is deferred to M2.
+  reserved session names. Binding a session to the connection that registered it is planned.
 - Idle exit: after `idleExitMs` with no online sessions.
 - `session.unregister` marks the session offline (the row stays so old messages keep their sender).
 - `session.list` `repo` matches the repo root path or its basename.
-- `ticket.*`, `spawn.*` and `peek.*` return `-32601` until their milestones.
+- `ticket.*`, `spawn.*` and `peek.*` return `-32601` because they are not implemented yet.
 
-Known gap, deferred to M2: there is no socket backpressure. A client that stops reading can make the
+Known gap, planned: there is no socket backpressure. A client that stops reading can make the
 daemon buffer its pending writes in memory.
 
 No runtime dependencies beyond `protocol` and `core`.

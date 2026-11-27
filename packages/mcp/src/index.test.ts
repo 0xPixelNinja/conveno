@@ -102,7 +102,7 @@ describe("instructions", () => {
 });
 
 describe("tools", () => {
-  it("lists exactly the M1 tools", async () => {
+  it("lists exactly the tools the server offers", async () => {
     const p = await startPeer(root);
     const { tools } = await p.client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(

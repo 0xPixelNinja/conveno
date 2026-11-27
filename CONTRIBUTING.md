@@ -1,9 +1,9 @@
 # Contributing to Conveno
 
-Conveno is pre-alpha. The M1 local core is in progress. The protocol, daemon, client, core, MCP server
-and CLI are implemented, along with the Claude, Codex and OpenCode adapters. The relay, crypto, redact
-and account-web packages and the Antigravity, Copilot and Cursor adapters are still stubs, so the most
-useful contributions right now are protocol review, tests, docs and adapter research. Open an issue
+Conveno is pre-alpha. The local mesh is implemented: protocol, daemon, client, core, MCP server and
+CLI, with the Claude, Codex and OpenCode adapters. The relay, crypto, redact and account-web packages
+and the Antigravity, Copilot and Cursor adapters are planned and not implemented, so the most useful
+contributions right now are protocol review, tests, docs and adapter research. Open an issue
 before starting anything large.
 
 By taking part you agree to follow the [Code of Conduct](./CODE_OF_CONDUCT.md). Report security problems

@@ -89,7 +89,7 @@ describe("cleanupStale", () => {
     expect(existsSync(d.markerFile)).toBe(true);
   });
 
-  it("changes nothing when the owner says no", async () => {
+  it("changes nothing when the user says no", async () => {
     const { d, calls } = deps({ ask: async () => "n" });
     writeMarker(d.markerFile, marker);
     expect(await cleanupStale(d)).toBe("declined");
