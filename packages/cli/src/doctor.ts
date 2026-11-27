@@ -1,6 +1,7 @@
 import type { Adapter, Detection } from "@0xpixelninja/conveno-core";
+import { COMMANDS, parseFlags } from "./args.js";
 import { adapterEnv, type Ctx, connectOpts } from "./ctx.js";
-import { cmd, columns, errorBlock, plural, warnBlock } from "./fmt.js";
+import { cmd, columns, errorBlock, plainError, plural, warnBlock } from "./fmt.js";
 
 interface Row {
   adapter: Adapter;
@@ -34,13 +35,18 @@ async function inspect(ctx: Ctx, adapter: Adapter): Promise<Row> {
       detection,
       mcp: false,
       hooks: hasHooks ? false : null,
-      planError: e instanceof Error ? e.message : String(e),
+      planError: plainError(e),
     };
   }
 }
 
-export async function runDoctor(ctx: Ctx): Promise<number> {
+export async function runDoctor(ctx: Ctx, argv: string[] = []): Promise<number> {
   const t = ctx.theme;
+  const spec = COMMANDS.find((c) => c.name === "doctor");
+  if (spec) {
+    const parsed = parseFlags(ctx, spec, argv);
+    if (typeof parsed === "number") return parsed;
+  }
   let ok = 0;
   let warnings = 0;
   let problems = 0;
@@ -65,7 +71,7 @@ export async function runDoctor(ctx: Ctx): Promise<number> {
         t,
         "The Conveno daemon is not running.",
         `Run ${cmd(t, "conveno daemon start")}. It also starts when a CLI opens the Conveno MCP server.`,
-        e instanceof Error ? e.message : undefined,
+        plainError(e),
       ),
     );
   }
@@ -77,7 +83,8 @@ export async function runDoctor(ctx: Ctx): Promise<number> {
   const table: string[][] = [
     [`    ${q("CLI")}`, q("NAME"), q("VERSION"), q("MCP"), q("HOOKS"), q("TIER"), q("NOTE")],
   ];
-  const yesNo = (v: boolean | null): string => (v === null ? q("n/a") : v ? "yes" : "no");
+  const yesNo = (v: boolean | null): string =>
+    v === null ? q("n/a") : v ? "yes" : t.paint("warn", "not configured");
   for (const r of rows) {
     const { adapter, detection } = r;
     if (!detection.installed) {
@@ -110,12 +117,13 @@ export async function runDoctor(ctx: Ctx): Promise<number> {
     if (r.planError) {
       problems++;
       notes.push(
-        errorBlock(
-          t,
-          `${adapter.displayName} config could not be read`,
-          [r.planError],
-          "Repair the file named above, then run conveno doctor again.",
-        ),
+        errorBlock(t, {
+          what: `${adapter.displayName} config could not be read`,
+          detail: [r.planError],
+          fix: "Repair the file named above, then run conveno doctor again.",
+          exit: 1,
+          ref: "e_config",
+        }),
       );
     } else if (good) {
       ok++;

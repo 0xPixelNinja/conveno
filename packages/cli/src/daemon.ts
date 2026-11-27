@@ -1,7 +1,7 @@
-import { readFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { dataPaths } from "@0xpixelninja/conveno-core";
 import { type Ctx, connectOpts } from "./ctx.js";
-import { cmd, errorBlock } from "./fmt.js";
+import { closest, cmd, fail, plainError } from "./fmt.js";
 
 async function lockPid(ctx: Ctx): Promise<number | null> {
   try {
@@ -24,6 +24,7 @@ function alive(pid: number): boolean {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/** Does something on the socket answer the Conveno handshake? */
 async function reachable(ctx: Ctx): Promise<boolean> {
   try {
     const c = await ctx.connect(connectOpts(ctx, false));
@@ -34,6 +35,8 @@ async function reachable(ctx: Ctx): Promise<boolean> {
   }
 }
 
+const SUBCOMMANDS = ["start", "stop", "status"];
+
 export async function runDaemon(ctx: Ctx, argv: string[]): Promise<number> {
   const t = ctx.theme;
   const sub = argv[0];
@@ -42,15 +45,13 @@ export async function runDaemon(ctx: Ctx, argv: string[]): Promise<number> {
       const c = await ctx.connect(connectOpts(ctx, true));
       await c.close().catch(() => undefined);
     } catch (e) {
-      ctx.err(
-        errorBlock(
-          t,
-          "The Conveno daemon did not start",
-          [e instanceof Error ? e.message : String(e)],
-          `Run ${cmd(t, "conveno doctor")} to check the install, then try again.`,
-        ),
-      );
-      return 1;
+      return fail(ctx, {
+        what: "The Conveno daemon did not start",
+        detail: [plainError(e)],
+        fix: `Run ${cmd(t, "conveno doctor")} to check the install, then try again.`,
+        exit: 1,
+        ref: "e_daemon_start",
+      });
     }
     const pid = await lockPid(ctx);
     ctx.out(`${t.status("ok")} Daemon running${pid ? `, pid ${pid}` : ""}.\n`);
@@ -67,9 +68,27 @@ export async function runDaemon(ctx: Ctx, argv: string[]): Promise<number> {
 
   if (sub === "stop") {
     const pid = await lockPid(ctx);
-    if (pid === null || !alive(pid)) {
-      ctx.out(`${t.status("info")} The daemon is not running. Nothing to stop.\n`);
+    // The lock file can outlive the daemon, and its pid can be reused by an unrelated process.
+    // Only a process that answers the Conveno handshake on the socket is ever signalled.
+    if (!(await reachable(ctx))) {
+      if (pid !== null) {
+        await rm(dataPaths(ctx.platform, ctx.dataDir).lock, { force: true }).catch(() => undefined);
+        ctx.out(
+          `${t.status("info")} Nothing answered as the Conveno daemon, so no process was stopped. Removed the stale lock file (it named pid ${pid}).\n`,
+        );
+      } else {
+        ctx.out(`${t.status("info")} The daemon is not running. Nothing to stop.\n`);
+      }
       return 0;
+    }
+    if (pid === null || !alive(pid)) {
+      return fail(ctx, {
+        what: "The daemon is running, but its lock file does not name a live process",
+        detail: ["Conveno will not guess which process to stop."],
+        fix: `Stop the process that owns the daemon socket yourself, then run ${cmd(t, "conveno daemon status")}.`,
+        exit: 1,
+        ref: "e_daemon_lock",
+      });
     }
     try {
       if (ctx.platform === "win32") {
@@ -79,39 +98,34 @@ export async function runDaemon(ctx: Ctx, argv: string[]): Promise<number> {
         process.kill(pid, "SIGTERM");
       }
     } catch (e) {
-      ctx.err(
-        errorBlock(
-          t,
-          `Could not stop the daemon (pid ${pid})`,
-          [e instanceof Error ? e.message : String(e)],
-          `Stop that process yourself, then run ${cmd(t, "conveno daemon status")}.`,
-        ),
-      );
-      return 1;
+      return fail(ctx, {
+        what: `Could not stop the daemon (pid ${pid})`,
+        detail: [plainError(e)],
+        fix: `Stop that process yourself, then run ${cmd(t, "conveno daemon status")}.`,
+        exit: 1,
+        ref: "e_daemon_stop",
+      });
     }
     for (let i = 0; i < 50 && alive(pid); i++) await sleep(100);
     if (alive(pid)) {
-      ctx.err(
-        errorBlock(
-          t,
-          `The daemon (pid ${pid}) is still running after 5s`,
-          ["It was sent a stop signal but has not exited."],
-          `Stop that process yourself, then run ${cmd(t, "conveno daemon status")}.`,
-        ),
-      );
-      return 1;
+      return fail(ctx, {
+        what: `The daemon (pid ${pid}) is still running after 5s`,
+        detail: ["It was sent a stop signal but has not exited."],
+        fix: `Stop that process yourself, then run ${cmd(t, "conveno daemon status")}.`,
+        exit: 1,
+        ref: "e_daemon_stop",
+      });
     }
     ctx.out(`${t.status("ok")} Stopped the daemon (pid ${pid}).\n`);
     return 0;
   }
 
-  ctx.err(
-    errorBlock(
-      t,
-      sub ? `Unknown daemon command "${sub}"` : "conveno daemon needs a command",
-      [],
-      `Run ${cmd(t, "conveno daemon start")}, ${cmd(t, "conveno daemon stop")} or ${cmd(t, "conveno daemon status")}.`,
-    ),
-  );
-  return 2;
+  const suggestion = sub ? closest(sub, SUBCOMMANDS) : undefined;
+  return fail(ctx, {
+    what: sub ? `Unknown daemon command "${sub}"` : "conveno daemon needs a command",
+    fix: `Run ${cmd(t, "conveno daemon start")}, ${cmd(t, "conveno daemon stop")} or ${cmd(t, "conveno daemon status")}.`,
+    ...(suggestion ? { didYouMean: `Did you mean ${suggestion}?` } : {}),
+    exit: 2,
+    ref: "e_usage",
+  });
 }
