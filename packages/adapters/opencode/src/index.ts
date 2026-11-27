@@ -83,19 +83,6 @@ function isV2OrLater(v: [number, number, number]): boolean {
   return true;
 }
 
-/** V1 keeps server definitions directly under `mcp`, next to no `servers` wrapper. */
-function usesV1Keys(config: Record<string, unknown>): boolean {
-  const mcp = config.mcp;
-  if (mcp === null || typeof mcp !== "object" || Array.isArray(mcp)) return false;
-  return Object.entries(mcp).some(
-    ([key, value]) =>
-      key !== "servers" &&
-      value !== null &&
-      typeof value === "object" &&
-      typeof (value as { type?: unknown }).type === "string",
-  );
-}
-
 async function chooseShape(env: AdapterEnv, config: Record<string, unknown>): Promise<Shape> {
   let version: [number, number, number] | undefined;
   try {
@@ -104,8 +91,10 @@ async function chooseShape(env: AdapterEnv, config: Record<string, unknown>): Pr
   } catch {
     version = undefined;
   }
-  if (version && isV2OrLater(version)) return "v2";
-  return usesV1Keys(config) ? "v1" : "v2";
+  if (version) return isV2OrLater(version) ? "v2" : "v1";
+  // Unknown version: keep V2 only when the config already has the `mcp.servers` envelope.
+  // Otherwise V1, which every 1.x release reads (1.19.x also reads V2).
+  return servers(config) !== undefined ? "v2" : "v1";
 }
 
 function v1Entry(config: Record<string, unknown>): unknown {

@@ -23,7 +23,17 @@ V1 (older releases) used `mcp.<name>` with `enabled`:
 { "mcp": { "conveno": { "type": "local", "command": ["conveno", "mcp", "--cli", "opencode"], "enabled": true } } }
 ```
 
-Choice of shape: the adapter runs `opencode --version`. From 2.2.0 on it writes V2. 2.2.0 is the first V2 release in the GitHub release list (https://github.com/sst/opencode/releases; there are no 2.0.x or 2.1.x tags, and the V1 line continued to 1.19.x). For older or unknown versions it writes V1 only when the existing config already has V1 keys (an `mcp` entry other than `servers` with a `type`), otherwise V2. When it writes one shape it removes our entry from the other. Uninstall removes our entry from both shapes.
+Choice of shape: the adapter runs `opencode --version`.
+
+1. Known version below 2.2.0: always V1, even with no existing config. 2.2.0 is the first V2 release in the GitHub release list (https://github.com/sst/opencode/releases; no 2.0.x or 2.1.x tags exist, and the 1.x line continued to 1.19.6).
+2. Known version 2.2.0 or later: V2.
+3. Unknown version: V2 only if the config already has an `mcp.servers` object, otherwise V1 (including no config, no `mcp` key, or an empty `mcp`). V1 is the safer default: every 1.x release reads it, and the 1.19.6 source (`packages/opencode/src/config/v2-compat.ts`, `normalizeMcp`) shows 1.x also normalises the V2 `mcp.servers` envelope, while the V2 docs only promise V2. Earlier 1.x releases were not checked against `mcp.servers`; in 1.19.6 an `mcp` entry without a `type` is logged and ignored, not fatal.
+
+When it writes one shape it removes our entry from the other. Uninstall removes our entry from both shapes.
+
+## Where 2.x is published
+
+`npm view opencode-ai dist-tags.latest` is 1.19.6, so the `opencode-ai` package is still the 1.x line. The V2 docs install 2.x as `@opencode/cli` on npm (`latest` is 2.4.2), `brew install anomalyco/tap/opencode-v2`, or `curl -fsSL https://opencode.ai/v2/install | bash`. `opencode --version` reports the installed line either way, which is what the adapter reads.
 
 ## Sources
 

@@ -19,7 +19,7 @@ function envFor(exec?: AdapterEnv["exec"]): AdapterEnv {
     home,
     platform: process.platform,
     cwd: home,
-    exec: exec ?? (async () => ({ code: 0, stdout: "1.2.3\n" })),
+    exec: exec ?? (async () => ({ code: 0, stdout: "2.4.2\n" })),
     conveno: { command: ["conveno"] },
   };
 }
@@ -126,7 +126,7 @@ describe("opencodeAdapter", () => {
 
   it("detect reads the version and handles a missing binary", async () => {
     const d = await opencodeAdapter.detect(envFor());
-    expect(d).toMatchObject({ installed: true, version: "1.2.3" });
+    expect(d).toMatchObject({ installed: true, version: "2.4.2" });
     const missing = await opencodeAdapter.detect(
       envFor(async () => {
         throw new Error("ENOENT");
@@ -153,7 +153,7 @@ describe("opencodeAdapter V1 fallback", () => {
       return { code: 0, stdout: `${v}\n` };
     });
 
-  it("writes V1 for an old version when the config uses V1 keys", async () => {
+  it("writes V1 for a 1.x version when the config uses V1 keys", async () => {
     await seed("opencode.json", v1Config);
     const [c] = await opencodeAdapter.plan(ver("1.19.6"));
     const after = parsed(c?.after);
@@ -162,15 +162,41 @@ describe("opencodeAdapter V1 fallback", () => {
     expect(after.mcp.other).toBeDefined();
   });
 
-  it("writes V1 when the version is unknown and the config uses V1 keys", async () => {
-    await seed("opencode.json", v1Config);
+  it("writes V1 for a 1.x version with no config at all", async () => {
+    const [c] = await opencodeAdapter.plan(ver("1.19.6"));
+    expect(parsed(c?.after)).toEqual({ mcp: { conveno: V1_ENTRY } });
+  });
+
+  it("writes V1 for a 1.x version even when the config has mcp.servers", async () => {
+    await seed(
+      "opencode.json",
+      JSON.stringify({ mcp: { servers: { x: { type: "local", command: ["x"] } } } }),
+    );
+    const [c] = await opencodeAdapter.plan(ver("1.19.6"));
+    const after = parsed(c?.after);
+    expect(after.mcp.conveno).toEqual(V1_ENTRY);
+    expect(after.mcp.servers.x).toBeDefined();
+  });
+
+  it("unknown version: V1 when there is no mcp key", async () => {
+    await seed("opencode.json", "{}");
     const [c] = await opencodeAdapter.plan(ver(null));
     expect(parsed(c?.after).mcp.conveno).toEqual(V1_ENTRY);
   });
 
-  it("writes V2 for an old version when the config has no V1 keys", async () => {
-    await seed("opencode.json", "{}");
-    const [c] = await opencodeAdapter.plan(ver("1.19.6"));
+  it("unknown version: V1 when the config uses V1 keys or an empty mcp", async () => {
+    await seed("opencode.json", v1Config);
+    expect(parsed((await opencodeAdapter.plan(ver(null)))[0]?.after).mcp.conveno).toEqual(V1_ENTRY);
+    await seed("opencode.json", '{"mcp":{}}');
+    expect(parsed((await opencodeAdapter.plan(ver(null)))[0]?.after).mcp.conveno).toEqual(V1_ENTRY);
+  });
+
+  it("unknown version: V2 when the config has the mcp.servers envelope", async () => {
+    await seed(
+      "opencode.json",
+      JSON.stringify({ mcp: { servers: { x: { type: "local", command: ["x"] } } } }),
+    );
+    const [c] = await opencodeAdapter.plan(ver(null));
     expect(parsed(c?.after).mcp.servers.conveno).toEqual(ENTRY);
   });
 
@@ -183,7 +209,7 @@ describe("opencodeAdapter V1 fallback", () => {
   });
 
   it("treats 2.1.9 as V1", async () => {
-    await seed("opencode.json", v1Config);
+    await seed("opencode.json", "{}");
     const [c] = await opencodeAdapter.plan(ver("2.1.9"));
     expect(parsed(c?.after).mcp.conveno).toEqual(V1_ENTRY);
   });
