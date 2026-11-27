@@ -39,6 +39,7 @@ SIGINT or SIGTERM after closing cleanly.
   unless its pid is alive and the socket recorded in the lock answers (or the lock is under 5 s old). On POSIX a leftover socket file is removed only when nothing answers on it.
 - Shutdown: `daemon.shutdown` replies `{ ok: true }`, then stops listening, closes the store, removes the socket (POSIX) and the lock file, and exits 0. `conveno daemon stop` uses it.
 - Log: unexpected errors, with their stacks, go to `<data>/logs/daemon.log` (mode 0600). At 1 MiB the file moves to `daemon.log.1`, replacing the older one. Request parameters are never logged. The reply to the client names this path.
+- Start log: a client that starts the daemon sends its stdout and stderr to `<data>/logs/daemon-start.log`, truncated at each start. It catches what the daemon prints before its own log is open, such as a crash at startup, and a failed start shows its last lines.
 - Hook lookup: `session.byHost` takes the hook's host pid and returns the one online session whose `hostPid` equals it. No walking to ancestors; none or two matches give `null`.
 - Liveness: every 15 s sessions with no heartbeat for 45 s, or whose `hostPid` (the CLI hosting the MCP server) is gone, go `offline`.
   The orchestrator role is vacated, never passed on. After a daemon restart each session gets a full

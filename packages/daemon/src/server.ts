@@ -68,7 +68,7 @@ import {
 import { createDaemonLog, type DaemonLog } from "./log.js";
 import { type SessionRow, Store, toSession } from "./store.js";
 
-export const DAEMON_VERSION = "0.1.1-rc.2";
+export const DAEMON_VERSION = "0.1.1-rc.3";
 export const DEFAULT_IDLE_EXIT_MS = 10 * 60_000;
 export const SWEEP_INTERVAL_MS = 15_000;
 /** A connection that has not finished the handshake by then is closed. */

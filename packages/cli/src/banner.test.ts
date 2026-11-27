@@ -9,7 +9,7 @@ describe("versionLine", () => {
       isTTY: true,
       platform: "linux",
     });
-    expect(versionLine(theme)).toBe("c● conveno 0.1.1-rc.2");
+    expect(versionLine(theme)).toBe("c● conveno 0.1.1-rc.3");
   });
   it("uses ASCII when asked", () => {
     const theme = createTheme({
@@ -18,7 +18,7 @@ describe("versionLine", () => {
       platform: "linux",
       ascii: true,
     });
-    expect(versionLine(theme)).toBe("c* conveno 0.1.1-rc.2");
+    expect(versionLine(theme)).toBe("c* conveno 0.1.1-rc.3");
   });
   it("colours the point with the entry role", () => {
     const theme = createTheme({

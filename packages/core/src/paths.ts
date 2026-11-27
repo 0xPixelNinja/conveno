@@ -41,6 +41,8 @@ export function dataPaths(platform: string, dir: string) {
     /** The CLI writes its error logs here, and the daemon writes `daemon.log`. */
     logs: p.join(dir, "logs"),
     daemonLog: p.join(dir, "logs", "daemon.log"),
+    /** What the daemon printed to stdout and stderr, from the last time a client started it. */
+    daemonStartLog: p.join(dir, "logs", "daemon-start.log"),
     manifest: p.join(dir, "install-manifest.json"),
   };
 }

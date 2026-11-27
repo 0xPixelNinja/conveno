@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { ConvenoError } from "@conveno/core";
 import { type EventPayload, newSessionId, RpcErrorCode } from "@conveno/protocol";
 import { afterEach, describe, expect, it } from "vitest";
-import { connect } from "./index.js";
+import { ClientError, connect } from "./index.js";
 import {
   type FakeServer,
   startFakeServer,
@@ -298,18 +298,39 @@ describe("auto-start", () => {
     expect(starts).toHaveLength(1);
   });
 
-  it("gives up with a clear error when the daemon never appears", async () => {
+  it("fails at once, with its output, when the daemon exits before it listens", async () => {
     const dir = await tempDataDir();
-    const entry = join(dir, "noop.mjs");
-    await writeFile(entry, "process.exit(0);\n");
-    await expect(
-      connect({
-        kind: "cli",
-        dataDir: dir,
-        socketPath: tempSocketPath(dir, "never"),
-        daemonEntry: entry,
-        startTimeoutMs: 400,
-      }),
-    ).rejects.toThrow(/did not start within 400 ms/);
+    const entry = join(dir, "crash.mjs");
+    await writeFile(entry, 'console.error("boom: cannot open the database");\nprocess.exit(3);\n');
+    const started = Date.now();
+    const err = await connect({
+      kind: "cli",
+      dataDir: dir,
+      socketPath: tempSocketPath(dir, "crash"),
+      daemonEntry: entry,
+      startTimeoutMs: 20_000,
+    }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ClientError);
+    expect((err as ClientError).kind).toBe("start_exited");
+    expect((err as Error).message).toMatch(/exited with code 3 before it listened/);
+    expect((err as Error).message).toContain("boom: cannot open the database");
+    expect((err as Error).message).toContain(join(dir, "logs", "daemon-start.log"));
+    expect(Date.now() - started).toBeLessThan(10_000);
+  });
+
+  it("gives up with a clear error when a running daemon never listens", async () => {
+    const dir = await tempDataDir();
+    const entry = join(dir, "silent.mjs");
+    await writeFile(entry, 'console.log("starting");\nsetTimeout(() => {}, 3000);\n');
+    const err = await connect({
+      kind: "cli",
+      dataDir: dir,
+      socketPath: tempSocketPath(dir, "never"),
+      daemonEntry: entry,
+      startTimeoutMs: 400,
+    }).catch((e: unknown) => e);
+    expect((err as ClientError).kind).toBe("start_timeout");
+    expect((err as Error).message).toMatch(/did not start within 400 ms/);
+    expect((err as Error).message).toContain("starting");
   });
 });
