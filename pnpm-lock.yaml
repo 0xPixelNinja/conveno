@@ -303,7 +303,29 @@ importers:
         specifier: workspace:*
         version: link:../protocol
 
-  packages/e2e: {}
+  packages/e2e:
+    dependencies:
+      '@0xpixelninja/conveno-adapter-claude':
+        specifier: workspace:*
+        version: link:../adapters/claude
+      '@0xpixelninja/conveno-adapter-codex':
+        specifier: workspace:*
+        version: link:../adapters/codex
+      '@0xpixelninja/conveno-client':
+        specifier: workspace:*
+        version: link:../client
+      '@0xpixelninja/conveno-core':
+        specifier: workspace:*
+        version: link:../core
+      '@0xpixelninja/conveno-mcp':
+        specifier: workspace:*
+        version: link:../mcp
+      '@0xpixelninja/conveno-protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@modelcontextprotocol/sdk':
+        specifier: 1.32.2
+        version: 1.32.2(zod@4.6.7)
 
   packages/mcp:
     dependencies:
