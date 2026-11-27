@@ -36,3 +36,7 @@ Codex asks the user to review and trust new or changed hooks (`/hooks`) before t
 - Hooks: https://learn.chatgpt.com/docs/hooks (locations `$CODEX_HOME/hooks.json` or `~/.codex/hooks.json`, `[hooks]` in `config.toml`, matcher groups, `timeout` in seconds, stdin fields, `hookSpecificOutput.additionalContext`, trust by hash, no feature flag needed)
 - MCP: https://learn.chatgpt.com/docs/extend/mcp?surface=cli (formerly https://developers.openai.com/codex/mcp; `[mcp_servers.<name>]` with `command`, `args`, `env`; `codex mcp add <name> -- <command>`)
 - Source: https://github.com/openai/codex
+
+## Hook command quoting on Windows
+
+The Codex hooks page (https://learn.chatgpt.com/docs/hooks) does not say which shell runs a hook command. The source does: `codex-rs/hooks/src/engine/command_runner.rs` (`build_command`, `default_shell_program`) runs `%COMSPEC% /C "<command line>"`, falling back to `cmd.exe`, on Windows, and `$SHELL -lc` elsewhere. So on Windows the command is written for cmd.exe: words with spaces in double quotes, and forward slashes in paths, for example `"C:/Program Files/nodejs/node.exe" "C:/Users/x/AppData/Roaming/npm/node_modules/conveno/dist/bin.js" hook codex SessionStart`. cmd.exe runs a quoted program path with forward slashes, and the outer quotes that Codex adds around the whole line are stripped by `/C`. Paths without spaces are left unquoted. The docs also list a `commandWindows` override, which is not needed. Read from the docs and source only, not run on Windows.

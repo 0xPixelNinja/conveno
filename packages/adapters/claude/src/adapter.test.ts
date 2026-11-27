@@ -221,6 +221,42 @@ describe("plan", () => {
     expect(srv.args).toEqual(["C:\\c\\cli.js", "mcp", "--cli", "claude"]);
   });
 
+  it("writes Windows hook paths with forward slashes, quoted for Git Bash", async () => {
+    const e = env({
+      platform: "win32",
+      conveno: {
+        command: [
+          "C:\\Program Files\\nodejs\\node.exe",
+          "C:\\Users\\Dev User\\AppData\\Roaming\\npm\\node_modules\\conveno\\dist\\bin.js",
+        ],
+      },
+    });
+    const changes = await claudeAdapter.plan(e);
+    const settings = changes[1] as ConfigChange;
+    const command = JSON.parse(settings.after).hooks.UserPromptSubmit[0].hooks[0].command;
+    expect(command).toBe(
+      '"C:/Program Files/nodejs/node.exe" "C:/Users/Dev User/AppData/Roaming/npm/node_modules/conveno/dist/bin.js" hook claude UserPromptSubmit',
+    );
+    // No backslash survives into the command, so neither the JSON file nor bash needs escapes.
+    expect(command).not.toContain("\\");
+    expect(settings.after).not.toContain("\\\\");
+    // Installing again finds the same command and plans nothing.
+    await put(settingsPath(), settings.after);
+    await put(mcpPath(), (changes[0] as ConfigChange).after);
+    expect(await claudeAdapter.plan(e)).toEqual([]);
+  });
+
+  it("keeps a Windows path without spaces unquoted", async () => {
+    const e = env({
+      platform: "win32",
+      conveno: { command: ["C:\\nodejs\\node.exe", "D:\\c\\bin.js"] },
+    });
+    const st = JSON.parse(((await claudeAdapter.plan(e))[1] as ConfigChange).after);
+    expect(st.hooks.SessionStart[0].hooks[0].command).toBe(
+      "C:/nodejs/node.exe D:/c/bin.js hook claude SessionStart",
+    );
+  });
+
   it("refuses malformed JSON with a clear error and leaves the file alone", async () => {
     await put(settingsPath(), '{ "hooks": { oops }');
     await expect(claudeAdapter.plan(env())).rejects.toThrow(

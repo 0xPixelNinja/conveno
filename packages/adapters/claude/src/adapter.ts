@@ -28,11 +28,22 @@ function paths(env: AdapterEnv): { mcp: string; settings: string } {
   };
 }
 
-const quote = (arg: string): string =>
-  /^[A-Za-z0-9_@%+=:,./\\-]+$/.test(arg) ? arg : `"${arg.replace(/(["\\$`])/g, "\\$1")}"`;
+/**
+ * Quote one word of a hook command for the shell Claude Code runs it in. On Windows that is Git
+ * Bash (PowerShell only when Git Bash is not installed), so the word is written for bash. Windows
+ * paths use forward slashes there: bash would read `\P` inside double quotes as an escape, and
+ * Windows accepts `/` in every API Node and Git Bash use, so `C:/Program Files/nodejs/node.exe`
+ * means the same file and needs no escaping.
+ */
+function quoteHookWord(arg: string, platform: NodeJS.Platform): string {
+  const word = platform === "win32" ? arg.replace(/\\/g, "/") : arg;
+  return /^[A-Za-z0-9_@%+=:,./\\-]+$/.test(word) ? word : `"${word.replace(/(["\\$`])/g, "\\$1")}"`;
+}
 
 const hookCommand = (env: AdapterEnv, event: string): string =>
-  [...env.conveno.command, "hook", "claude", event].map(quote).join(" ");
+  [...env.conveno.command, "hook", "claude", event]
+    .map((w) => quoteHookWord(w, env.platform))
+    .join(" ");
 
 const mcpArgs = (env: AdapterEnv): string[] => [...env.conveno.command, "mcp", "--cli", "claude"];
 
