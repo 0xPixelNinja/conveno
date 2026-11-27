@@ -4,6 +4,15 @@
   "private": true,
   "description": "Cloudflare Worker + Durable Object relay (AGPL-3.0)",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0xPixelNinja/conveno.git",
+    "directory": "packages/relay"
+  },
+  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "bugs": {
+    "url": "https://github.com/0xPixelNinja/conveno/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

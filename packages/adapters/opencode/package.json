@@ -4,6 +4,15 @@
   "private": true,
   "description": "Conveno adapter for opencode",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0xPixelNinja/conveno.git",
+    "directory": "packages/adapters/opencode"
+  },
+  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "bugs": {
+    "url": "https://github.com/0xPixelNinja/conveno/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

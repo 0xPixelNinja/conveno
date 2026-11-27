@@ -4,6 +4,15 @@
   "private": true,
   "description": "The `conveno` command: init, status, doctor, uninstall, pair, login, logs",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0xPixelNinja/conveno.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "bugs": {
+    "url": "https://github.com/0xPixelNinja/conveno/issues"
+  },
   "type": "module",
   "bin": {
     "conveno": "./dist/bin.js"
