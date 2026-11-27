@@ -55,9 +55,35 @@ export function compareEntries(a: MailboxEntry, b: MailboxEntry): number {
 export const orderEntries = (entries: readonly MailboxEntry[]): MailboxEntry[] =>
   [...entries].sort(compareEntries);
 
+/**
+ * Largest encoded size of the messages in one response. The frame limit is 1 MiB; this leaves
+ * room for the JSON-RPC envelope and escaping.
+ */
+export const RESPONSE_BUDGET_BYTES = 900_000;
+
+/**
+ * The longest prefix of `entries` whose messages fit in `maxBytes` of JSON. Always keeps the
+ * first entry, so one big message cannot block the queue forever.
+ */
+export function takeWithinBytes(
+  entries: readonly MailboxEntry[],
+  maxBytes: number,
+): MailboxEntry[] {
+  const out: MailboxEntry[] = [];
+  let used = 2;
+  for (const e of entries) {
+    used += Buffer.byteLength(JSON.stringify(e.message)) + 1;
+    if (out.length > 0 && used > maxBytes) break;
+    out.push(e);
+  }
+  return out;
+}
+
 export interface InboxQuery {
   unreadOnly: boolean;
   limit: number;
+  /** Stop adding messages once their JSON would pass this many bytes. */
+  maxBytes?: number;
 }
 
 /**
@@ -69,10 +95,11 @@ export function readInbox(
   query: InboxQuery,
   at: string,
 ): { returned: MailboxEntry[]; entries: MailboxEntry[]; unreadCount: number } {
-  const picked = orderEntries(entries.filter((e) => !query.unreadOnly || isUnread(e))).slice(
+  const limited = orderEntries(entries.filter((e) => !query.unreadOnly || isUnread(e))).slice(
     0,
     Math.max(0, query.limit),
   );
+  const picked = query.maxBytes === undefined ? limited : takeWithinBytes(limited, query.maxBytes);
   const ids = new Set(picked.map((e) => e.message.id));
   const updated = entries.map((e) => (ids.has(e.message.id) ? advanceEntry(e, "read", at) : e));
   const returned = orderEntries(updated.filter((e) => ids.has(e.message.id)));

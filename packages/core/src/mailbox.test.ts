@@ -9,6 +9,7 @@ import {
   orderEntries,
   pendingForInjection,
   readInbox,
+  takeWithinBytes,
 } from "./mailbox.js";
 import { rng, textMessage } from "./testing.js";
 
@@ -85,6 +86,24 @@ describe("inbox", () => {
     const acked = ackEntries(entries, [entries[0]?.message.id as never], T2).entries;
     const r = readInbox(acked, { unreadOnly: false, limit: 20 }, T2);
     expect(r.entries.find((e) => e.message.id === entries[0]?.message.id)?.state).toBe("acked");
+  });
+});
+
+describe("size cap", () => {
+  const big = (n: number) => Array.from({ length: n }, (_, i) => mk(`${i}`.padEnd(60_000, "x")));
+
+  it("takes a prefix that fits and always at least one entry", () => {
+    const all = orderEntries(big(20));
+    expect(takeWithinBytes(all, 900_000).length).toBeLessThan(20);
+    expect(takeWithinBytes(all, 900_000).length).toBeGreaterThan(10);
+    expect(takeWithinBytes(all, 10)).toHaveLength(1);
+    expect(takeWithinBytes([], 10)).toHaveLength(0);
+  });
+  it("inbox marks only the messages it returns", () => {
+    const r = readInbox(big(20), { unreadOnly: true, limit: 200, maxBytes: 900_000 }, T2);
+    expect(r.returned.length).toBeLessThan(20);
+    expect(r.entries.filter((e) => e.state === "read")).toHaveLength(r.returned.length);
+    expect(r.unreadCount).toBe(20 - r.returned.length);
   });
 });
 
