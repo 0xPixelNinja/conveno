@@ -28,6 +28,7 @@ describe("method table", () => {
     expect([...IPC_METHOD_NAMES].sort()).toEqual(
       [
         "hello",
+        "auth",
         "session.register",
         "session.heartbeat",
         "session.unregister",
@@ -100,34 +101,47 @@ describe("parseIpcRequest: envelope", () => {
   });
 });
 
-describe("hello", () => {
-  it("accepts a handshake and validates its result", () => {
-    const p = okParams("hello", {
-      protocolVersion: PROTOCOL_VERSION,
-      client: "mcp",
-      authToken: "t",
-    });
+const HEX = "ab".repeat(32);
+
+describe("hello and auth", () => {
+  it("accepts a handshake with a nonce and validates its result", () => {
+    const p = okParams("hello", { protocolVersion: PROTOCOL_VERSION, client: "mcp", nonce: HEX });
     expect(p.client).toBe("mcp");
+    const result = {
+      protocolVersion: PROTOCOL_VERSION,
+      daemonVersion: "0.1.0",
+      proof: HEX,
+      challenge: HEX,
+    };
+    expect(ipcMethods.hello.result.safeParse(result).success).toBe(true);
     expect(
-      ipcMethods.hello.result.safeParse({
-        protocolVersion: PROTOCOL_VERSION,
-        daemonVersion: "0.1.0",
-      }).success,
-    ).toBe(true);
-    expect(
-      ipcMethods.hello.result.safeParse({ protocolVersion: "conveno/2", daemonVersion: "0.1.0" })
-        .success,
+      ipcMethods.hello.result.safeParse({ ...result, protocolVersion: "conveno/2" }).success,
     ).toBe(false);
+    expect(ipcMethods.hello.result.safeParse({ ...result, proof: undefined }).success).toBe(false);
   });
 
-  it("requires a token and a known client kind", () => {
-    expect(req("hello", { protocolVersion: PROTOCOL_VERSION, client: "mcp" }).ok).toBe(false);
-    expect(
-      req("hello", { protocolVersion: PROTOCOL_VERSION, client: "mcp", authToken: "" }).ok,
-    ).toBe(false);
-    expect(
-      req("hello", { protocolVersion: PROTOCOL_VERSION, client: "browser", authToken: "t" }).ok,
-    ).toBe(false);
+  it("requires a well formed nonce and a known client kind", () => {
+    const base = { protocolVersion: PROTOCOL_VERSION, client: "mcp" };
+    expect(req("hello", base).ok).toBe(false);
+    expect(req("hello", { ...base, nonce: "short" }).ok).toBe(false);
+    expect(req("hello", { ...base, nonce: HEX.toUpperCase() }).ok).toBe(false);
+    expect(req("hello", { ...base, client: "browser", nonce: HEX }).ok).toBe(false);
+  });
+
+  it("does not take a token in hello", () => {
+    const r = req("hello", {
+      protocolVersion: PROTOCOL_VERSION,
+      client: "mcp",
+      nonce: HEX,
+      authToken: "t",
+    });
+    expect(r.ok && "authToken" in r.request.params).toBe(false);
+  });
+
+  it("auth takes a hex proof", () => {
+    expect(okParams("auth", { proof: HEX }).proof).toBe(HEX);
+    expect(req("auth", { proof: "nope" }).ok).toBe(false);
+    expect(req("auth", {}).ok).toBe(false);
   });
 });
 
@@ -159,7 +173,9 @@ describe("session.*", () => {
 
   it("rename validates the name", () => {
     expect(req("session.rename", { sessionId: sid, name: "planner" }).ok).toBe(true);
-    expect(req("session.rename", { sessionId: sid, name: "orchestrator" }).ok).toBe(false);
+    expect(req("session.rename", { sessionId: sid, name: "Bad Name" }).ok).toBe(false);
+    // Reserved names pass the schema; the daemon refuses them with a plain message.
+    expect(req("session.rename", { sessionId: sid, name: "orchestrator" }).ok).toBe(true);
   });
 
   it("setStatus needs status and/or statusText (null clears)", () => {

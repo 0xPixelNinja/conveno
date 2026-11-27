@@ -27,6 +27,8 @@ export interface AdapterEnv {
   cwd: string;
   exec(cmd: string, args: string[]): Promise<{ code: number; stdout: string }>;
   conveno: { command: string[] };
+  /** Process environment as the caller sees it. Adapters read env vars from here, never from process.env. */
+  env: Readonly<Record<string, string | undefined>>;
 }
 
 export interface HookContext {

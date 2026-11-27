@@ -26,13 +26,27 @@ export const SESSION_NAME_PATTERN = /^[a-z0-9][a-z0-9._@-]{0,63}$/;
 export const ORCHESTRATOR_ALIAS = "orchestrator";
 
 /**
- * Human-readable session name, unique per account. `orchestrator` is reserved because it is
- * the recipient alias. ULIDs are uppercase, names are lowercase, so ids and names never collide.
+ * Names no session may take. `orchestrator` is the recipient alias; the others are the senders
+ * the daemon uses for its own messages, so a session must not pose as them.
+ */
+export const RESERVED_SESSION_NAMES = ["conveno", ORCHESTRATOR_ALIAS, "system", "user"] as const;
+export const isReservedSessionName = (n: string): boolean =>
+  (RESERVED_SESSION_NAMES as readonly string[]).includes(n);
+
+/**
+ * A requested name as it arrives in params: pattern only. The daemon refuses reserved names
+ * itself so it can answer with a plain message instead of a schema issue list.
+ */
+export const SessionNameInput = z.string().regex(SESSION_NAME_PATTERN, "invalid session name");
+
+/**
+ * Human-readable session name, unique per account. Reserved names are refused. ULIDs are
+ * uppercase, names are lowercase, so ids and names never collide.
  */
 export const SessionName = z
   .string()
   .regex(SESSION_NAME_PATTERN, "invalid session name")
-  .refine((n) => n !== ORCHESTRATOR_ALIAS, { message: '"orchestrator" is a reserved name' });
+  .refine((n) => !isReservedSessionName(n), { message: "reserved session name" });
 export type SessionName = z.infer<typeof SessionName>;
 
 /** UTC ISO-8601 timestamp, e.g. `2026-11-27T09:30:00.000Z`. */

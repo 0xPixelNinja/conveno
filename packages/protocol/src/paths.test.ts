@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultSocketPath } from "./paths.js";
+import { defaultSocketPath, isSocketPathTooLong, socketPathTooLongMessage } from "./paths.js";
 
 describe("defaultSocketPath", () => {
   it("linux: uses XDG_RUNTIME_DIR when set", () => {
@@ -54,5 +54,29 @@ describe("defaultSocketPath", () => {
 
   it("win32: falls back to a generic user name", () => {
     expect(defaultSocketPath("win32", {})).toBe("\\\\.\\pipe\\convenod-user");
+  });
+});
+
+describe("isSocketPathTooLong", () => {
+  const pathOf = (n: number) => `/${"a".repeat(n - 1)}`;
+  it("allows up to 103 bytes on macOS and 107 elsewhere", () => {
+    expect(isSocketPathTooLong(pathOf(103), "darwin")).toBe(false);
+    expect(isSocketPathTooLong(pathOf(104), "darwin")).toBe(true);
+    expect(isSocketPathTooLong(pathOf(107), "linux")).toBe(false);
+    expect(isSocketPathTooLong(pathOf(108), "linux")).toBe(true);
+  });
+  it("never applies to Windows pipes", () => {
+    expect(isSocketPathTooLong(`\\\\.\\pipe\\${"a".repeat(300)}`, "win32")).toBe(false);
+  });
+});
+
+describe("socketPathTooLongMessage", () => {
+  it("names the path, the size, the limit and the fix", () => {
+    const p = `/${"a".repeat(120)}`;
+    const m = socketPathTooLongMessage(p, "linux");
+    expect(m).toContain(p);
+    expect(m).toContain("121 bytes");
+    expect(m).toContain("limit is 107");
+    expect(m).toContain("XDG_RUNTIME_DIR");
   });
 });

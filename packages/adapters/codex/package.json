@@ -32,5 +32,10 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@0xpixelninja/conveno-core": "workspace:*",
+    "@0xpixelninja/conveno-protocol": "workspace:*",
+    "@decimalturn/toml-patch": "3.3.3"
   }
 }

@@ -79,11 +79,20 @@ describe("paint", () => {
         background,
       });
       for (const role of roles) {
+        if (role === "ink") continue;
         const n = Number.parseInt(terminalTheme.roles[role].truecolor[background].slice(1), 16);
         const rgb = `${(n >> 16) & 255};${(n >> 8) & 255};${n & 255}`;
         expect(t.paint(role, "x")).toBe(`\u001b[38;2;${rgb}mx\u001b[0m`);
       }
     }
+  });
+
+  it("leaves ink as the terminal's own foreground and only bolds it", () => {
+    const t = createTheme({ env: { COLORTERM: "truecolor" }, isTTY: true, platform: "linux" });
+    expect(t.paint("ink", "x")).toBe("x");
+    expect(t.paint("ink", "x", { bold: true })).toBe("\u001b[1mx\u001b[0m");
+    expect(t.mark()).toMatch(/^c\u001b\[/);
+    expect(t.status("busy")).toBe("●");
   });
   it("emits the 256 index and the 16-colour code", () => {
     const t256 = createTheme({ env: { TERM: "xterm-256color" }, isTTY: true, platform: "linux" });

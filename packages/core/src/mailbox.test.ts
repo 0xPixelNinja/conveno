@@ -9,6 +9,7 @@ import {
   orderEntries,
   pendingForInjection,
   readInbox,
+  takeWithinBytes,
 } from "./mailbox.js";
 import { rng, textMessage } from "./testing.js";
 
@@ -39,9 +40,9 @@ describe("state machine", () => {
       }
     }
   });
-  it("treats queued and delivered as unread", () => {
+  it("treats only queued as unread; hook-delivered messages were already shown", () => {
     expect(isUnread(mk("a"))).toBe(true);
-    expect(isUnread(advanceEntry(mk("a"), "delivered", T1))).toBe(true);
+    expect(isUnread(advanceEntry(mk("a"), "delivered", T1))).toBe(false);
     expect(isUnread(advanceEntry(mk("a"), "read", T1))).toBe(false);
   });
 });
@@ -88,6 +89,24 @@ describe("inbox", () => {
   });
 });
 
+describe("size cap", () => {
+  const big = (n: number) => Array.from({ length: n }, (_, i) => mk(`${i}`.padEnd(60_000, "x")));
+
+  it("takes a prefix that fits and always at least one entry", () => {
+    const all = orderEntries(big(20));
+    expect(takeWithinBytes(all, 900_000).length).toBeLessThan(20);
+    expect(takeWithinBytes(all, 900_000).length).toBeGreaterThan(10);
+    expect(takeWithinBytes(all, 10)).toHaveLength(1);
+    expect(takeWithinBytes([], 10)).toHaveLength(0);
+  });
+  it("inbox marks only the messages it returns", () => {
+    const r = readInbox(big(20), { unreadOnly: true, limit: 200, maxBytes: 900_000 }, T2);
+    expect(r.returned.length).toBeLessThan(20);
+    expect(r.entries.filter((e) => e.state === "read")).toHaveLength(r.returned.length);
+    expect(r.unreadCount).toBe(20 - r.returned.length);
+  });
+});
+
 describe("injection and ack", () => {
   it("injects only queued entries and marks them delivered", () => {
     const entries = [mk("a"), mk("b")];
@@ -100,7 +119,10 @@ describe("injection and ack", () => {
     );
     expect(after.every((e) => e.state === "delivered")).toBe(true);
     expect(pendingForInjection(after)).toHaveLength(0);
-    expect(readInbox(after, { unreadOnly: true, limit: 20 }, T2).returned).toHaveLength(2);
+    const unread = readInbox(after, { unreadOnly: true, limit: 20 }, T2);
+    expect(unread.returned).toHaveLength(0);
+    expect(unread.unreadCount).toBe(0);
+    expect(readInbox(after, { unreadOnly: false, limit: 20 }, T2).returned).toHaveLength(2);
   });
   it("counts acks once and ignores unknown ids", () => {
     const entries = [mk("a"), mk("b")];

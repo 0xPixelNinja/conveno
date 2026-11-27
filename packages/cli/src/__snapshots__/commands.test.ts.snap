@@ -1,0 +1,357 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`doctor > is green after init with a daemon up 1`] = `
+"  ✓ daemon  running, 0 sessions
+
+    CLI     NAME         VERSION  MCP  HOOKS  TIER       NOTE
+  ✓ claude  Claude Code  2.1.4    yes  yes    next turn  delivered at the next prompt
+
+2 ok, 0 warnings, 0 problems
+"
+`;
+
+exports[`doctor > reports each CLI, the daemon and fixes when nothing is set up > stderr 1`] = `
+"
+! The Conveno daemon is not running.
+  why  No Conveno daemon is listening at <tmp>/d.sock. Run "conveno daemon start".
+  fix  Run conveno daemon start. It also starts when a CLI opens the Conveno MCP server.
+
+! Claude Code is missing the MCP server and the hooks.
+  fix  Run conveno init, then restart open Claude Code sessions.
+"
+`;
+
+exports[`doctor > reports each CLI, the daemon and fixes when nothing is set up > stdout 1`] = `
+"  ! daemon  not running
+
+    CLI     NAME         VERSION  MCP             HOOKS           TIER       NOTE
+  ! claude  Claude Code  2.1.4    not configured  not configured  next turn  not fully configured
+  - codex   Codex                                                            not found on PATH
+
+0 ok, 2 warnings, 0 problems
+"
+`;
+
+exports[`help, version, unknown > prints plain, short help 1`] = `
+"Conveno lets AI coding sessions on one machine find each other and exchange messages.
+
+Usage: conveno <command> [options]
+
+  init [--yes] [--dry-run] [--cli <list>]  Set up Claude Code, Codex and OpenCode
+  uninstall [--yes]                        Undo what init changed
+  status                                   List sessions by repo
+  doctor                                   Check each CLI and the daemon
+  daemon start|stop|status                 Manage the background daemon
+  mcp --cli <cli>                          MCP server on stdio (CLIs launch this)
+  hook <cli> <event>                       Hook entry (CLIs launch this)
+  --version                                Print the version
+
+Run conveno <command> --help for the options of one command.
+conveno 0.0.0
+"
+`;
+
+exports[`help, version, unknown > rejects an unknown command with exit 2 and a fix 1`] = `
+"x Unknown command "frobnicate"
+  conveno 0.0.0 has: init, uninstall, status, doctor, daemon, mcp, hook.
+  fix  Run conveno --help to see usage.
+
+exit 2 · ref e_usage
+"
+`;
+
+exports[`init > --dry-run prints the plan and diffs, exits 0 and writes nothing 1`] = `
+"Looking for AI coding CLIs on this machine
+  ✓ claude  Claude Code  2.1.4  ~/.claude.json
+
+Conveno would change 2 files. Nothing else is touched.
+
+  ~/.claude.json  (new file)
+    Register the "conveno" MCP server at user scope (conveno mcp --cli claude).
+    will run  claude mcp add --scope user conveno -- conveno mcp --cli claude
+    expected result (the command may format the file differently)
+    @@ -0,0 +1,14 @@
+    +{
+    +  "mcpServers": {
+    +    "conveno": {
+    +      "type": "stdio",
+    +      "command": "conveno",
+    +      "args": [
+    +        "mcp",
+    +        "--cli",
+    +        "claude"
+    +      ],
+    +      "env": {}
+    +    }
+    +  }
+    +}
+
+  ~/.claude/settings.json  (new file)
+    Add SessionStart and UserPromptSubmit hooks that deliver Conveno messages to Claude Code.
+    @@ -0,0 +1,26 @@
+    +{
+    +  "hooks": {
+    +    "SessionStart": [
+    +      {
+    +        "hooks": [
+    +          {
+    +            "type": "command",
+    +            "command": "conveno hook claude SessionStart",
+    +            "timeout": 5
+    +          }
+    +        ]
+    +      }
+    +    ],
+    +    "UserPromptSubmit": [
+    +      {
+    +        "hooks": [
+    +          {
+    +            "type": "command",
+    +            "command": "conveno hook claude UserPromptSubmit",
+    +            "timeout": 5
+    +          }
+    +        ]
+    +      }
+    +    ]
+    +  }
+    +}
+
+i Dry run: nothing was written. Run conveno init to apply.
+"
+`;
+
+exports[`init > prints the plan and exits 2 without a terminal or --yes, changing nothing > stderr 1`] = `
+"x Needs a terminal to confirm
+  No changes were made.
+  fix  Run conveno init --yes to apply the changes shown above.
+
+exit 2 · ref e_no_tty
+"
+`;
+
+exports[`init > prints the plan and exits 2 without a terminal or --yes, changing nothing > stdout 1`] = `
+"Looking for AI coding CLIs on this machine
+  ✓ claude  Claude Code  2.1.4  ~/.claude.json
+
+Conveno will change 2 files. Nothing else is touched.
+
+  ~/.claude.json  (new file)
+    Register the "conveno" MCP server at user scope (conveno mcp --cli claude).
+    will run  claude mcp add --scope user conveno -- conveno mcp --cli claude
+    expected result (the command may format the file differently)
+    @@ -0,0 +1,14 @@
+    +{
+    +  "mcpServers": {
+    +    "conveno": {
+    +      "type": "stdio",
+    +      "command": "conveno",
+    +      "args": [
+    +        "mcp",
+    +        "--cli",
+    +        "claude"
+    +      ],
+    +      "env": {}
+    +    }
+    +  }
+    +}
+
+  ~/.claude/settings.json  (new file)
+    Add SessionStart and UserPromptSubmit hooks that deliver Conveno messages to Claude Code.
+    @@ -0,0 +1,26 @@
+    +{
+    +  "hooks": {
+    +    "SessionStart": [
+    +      {
+    +        "hooks": [
+    +          {
+    +            "type": "command",
+    +            "command": "conveno hook claude SessionStart",
+    +            "timeout": 5
+    +          }
+    +        ]
+    +      }
+    +    ],
+    +    "UserPromptSubmit": [
+    +      {
+    +        "hooks": [
+    +          {
+    +            "type": "command",
+    +            "command": "conveno hook claude UserPromptSubmit",
+    +            "timeout": 5
+    +          }
+    +        ]
+    +      }
+    +    ]
+    +  }
+    +}
+
+  Backups go to ~/.conveno-data/backups/<timestamp>/
+  Undo any time with: conveno uninstall
+
+"
+`;
+
+exports[`init > reports a malformed config as an error and changes nothing 1`] = `
+"x Could not plan changes for claude
+  "hooks" in <tmp>/home/.claude/settings.json must be an object. Fix the file, then run the install again. Nothing was changed.
+  fix  Fix the problem above, or run conveno init --cli <others> to leave claude out.
+
+exit 1 · ref e_plan
+"
+`;
+
+exports[`init > with --yes backs up, writes files, records a manifest and notes the Codex trust step 1`] = `
+"Looking for AI coding CLIs on this machine
+  ✓ claude  Claude Code  2.1.4   ~/.claude.json
+  ✓ codex   Codex        0.46.0  ~/.codex/config.toml
+
+Conveno will change 4 files. Nothing else is touched.
+
+  ~/.claude.json
+    Register the "conveno" MCP server at user scope (conveno mcp --cli claude).
+    will run  claude mcp add --scope user conveno -- conveno mcp --cli claude
+    expected result (the command may format the file differently)
+    @@ -1,3 +1,15 @@
+     {
+    -    "theme": "dark"
+    +    "theme": "dark",
+    +    "mcpServers": {
+    +        "conveno": {
+    +            "type": "stdio",
+    +            "command": "conveno",
+    +            "args": [
+    +                "mcp",
+    +                "--cli",
+    +                "claude"
+    +            ],
+    +            "env": {}
+    +        }
+    +    }
+     }
+
+  ~/.claude/settings.json  (new file)
+    Add SessionStart and UserPromptSubmit hooks that deliver Conveno messages to Claude Code.
+    @@ -0,0 +1,26 @@
+    +{
+    +  "hooks": {
+    +    "SessionStart": [
+    +      {
+    +        "hooks": [
+    +          {
+    +            "type": "command",
+    +            "command": "conveno hook claude SessionStart",
+    +            "timeout": 5
+    +          }
+    +        ]
+    +      }
+    +    ],
+    +    "UserPromptSubmit": [
+    +      {
+    +        "hooks": [
+    +          {
+    +            "type": "command",
+    +            "command": "conveno hook claude UserPromptSubmit",
+    +            "timeout": 5
+    +          }
+    +        ]
+    +      }
+    +    ]
+    +  }
+    +}
+
+  ~/.codex/config.toml  (new file)
+    Add the "conveno" MCP server in Codex config (mcp_servers.conveno).
+    will run  codex mcp add conveno -- conveno mcp --cli codex
+    expected result (the command may format the file differently)
+    @@ -0,0 +1,3 @@
+    +[mcp_servers.conveno]
+    +command = "conveno"
+    +args = ["mcp", "--cli", "codex"]
+
+  ~/.codex/hooks.json  (new file)
+    Add SessionStart and UserPromptSubmit hooks that deliver Conveno messages on the next turn. Codex asks you to trust new hooks: review them with /hooks.
+    @@ -0,0 +1,26 @@
+    +{
+    +  "hooks": {
+    +    "SessionStart": [
+    +      {
+    +        "hooks": [
+    +          {
+    +            "type": "command",
+    +            "command": "conveno hook codex SessionStart",
+    +            "timeout": 5
+    +          }
+    +        ]
+    +      }
+    +    ],
+    +    "UserPromptSubmit": [
+    +      {
+    +        "hooks": [
+    +          {
+    +            "type": "command",
+    +            "command": "conveno hook codex UserPromptSubmit",
+    +            "timeout": 5
+    +          }
+    +        ]
+    +      }
+    +    ]
+    +  }
+    +}
+
+  Backups go to ~/.conveno-data/backups/<timestamp>/
+  Undo any time with: conveno uninstall
+
+  ✓ claude  configured
+  ✓ codex   configured
+
+✓ Done. 0.0s
+  Backups are in ~/.conveno-data/backups/2026-11-27T14-02-11.
+  Restart open sessions so they pick up Conveno.
+i Codex asks you to trust new hooks once: run /hooks inside Codex.
+  Next: conveno status lists your sessions.
+"
+`;
+
+exports[`status > groups sessions by repo and marks the orchestrator, against a real daemon 1`] = `
+"daemon up · relay: off (local only) · 3 sessions
+
+  /work/api
+    SESSION       CLI  TIER       STATE  LAST SEEN
+  ● claude@api-1  cl   next turn  idle   14:02:11   orchestrator
+  ○ codex@api-1   cx   next turn  idle   14:02:11
+
+  /work/docs
+    SESSION          CLI  TIER   STATE  LAST SEEN
+  ○ opencode@docs-1  oc   inbox  idle   14:02:11
+
+3 sessions in 2 repos
+"
+`;
+
+exports[`status > says when there are no sessions 1`] = `
+"daemon up · relay: off (local only) · 0 sessions
+
+No sessions yet. Open a supported CLI after conveno init and it appears here.
+"
+`;
+
+exports[`status > warns with a fix when no daemon is running 1`] = `
+"! The Conveno daemon is not running.
+  why  Sessions are listed by the daemon, and nothing is listening on its socket.
+  fix  Run conveno daemon start, or open a supported CLI after conveno init.
+"
+`;
+
+exports[`uninstall > restores files byte for byte from the latest manifest and removes files that did not exist 1`] = `
+"Conveno will undo 1 install, made 2026-11-27 14:02:11 (local time).
+
+  ~/.claude.json           restored byte for byte
+  ~/.claude/settings.json  removed, it did not exist before
+  ~/.codex/config.toml     removed, it did not exist before
+  ~/.codex/hooks.json      removed, it did not exist before
+
+✓ Done. 0.0s
+  Restored 4 files to how init found them.
+  Restart open sessions to drop Conveno.
+"
+`;

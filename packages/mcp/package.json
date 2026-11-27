@@ -34,6 +34,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.32.2"
+    "@0xpixelninja/conveno-client": "workspace:*",
+    "@0xpixelninja/conveno-core": "workspace:*",
+    "@0xpixelninja/conveno-protocol": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
   }
 }

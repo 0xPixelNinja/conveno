@@ -21,5 +21,15 @@
     "build": "node -e \"\"",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@0xpixelninja/conveno-adapter-claude": "workspace:*",
+    "@0xpixelninja/conveno-adapter-codex": "workspace:*",
+    "@0xpixelninja/conveno-client": "workspace:*",
+    "@0xpixelninja/conveno-core": "workspace:*",
+    "@0xpixelninja/conveno-mcp": "workspace:*",
+    "@0xpixelninja/conveno-protocol": "workspace:*",
+    "conveno": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.2"
   }
 }
