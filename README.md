@@ -13,7 +13,7 @@ See [PLAN.md](./PLAN.md) for the product plan and milestones, and
 
 ## Development
 
-Requires Node 22+ and pnpm.
+Requires Node 24+ and pnpm.
 
 ```sh
 pnpm install

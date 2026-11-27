@@ -17,10 +17,10 @@
     "dist"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   }
