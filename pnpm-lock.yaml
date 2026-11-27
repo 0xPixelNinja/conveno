@@ -217,7 +217,17 @@ importers:
         specifier: workspace:*
         version: link:../../protocol
 
-  packages/adapters/codex: {}
+  packages/adapters/codex:
+    dependencies:
+      '@0xpixelninja/conveno-core':
+        specifier: workspace:*
+        version: link:../../core
+      '@0xpixelninja/conveno-protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      '@decimalturn/toml-patch':
+        specifier: 3.3.3
+        version: 3.3.3
 
   packages/adapters/copilot: {}
 
@@ -358,6 +368,10 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@decimalturn/toml-patch@3.3.3':
+    resolution: {integrity: sha512-x3+jj/r8uEEnnVs0vgdSYxn4YXcnklZPmbQ105DI/e4mng+9z/eDUuc8PMwASab51CWt15DTVHLYiEbDBUzHJA==}
+    engines: {node: '>=16'}
 
   '@emnapi/core@2.0.0-beta.2':
     resolution: {integrity: sha512-MzCVoWtcg4Pm2B3je5mMvYMvj3MmBKw+fU7vbsJc9/iT8ip6/eYIHo/Dsm/mr+wsHB6SEyJDuxB09Yy6r/8+4A==}
@@ -1765,6 +1779,8 @@ snapshots:
 
   '@biomejs/cli-win32-x64@2.6.9':
     optional: true
+
+  '@decimalturn/toml-patch@3.3.3': {}
 
   '@emnapi/core@2.0.0-beta.2':
     dependencies:
