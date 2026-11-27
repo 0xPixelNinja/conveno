@@ -179,6 +179,18 @@ async function main(work) {
     await waitUnregistered(conveno, session);
     log(`mcp server unregistered ${session} after its client closed`);
 
+    const preview = await conveno(["forget", "--offline", "--dry-run"]);
+    check(
+      preview.stdout.includes(session),
+      `forget --dry-run does not list ${session}: ${preview.stdout}`,
+    );
+    const forgot = await conveno(["forget", session, "--yes"]);
+    check(
+      /Done\. Forgot 1 session\./.test(forgot.stdout),
+      `forget: ${forgot.stdout}${forgot.stderr}`,
+    );
+    log(`conveno forget removed ${session}`);
+
     await conveno(["daemon", "stop"]);
     daemonMayRun = false;
     const after = await run(bin, ["daemon", "status"], { cwd: home, env });
