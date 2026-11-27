@@ -48,13 +48,13 @@ Usage: conveno <command> [options]
   --version                                Print the version
 
 Run conveno <command> --help for the options of one command.
-conveno 0.1.1-rc.1
+conveno 0.1.1-rc.2
 "
 `;
 
 exports[`help, version, unknown > rejects an unknown command with exit 2 and a fix 1`] = `
 "x Unknown command "frobnicate"
-  conveno 0.1.1-rc.1 has: init, uninstall, status, forget, doctor, daemon, mcp, hook.
+  conveno 0.1.1-rc.2 has: init, uninstall, status, forget, doctor, daemon, mcp, hook.
   fix  Run conveno --help to see usage.
 
 exit 2 · ref e_usage
