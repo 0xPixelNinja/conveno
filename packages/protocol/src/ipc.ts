@@ -14,6 +14,7 @@ import {
   DeliveryTier,
   IsoTimestamp,
   SessionName,
+  SessionNameInput,
   SessionStatus,
   Sha256Hex,
 } from "./primitives.js";
@@ -57,7 +58,7 @@ const SessionResult = z.object({ session: Session });
 
 const RegisterParams = z.object({
   /** Requested name. If omitted the daemon assigns one such as `claude@repo-1`. */
-  name: SessionName.optional(),
+  name: SessionNameInput.optional(),
   cli: CliKind,
   cliVersion: z.string().min(1).max(64).optional(),
   cwd: z.string().min(1),
@@ -182,7 +183,7 @@ export const ipcMethods = {
   },
   "session.unregister": { params: z.object(sid), result: z.object({ ok: z.literal(true) }) },
   "session.rename": {
-    params: z.object({ ...sid, name: SessionName }),
+    params: z.object({ ...sid, name: SessionNameInput }),
     result: SessionResult,
   },
   "session.setStatus": { params: SetStatusParams, result: SessionResult },
@@ -246,7 +247,7 @@ export const ipcMethods = {
       prompt: z.string().min(1).max(65_536),
       cwd: z.string().min(1).optional(),
       mode: SpawnMode.default("visible"),
-      name: SessionName.optional(),
+      name: SessionNameInput.optional(),
     }),
     // The new session registers itself later; `sessionId` is present only once it has.
     result: z.object({

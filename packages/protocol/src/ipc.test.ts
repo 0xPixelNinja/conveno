@@ -173,7 +173,9 @@ describe("session.*", () => {
 
   it("rename validates the name", () => {
     expect(req("session.rename", { sessionId: sid, name: "planner" }).ok).toBe(true);
-    expect(req("session.rename", { sessionId: sid, name: "orchestrator" }).ok).toBe(false);
+    expect(req("session.rename", { sessionId: sid, name: "Bad Name" }).ok).toBe(false);
+    // Reserved names pass the schema; the daemon refuses them with a plain message.
+    expect(req("session.rename", { sessionId: sid, name: "orchestrator" }).ok).toBe(true);
   });
 
   it("setStatus needs status and/or statusText (null clears)", () => {

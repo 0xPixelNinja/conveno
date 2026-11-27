@@ -34,6 +34,12 @@ export const isReservedSessionName = (n: string): boolean =>
   (RESERVED_SESSION_NAMES as readonly string[]).includes(n);
 
 /**
+ * A requested name as it arrives in params: pattern only. The daemon refuses reserved names
+ * itself so it can answer with a plain message instead of a schema issue list.
+ */
+export const SessionNameInput = z.string().regex(SESSION_NAME_PATTERN, "invalid session name");
+
+/**
  * Human-readable session name, unique per account. Reserved names are refused. ULIDs are
  * uppercase, names are lowercase, so ids and names never collide.
  */
