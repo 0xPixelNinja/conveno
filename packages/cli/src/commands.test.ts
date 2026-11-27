@@ -353,9 +353,18 @@ describe("daemon", () => {
   });
 
   it("stop sends the lock file's pid a stop signal", async () => {
-    const c = await make();
+    const taskkills: string[][] = [];
     const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
       stdio: "ignore",
+    });
+    // On Windows, stop shells out to taskkill. The default fake exec only answers --version, so
+    // stand in for taskkill by ending the child, and check the arguments it was given.
+    const c = await make({
+      exec: async (cmd, args) => {
+        taskkills.push([cmd, ...args]);
+        child.kill();
+        return { code: 0, stdout: "" };
+      },
     });
     const exited = new Promise<void>((r) => child.once("exit", () => r()));
     try {
@@ -363,6 +372,11 @@ describe("daemon", () => {
       expect(await main(["daemon", "stop"], c)).toBe(0);
       await exited;
       expect(c.outText()).toContain(`Stopped the daemon (pid ${child.pid})`);
+      if (process.platform === "win32") {
+        expect(taskkills).toEqual([["taskkill", "/PID", String(child.pid), "/T", "/F"]]);
+      } else {
+        expect(taskkills).toEqual([]);
+      }
     } finally {
       child.kill("SIGKILL");
     }
