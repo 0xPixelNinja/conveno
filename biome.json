@@ -10,6 +10,7 @@
       "!pnpm-lock.yaml",
       "!**/LICENSE",
       "!NOTICE",
+      "!brand",
       "!**/*.md"
     ]
   },
