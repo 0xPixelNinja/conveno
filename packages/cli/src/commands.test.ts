@@ -358,37 +358,41 @@ describe("daemon", () => {
     }
   });
 
-  it("stop sends the lock file's pid a stop signal", async () => {
-    const taskkills: string[][] = [];
-    const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
-      stdio: "ignore",
-    });
-    // On Windows, stop shells out to taskkill. The default fake exec only answers --version, so
-    // stand in for taskkill by ending the child, and check the arguments it was given.
-    const c = await make({
-      // Something answers the Conveno handshake on the socket.
-      connect: (async () => ({ close: async () => undefined })) as never,
-      exec: async (cmd, args) => {
-        taskkills.push([cmd, ...args]);
-        child.kill();
-        return { code: 0, stdout: "" };
-      },
-    });
-    const exited = new Promise<void>((r) => child.once("exit", () => r()));
-    try {
-      await seed(dataPaths(c.platform, c.dataDir).lock, JSON.stringify({ pid: child.pid }));
-      expect(await main(["daemon", "stop"], c)).toBe(0);
-      await exited;
-      expect(c.outText()).toContain(`Stopped the daemon (pid ${child.pid})`);
-      if (process.platform === "win32") {
-        expect(taskkills).toEqual([["taskkill", "/PID", String(child.pid), "/T", "/F"]]);
-      } else {
-        expect(taskkills).toEqual([]);
+  it.each(["linux", "win32"] as const)(
+    "stop sends the lock file's pid a stop signal (%s)",
+    async (platform) => {
+      const taskkills: string[][] = [];
+      const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+        stdio: "ignore",
+      });
+      // On Windows, stop shells out to taskkill. The default fake exec only answers --version, so
+      // stand in for taskkill by ending the child, and check the arguments it was given.
+      const c = await make({
+        platform,
+        // Something answers the Conveno handshake on the socket.
+        connect: (async () => ({ close: async () => undefined })) as never,
+        exec: async (cmd, args) => {
+          taskkills.push([cmd, ...args]);
+          child.kill();
+          return { code: 0, stdout: "" };
+        },
+      });
+      const exited = new Promise<void>((r) => child.once("exit", () => r()));
+      try {
+        await seed(dataPaths(c.platform, c.dataDir).lock, JSON.stringify({ pid: child.pid }));
+        expect(await main(["daemon", "stop"], c)).toBe(0);
+        await exited;
+        expect(c.outText()).toContain(`Stopped the daemon (pid ${child.pid})`);
+        if (c.platform === "win32") {
+          expect(taskkills).toEqual([["taskkill", "/PID", String(child.pid), "/T", "/F"]]);
+        } else {
+          expect(taskkills).toEqual([]);
+        }
+      } finally {
+        child.kill("SIGKILL");
       }
-    } finally {
-      child.kill("SIGKILL");
-    }
-  });
+    },
+  );
 
   it("stop never signals a pid when nothing answers as the daemon, and removes the stale lock", async () => {
     // An unrelated live process whose pid sits in the lock file.
