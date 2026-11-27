@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MessageId, SessionId, TicketId } from "./ids.js";
-import { IsoTimestamp, ORCHESTRATOR_ALIAS, SessionName } from "./primitives.js";
+import { CliKind, IsoTimestamp, ORCHESTRATOR_ALIAS, SessionName } from "./primitives.js";
 import { utf8ByteLength } from "./util.js";
 
 export const TEXT_MAX_BYTES = 64 * 1024;
@@ -59,6 +59,9 @@ export const messageEnvelopeShape = {
   urgent: z.boolean().default(false),
   replyTo: MessageId.optional(),
   createdAt: IsoTimestamp,
+  /** Sender name and CLI at send time. The daemon always sets them for session-sent messages; absent on daemon-made system messages. */
+  fromName: SessionName.optional(),
+  fromCli: CliKind.optional(),
 };
 
 export const Message = z.discriminatedUnion("kind", [

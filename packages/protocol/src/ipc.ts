@@ -45,6 +45,8 @@ const RegisterParams = z.object({
   cwd: z.string().min(1),
   repo: RepoInfo.optional(),
   pid: z.number().int().positive().optional(),
+  /** The CLI process hosting the session (the MCP server's parent). */
+  hostPid: z.number().int().positive().optional(),
   /** Set by the daemon when it spawned this session itself. */
   spawnedBy: SessionId.optional(),
 });
@@ -84,6 +86,7 @@ const SendParams = z.discriminatedUnion("kind", [
 
 export const INBOX_DEFAULT_LIMIT = 50;
 export const INBOX_MAX_LIMIT = 200;
+export const DELIVER_DEFAULT_LIMIT = 20;
 export const ACK_MAX_IDS = 100;
 
 /* ---------- peek ---------- */
@@ -164,6 +167,11 @@ export const ipcMethods = {
     result: SessionResult,
   },
   "session.setStatus": { params: SetStatusParams, result: SessionResult },
+  "session.byHost": {
+    params: z.object({ hostPid: z.number().int().positive() }),
+    // Online sessions only; the newest one when several share the host pid.
+    result: z.object({ session: Session.nullable() }),
+  },
   "session.list": { params: ListParams, result: z.object({ sessions: z.array(Session) }) },
   "orchestrator.claim": {
     params: z.object(sid),
@@ -171,7 +179,11 @@ export const ipcMethods = {
   },
   "message.send": {
     params: SendParams,
-    result: z.object({ message: Message, delivery: DeliveryTier }),
+    result: z.object({
+      message: Message,
+      delivery: DeliveryTier,
+      deliveredTo: z.object({ id: SessionId, name: SessionName }),
+    }),
   },
   "message.inbox": {
     params: z.object({
@@ -183,6 +195,14 @@ export const ipcMethods = {
       messages: z.array(Message),
       unreadCount: z.number().int().min(0),
     }),
+  },
+  "message.deliver": {
+    params: z.object({
+      ...sid,
+      limit: z.number().int().min(1).max(INBOX_MAX_LIMIT).default(DELIVER_DEFAULT_LIMIT),
+    }),
+    // Atomically returns not-yet-delivered messages (urgent first, then createdAt) and marks them delivered, not read.
+    result: z.object({ messages: z.array(Message), remaining: z.number().int().min(0) }),
   },
   "message.ack": {
     params: z.object({ ...sid, ids: z.array(MessageId).min(1).max(ACK_MAX_IDS) }),

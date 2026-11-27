@@ -34,6 +34,8 @@ describe("method table", () => {
         "session.rename",
         "session.setStatus",
         "session.list",
+        "session.byHost",
+        "message.deliver",
         "orchestrator.claim",
         "message.send",
         "message.inbox",
@@ -138,6 +140,7 @@ describe("session.*", () => {
         cwd: "/r",
         name: "codex-1",
         pid: 1,
+        hostPid: 2,
         repo: { root: "/r" },
       }).ok,
     ).toBe(true);
@@ -240,8 +243,34 @@ describe("message.*", () => {
 
   it("send result carries the stored message and the delivery tier", () => {
     const schema = ipcMethods["message.send"].result;
-    expect(schema.safeParse({ message: messageFixture(), delivery: "inbox" }).success).toBe(true);
-    expect(schema.safeParse({ message: messageFixture(), delivery: "pigeon" }).success).toBe(false);
+    const deliveredTo = { id: newSessionId(), name: "codex@api-1" };
+    expect(
+      schema.safeParse({ message: messageFixture(), delivery: "inbox", deliveredTo }).success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({ message: messageFixture(), delivery: "pigeon", deliveredTo }).success,
+    ).toBe(false);
+    expect(schema.safeParse({ message: messageFixture(), delivery: "inbox" }).success).toBe(false);
+  });
+
+  it("byHost: needs a positive int host pid; result allows null", () => {
+    expect(req("session.byHost", { hostPid: 42 }).ok).toBe(true);
+    expect(req("session.byHost", { hostPid: 0 }).ok).toBe(false);
+    expect(req("session.byHost", {}).ok).toBe(false);
+    const r = ipcMethods["session.byHost"].result;
+    expect(r.safeParse({ session: null }).success).toBe(true);
+    expect(r.safeParse({ session: sessionFixture({ hostPid: 42 }) }).success).toBe(true);
+    expect(r.safeParse({}).success).toBe(false);
+  });
+
+  it("deliver: defaults and bounds", () => {
+    expect(okParams("message.deliver", { sessionId: sid })).toMatchObject({ limit: 20 });
+    expect(req("message.deliver", { sessionId: sid, limit: 0 }).ok).toBe(false);
+    expect(req("message.deliver", { sessionId: sid, limit: 201 }).ok).toBe(false);
+    expect(req("message.deliver", {}).ok).toBe(false);
+    const r = ipcMethods["message.deliver"].result;
+    expect(r.safeParse({ messages: [messageFixture()], remaining: 0 }).success).toBe(true);
+    expect(r.safeParse({ messages: [], remaining: -1 }).success).toBe(false);
   });
 
   it("inbox: defaults and bounds", () => {

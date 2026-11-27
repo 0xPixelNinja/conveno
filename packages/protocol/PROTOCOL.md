@@ -37,7 +37,8 @@ Session {
   cliVersion?: string(1..64)
   deviceId: DeviceId       cwd: string
   repo?: { root: string, remoteUrlHash?: Sha256Hex }
-  pid?: int > 0
+  pid?: int > 0          (the MCP server process)
+  hostPid?: int > 0      (the CLI process hosting the session)
   status: SessionStatus    statusText?: string (<= 200 chars)
   isOrchestrator: bool     deliveryTier: DeliveryTier
   spawnedBy?: SessionId    spawnDepth: int >= 0
@@ -56,7 +57,12 @@ Every message has the envelope:
 ```
 id: MessageId   from: SessionId   to: Recipient   kind: <below>   body: <by kind>
 urgent: bool (default false)   replyTo?: MessageId   createdAt: IsoTimestamp
+fromName?: SessionName   fromCli?: CliKind
 ```
+
+`fromName` and `fromCli` are the sender's name and CLI at send time. The daemon always sets them for
+session-sent messages; they are absent only on daemon-made `system` messages. Receivers use them for
+framing and never need a lookup.
 
 `Recipient` is a `SessionId`, a `SessionName`, or the literal `orchestrator` (resolved by the
 daemon to whichever session holds the role when the message is routed).
@@ -135,15 +141,17 @@ Session-scoped methods carry the caller's `sessionId` explicitly. The last colum
 | Method | Params | Result |
 |---|---|---|
 | `hello` | `{ protocolVersion, client: "mcp"\|"cli"\|"adapter", authToken }` | `{ protocolVersion, daemonVersion }`. MUST be the first call; everything else returns -32001 until it succeeds. |
-| `session.register` | `{ name?, cli, cliVersion?, cwd, repo?, pid?, spawnedBy? }` (no name: daemon assigns, e.g. `claude@repo-1`) | `{ session }` |
+| `session.register` | `{ name?, cli, cliVersion?, cwd, repo?, pid?, hostPid?, spawnedBy? }` (no name: daemon assigns, e.g. `claude@repo-1`) | `{ session }` |
 | `session.heartbeat` | `{ sessionId }` | `{ lastSeenAt }` |
 | `session.unregister` | `{ sessionId }` | `{ ok: true }` |
 | `session.rename` | `{ sessionId, name }` | `{ session }` |
 | `session.setStatus` | `{ sessionId, status?, statusText? }` (at least one; `statusText: null` clears) | `{ session }` |
+| `session.byHost` | `{ hostPid }` | `{ session: Session \| null }`. Online sessions only; the newest if several share the pid. Hooks use it to find their session. |
 | `session.list` | `{ repo?, cli?, includeOffline = false }` | `{ sessions }` |
 | `orchestrator.claim` | `{ sessionId }` | `{ orchestrator, previous }` (`previous` is `null` if none) |
-| `message.send` | `{ sessionId, to, kind, body, urgent = false, replyTo? }` | `{ message, delivery }` (`delivery` is the tier used) |
+| `message.send` | `{ sessionId, to, kind, body, urgent = false, replyTo? }` | `{ message, delivery, deliveredTo: { id, name } }` (`delivery` is the tier used) |
 | `message.inbox` | `{ sessionId, unreadOnly = true, limit = 50 }` (limit 1..200) | `{ messages, unreadCount }` |
+| `message.deliver` | `{ sessionId, limit = 20 }` (limit 1..200) | `{ messages, remaining }`. Atomically returns messages not yet delivered (urgent first, then `createdAt`) and marks them delivered, not read. Hooks use it; `message.inbox` still returns and marks read. |
 | `message.ack` | `{ sessionId, ids }` (1..100 ids) | `{ acked }` |
 | `ticket.create` | `{ sessionId, question, options? }` | `{ ticket }` |
 | `ticket.answer` | `{ sessionId, ticketId, response }` | `{ ticket }` |
@@ -156,6 +164,18 @@ Session-scoped methods carry the caller's `sessionId` explicitly. The last colum
 `session.list` takes its filter fields at the top level of `params` (not nested under a `filter`
 key). Names are unique per account: `session.register` and `session.rename` fail with -32006 on
 a collision.
+
+Recipient resolution and its errors (all -32002 NotFound):
+
+| Case | Message |
+|---|---|
+| `orchestrator` with no online holder | `No session holds the orchestrator role. Run orchestrate in the session you want to use.` |
+| unknown name or id | `No session named "<to>". Run list_sessions to see who is available.` |
+| offline session | `Session "<name>" is offline. Run list_sessions to see who is available.` |
+
+`orchestrator.claim` sends a `system` message to the new holder (`event: "orchestrator.granted"`) and,
+when there was an online previous holder, to that session (`event: "orchestrator.revoked"`). An offline
+holder counts as no holder, and the role is never passed on automatically.
 
 ### 6.5 Events
 

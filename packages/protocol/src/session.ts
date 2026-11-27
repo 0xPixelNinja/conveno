@@ -27,7 +27,10 @@ export const Session = z.object({
   deviceId: DeviceId,
   cwd: z.string().min(1),
   repo: RepoInfo.optional(),
+  /** PID of the MCP server process. */
   pid: z.number().int().positive().optional(),
+  /** PID of the CLI process that hosts the session (the MCP server's parent). */
+  hostPid: z.number().int().positive().optional(),
   status: SessionStatus,
   statusText: z.string().max(STATUS_TEXT_MAX).optional(),
   isOrchestrator: z.boolean(),

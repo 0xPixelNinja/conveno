@@ -17,6 +17,17 @@ describe("Recipient", () => {
   });
 });
 
+describe("Message sender snapshot", () => {
+  it("accepts fromName and fromCli, and omits them for system messages", () => {
+    const r = Message.parse(messageFixture({ fromName: "codex@api-1", fromCli: "codex" }));
+    expect(r.fromName).toBe("codex@api-1");
+    expect(r.fromCli).toBe("codex");
+    expect(Message.parse(messageFixture()).fromName).toBeUndefined();
+    expect(Message.safeParse(messageFixture({ fromName: "Bad Name" })).success).toBe(false);
+    expect(Message.safeParse(messageFixture({ fromCli: "emacs" })).success).toBe(false);
+  });
+});
+
 describe("Message", () => {
   it("parses a text message and defaults urgent to false", () => {
     const r = Message.parse(messageFixture());
