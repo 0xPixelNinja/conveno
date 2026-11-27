@@ -206,10 +206,14 @@ async function typedCall(conn: Connection, method: string, params: unknown): Pro
   const schemas = ipcMethods[method as keyof typeof ipcMethods];
   const parsed = schemas.params.safeParse(params ?? {});
   if (!parsed.success) {
+    // Field and rule only, not zod's raw output: `Invalid "name": invalid session name.`
     const detail = parsed.error.issues
-      .map((i) => `${i.path.join(".") || "params"}: ${i.message}`)
+      .map((i) => (i.path.length > 0 ? `"${i.path.join(".")}": ${i.message}` : i.message))
       .join("; ");
-    throw new ConvenoError(RpcErrorCode.InvalidParams, `Invalid params for ${method}: ${detail}`);
+    const lead = parsed.error.issues.every((i) => i.path.length > 0)
+      ? "Invalid "
+      : "Invalid request: ";
+    throw new ConvenoError(RpcErrorCode.InvalidParams, `${lead}${detail}.`);
   }
   const result = await conn.call(method, parsed.data as Record<string, unknown>);
   const r = schemas.result.safeParse(result);

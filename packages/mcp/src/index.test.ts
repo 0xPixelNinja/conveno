@@ -130,7 +130,8 @@ describe("tools", () => {
     expect(r.text).toBe('No session named "nobody". Run list_sessions to see who is available.');
     const bad = await a.text("rename", { name: "Bad Name" });
     expect(bad.isError).toBe(true);
-    expect(bad.text).toContain("Invalid session name");
+    expect(bad.text).toMatch(/^Invalid session name "Bad Name"\. Use 1 to 64 characters/);
+    expect(bad.text).not.toContain("Invalid params");
   });
 
   it("rename and set_status update the session shown by list_sessions", async () => {

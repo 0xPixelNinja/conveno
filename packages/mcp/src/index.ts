@@ -6,6 +6,7 @@ import {
   detectRepo,
   formatInbox,
   HEARTBEAT_INTERVAL_MS,
+  validateRename,
 } from "@0xpixelninja/conveno-core";
 import {
   type CliKind,
@@ -281,11 +282,14 @@ export function createServer(opts: CreateServerOptions): McpServer {
       },
     },
     tool(async (me, a: { name: string }) => {
-      // The daemon validates the name and replies with a plain error message.
-      const res = await client["session.rename"]({
-        sessionId: me.id,
-        name: a.name as SessionName,
-      });
+      // Core's rule gives the plain message; the daemon still enforces it.
+      const { sessions } = await client["session.list"]({ includeOffline: true });
+      const name = validateRename(
+        me.id,
+        a.name,
+        sessions.map((s) => ({ id: s.id, name: s.name, status: s.status })),
+      );
+      const res = await client["session.rename"]({ sessionId: me.id, name: name as SessionName });
       return `Renamed to ${res.session.name}.`;
     }),
   );
