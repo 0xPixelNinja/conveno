@@ -11,13 +11,13 @@ node packages/e2e/real-cli/run.mjs                 # asks before applying (needs
 node packages/e2e/real-cli/run.mjs --approve-init  # no terminal: owner has approved the plan
 ```
 
-Options: `--conveno <path>`, `--clis claude,opencode,codex`, `--keep-installed`, `--manual`, `--data-dir`, `--report <file>`, `--timeout <sec>`, `--print-manual`.
+Options: `--conveno <cmd or script>` (a `.js` or `.mjs` path runs through the current Node, so no `.cmd` shim is needed), `--clis claude,opencode,codex`, `--keep-installed`, `--manual`, `--data-dir`, `--report <file>`, `--timeout <sec>`, `--print-manual`.
 
 Without a terminal and without `--approve-init` the script prints the plan, writes the report and exits with code 2. A session that runs it for the owner should show the owner that plan, then re-run with `--approve-init` once the owner agrees.
 
 ## Prerequisites
 
-- Node 24 or newer, git, and `conveno` on PATH (or `--conveno <path>`).
+- Node 24 or newer, git, and `conveno` on PATH (or `--conveno <path>`). On Windows, commands are resolved on PATH with PATHEXT, and `.cmd` shims run through `cmd.exe` with one quoted command line (shared with the CLI: `packages/cli/src/win-spawn.ts`, loaded by Node's type stripping).
 - Claude Code installed and logged in. It is required: it is the receiver in every pair.
 - OpenCode and Codex are optional. A missing CLI is a skipped step.
 - Do not run it while you have important Conveno sessions open: it stops the daemon at the end.
@@ -37,7 +37,7 @@ Without a terminal and without `--approve-init` the script prints the plan, writ
 | `pair-codex-claude` | Same, with `codex exec` as the sender. Best effort: Codex may ask to approve MCP tool calls, which blocks a non-interactive run. A failure here is recorded with the reason. |
 | `liveness` | After the CLIs exit, no test session is shown as online. |
 | `manual` (only with `--manual`) | The two-terminal interactive check below. |
-| `uninstall` | `conveno daemon stop`, `conveno uninstall --yes`, then `conveno doctor`. Skipped with `--keep-installed`. |
+| `uninstall` | `conveno daemon stop`, `conveno uninstall --yes`, then `conveno doctor`. Runs in a `finally` block, so it also runs after a failed init or pair. Skipped with `--keep-installed`. |
 
 Each pair is checked three ways: the agents' replies, the exit codes, and a read-only query of `<data dir>/conveno.db` for the message (it must exist and be `read` or `acked`).
 

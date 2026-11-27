@@ -8,9 +8,11 @@ import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { DatabaseSync } from "node:sqlite";
+// One resolver for the CLI and this script. Node strips the types from this file.
+import { planSpawn } from "../../cli/src/win-spawn.ts";
 
 const USAGE = `Usage: node run.mjs [options]
 
@@ -42,8 +44,10 @@ const CONVENO = opt("--conveno", "conveno");
 const REPORT = opt("--report", join(process.cwd(), "real-cli-report.json"));
 const TIMEOUT_MS = Number(opt("--timeout", "300")) * 1000;
 const NONCE = `cvn-${randomBytes(4).toString("hex")}`;
-const IS_WIN = process.platform === "win32";
-const SHELL = IS_WIN; // npm shims on Windows are .cmd files
+// `--conveno x.js` runs through this Node. A .js file handed to cmd.exe opens Windows Script Host.
+const CONVENO_IS_SCRIPT = /\.(c|m)?js$/i.test(CONVENO);
+const CONVENO_BIN = CONVENO_IS_SCRIPT ? process.execPath : CONVENO;
+const CONVENO_PREFIX = CONVENO_IS_SCRIPT ? [resolve(CONVENO)] : [];
 
 function dataDir() {
   const given = opt("--data-dir");
@@ -134,9 +138,10 @@ async function step(id, title, fn) {
 }
 
 function run(cmd, cmdArgs, o = {}) {
-  const r = spawnSync(cmd, cmdArgs, {
+  const plan = planSpawn(cmd, cmdArgs);
+  const r = spawnSync(plan.file, plan.args, {
     encoding: "utf8",
-    shell: SHELL,
+    windowsVerbatimArguments: plan.windowsVerbatimArguments,
     timeout: o.timeout ?? 60_000,
     cwd: o.cwd,
     input: o.input,
@@ -152,9 +157,10 @@ function run(cmd, cmdArgs, o = {}) {
 
 /** Run a long agent command without blocking the script. Resolves when it exits or times out. */
 function runAsync(cmd, cmdArgs, o) {
-  const child = spawn(cmd, cmdArgs, {
+  const plan = planSpawn(cmd, cmdArgs);
+  const child = spawn(plan.file, plan.args, {
     cwd: o.cwd,
-    shell: SHELL,
+    windowsVerbatimArguments: plan.windowsVerbatimArguments,
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -180,7 +186,7 @@ function runAsync(cmd, cmdArgs, o) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const conveno = (...a) => run(CONVENO, a);
+const conveno = (...a) => run(CONVENO_BIN, [...CONVENO_PREFIX, ...a]);
 
 async function ask(question) {
   if (!process.stdin.isTTY) return null;
@@ -404,112 +410,122 @@ if (!approved) {
   process.exit(2);
 }
 
-let installed = false;
-await step("init", "conveno init --yes", () => {
-  const r = conveno("init", "--yes", "--cli", targets.join(","));
-  if (r.code !== 0) throw new Error(`init failed (${r.code}): ${r.err || r.out}`.slice(0, 600));
-  installed = true;
-  return { detail: "applied", data: { output: r.out.slice(0, 2000) } };
-});
+let initAttempted = false;
+try {
+  initAttempted = true;
+  await step("init", "conveno init --yes", () => {
+    const r = conveno("init", "--yes", "--cli", targets.join(","));
+    if (r.code !== 0) throw new Error(`init failed (${r.code}): ${r.err || r.out}`.slice(0, 600));
+    return { detail: "applied", data: { output: r.out.slice(0, 2000) } };
+  });
 
-await step("doctor", "conveno doctor reports each CLI as configured", () => {
-  const r = conveno("doctor");
-  if (r.code !== 0) throw new Error(`doctor exited ${r.code}: ${(r.err || r.out).slice(0, 400)}`);
-  const missing = targets.filter((c) => !r.out.toLowerCase().includes(c));
-  if (missing.length) throw new Error(`doctor output does not mention ${missing.join(", ")}`);
-  return { data: { output: r.out.slice(0, 3000) } };
-});
+  await step("doctor", "conveno doctor reports each CLI as configured", () => {
+    const r = conveno("doctor");
+    if (r.code !== 0) throw new Error(`doctor exited ${r.code}: ${(r.err || r.out).slice(0, 400)}`);
+    const missing = targets.filter((c) => !r.out.toLowerCase().includes(c));
+    if (missing.length) throw new Error(`doctor output does not mention ${missing.join(", ")}`);
+    return { data: { output: r.out.slice(0, 3000) } };
+  });
 
-await step("daemon", "daemon starts", () => {
-  const r = conveno("daemon", "start");
-  const s = conveno("daemon", "status");
-  if (s.code !== 0)
-    throw new Error(`daemon status exited ${s.code}: ${(s.err || s.out).slice(0, 300)}`);
-  return { detail: s.out.split("\n")[0], data: { start: r.out, status: s.out } };
-});
+  await step("daemon", "daemon starts", () => {
+    const r = conveno("daemon", "start");
+    const s = conveno("daemon", "status");
+    if (s.code !== 0)
+      throw new Error(`daemon status exited ${s.code}: ${(s.err || s.out).slice(0, 300)}`);
+    return { detail: s.out.split("\n")[0], data: { start: r.out, status: s.out } };
+  });
 
-await step(
-  "hook-smoke",
-  "conveno hook claude UserPromptSubmit prints nothing outside a session",
-  () => {
-    const r = run(CONVENO, ["hook", "claude", "UserPromptSubmit"], {
-      input: "{}",
-      timeout: 10_000,
+  await step(
+    "hook-smoke",
+    "conveno hook claude UserPromptSubmit prints nothing outside a session",
+    () => {
+      const r = run(CONVENO_BIN, [...CONVENO_PREFIX, "hook", "claude", "UserPromptSubmit"], {
+        input: "{}",
+        timeout: 10_000,
+      });
+      if (r.code !== 0) throw new Error(`hook exited ${r.code}, a hook must always exit 0`);
+      if (r.out !== "")
+        throw new Error(`hook printed text for a pid with no session: ${r.out.slice(0, 200)}`);
+    },
+  );
+
+  await step(
+    "pair-claude-claude",
+    "Claude Code sends to Claude Code (non-interactive, claude -p)",
+    () => pair("claude", "claude", "cc"),
+  );
+
+  await step("pair-opencode-claude", "OpenCode sends to Claude Code (opencode run)", () =>
+    targets.includes("opencode")
+      ? pair("opencode", "claude", "oc")
+      : { skip: "opencode not installed" },
+  );
+
+  await step("pair-codex-claude", "Codex sends to Claude Code (codex exec, best effort)", () =>
+    targets.includes("codex") ? pair("codex", "claude", "cx") : { skip: "codex not installed" },
+  );
+
+  await step("liveness", "finished sessions are not listed as online", () => {
+    const r = conveno("status");
+    const stale = r.out
+      .split("\n")
+      .filter((l) => l.includes("conveno-real-") && /idle|busy|waiting/i.test(l));
+    if (stale.length)
+      throw new Error(`sessions still shown online after their CLI exited:\n${stale.join("\n")}`);
+  });
+
+  if (flag("--manual")) {
+    await step("manual", "Interactive two-terminal check", async () => {
+      const a = makeRepo("m1");
+      const b = makeRepo("m2");
+      const p = manualPrompts(sessionName("claude", a), sessionName("claude", b));
+      console.log("\nOpen two terminals.");
+      console.log(`Terminal 1:  cd "${a}" && claude`);
+      console.log(`Terminal 2:  cd "${b}" && claude`);
+      console.log("\nPaste in terminal 1, one at a time:");
+      for (const t of p.terminal1) console.log(`  > ${t}`);
+      console.log("\nThen in terminal 2:");
+      for (const t of p.terminal2) console.log(`  > ${t}`);
+      console.log("\nExpected:");
+      for (const t of p.expect) console.log(`  - ${t}`);
+      const ans = await ask("\nPress Enter when done (or type skip): ");
+      if (ans === null) return { skip: "no terminal to wait on; prompts printed above" };
+      if (ans === "skip") return { skip: "skipped by user" };
+      const rows = dbRows(NONCE);
+      const manualRows = rows.filter((r) => r.kind === "text");
+      if (manualRows.length === 0) throw new Error("no message with the nonce reached the daemon");
+      const states = manualRows.map((r) => r.state);
+      const hookDelivered = states.some((s) => s === "delivered" || s === "read" || s === "acked");
+      return { detail: `states: ${states.join(", ")}`, data: { rows: manualRows, hookDelivered } };
     });
-    if (r.code !== 0) throw new Error(`hook exited ${r.code}, a hook must always exit 0`);
-    if (r.out !== "")
-      throw new Error(`hook printed text for a pid with no session: ${r.out.slice(0, 200)}`);
-  },
-);
-
-await step(
-  "pair-claude-claude",
-  "Claude Code sends to Claude Code (non-interactive, claude -p)",
-  () => pair("claude", "claude", "cc"),
-);
-
-await step("pair-opencode-claude", "OpenCode sends to Claude Code (opencode run)", () =>
-  targets.includes("opencode")
-    ? pair("opencode", "claude", "oc")
-    : { skip: "opencode not installed" },
-);
-
-await step("pair-codex-claude", "Codex sends to Claude Code (codex exec, best effort)", () =>
-  targets.includes("codex") ? pair("codex", "claude", "cx") : { skip: "codex not installed" },
-);
-
-await step("liveness", "finished sessions are not listed as online", () => {
-  const r = conveno("status");
-  const stale = r.out
-    .split("\n")
-    .filter((l) => l.includes("conveno-real-") && /idle|busy|waiting/i.test(l));
-  if (stale.length)
-    throw new Error(`sessions still shown online after their CLI exited:\n${stale.join("\n")}`);
-});
-
-if (flag("--manual")) {
-  await step("manual", "Interactive two-terminal check", async () => {
-    const a = makeRepo("m1");
-    const b = makeRepo("m2");
-    const p = manualPrompts(sessionName("claude", a), sessionName("claude", b));
-    console.log("\nOpen two terminals.");
-    console.log(`Terminal 1:  cd "${a}" && claude`);
-    console.log(`Terminal 2:  cd "${b}" && claude`);
-    console.log("\nPaste in terminal 1, one at a time:");
-    for (const t of p.terminal1) console.log(`  > ${t}`);
-    console.log("\nThen in terminal 2:");
-    for (const t of p.terminal2) console.log(`  > ${t}`);
-    console.log("\nExpected:");
-    for (const t of p.expect) console.log(`  - ${t}`);
-    const ans = await ask("\nPress Enter when done (or type skip): ");
-    if (ans === null) return { skip: "no terminal to wait on; prompts printed above" };
-    if (ans === "skip") return { skip: "skipped by user" };
-    const rows = dbRows(NONCE);
-    const manualRows = rows.filter((r) => r.kind === "text");
-    if (manualRows.length === 0) throw new Error("no message with the nonce reached the daemon");
-    const states = manualRows.map((r) => r.state);
-    const hookDelivered = states.some((s) => s === "delivered" || s === "read" || s === "acked");
-    return { detail: `states: ${states.join(", ")}`, data: { rows: manualRows, hookDelivered } };
-  });
+  }
+} finally {
+  // Always undo what init did, also when init or a pair failed: a failed init may have left
+  // files changed. Its own step, so the report shows whether the cleanup worked.
+  if (initAttempted && !flag("--keep-installed")) {
+    await step(
+      "uninstall",
+      "daemon stop, conveno uninstall --yes, then doctor shows CLIs not configured",
+      () => {
+        const stop = conveno("daemon", "stop");
+        const r = conveno("uninstall", "--yes");
+        if (r.code !== 0)
+          throw new Error(`uninstall failed (${r.code}): ${(r.err || r.out).slice(0, 500)}`);
+        const d = conveno("doctor");
+        return {
+          detail: "uninstalled",
+          data: {
+            daemonStop: stop.out.slice(0, 500),
+            uninstall: r.out.slice(0, 2000),
+            doctor: d.out.slice(0, 2000),
+          },
+        };
+      },
+    );
+  }
+  for (const d of tmpDirs) rmSync(d, { recursive: true, force: true });
+  save();
 }
-
-if (installed && !flag("--keep-installed")) {
-  await step("uninstall", "conveno uninstall --yes, then doctor shows CLIs not configured", () => {
-    conveno("daemon", "stop");
-    const r = conveno("uninstall", "--yes");
-    if (r.code !== 0)
-      throw new Error(`uninstall failed (${r.code}): ${(r.err || r.out).slice(0, 500)}`);
-    const d = conveno("doctor");
-    return {
-      detail: "uninstalled",
-      data: { uninstall: r.out.slice(0, 2000), doctor: d.out.slice(0, 2000) },
-    };
-  });
-}
-
-for (const d of tmpDirs) rmSync(d, { recursive: true, force: true });
-save();
-
 const bad = steps.filter((s) => s.status === "fail");
 console.log(
   `\nDone: ${report.summary.pass} passed, ${report.summary.fail} failed, ${report.summary.skip} skipped. Report: ${REPORT}`,
