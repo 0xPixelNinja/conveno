@@ -1,9 +1,12 @@
 # Changelog
 
-## 0.1.1
+## 0.1.1 (unreleased)
 
-Fixes from the first run of 0.1.0 against the real Claude Code, OpenCode and Codex on Windows.
+Fixes from the first run of 0.1.0 against the real Claude Code, OpenCode and Codex on Windows. It goes out first as `0.1.1-rc.1` on the npm dist-tag `next` (`npm i -g @conveno/cli@next`), and becomes `0.1.1` on `latest` once the real-CLI check passes on it.
 
+- Releases now publish a prerelease version such as `0.1.1-rc.1` to `next` and only a plain version to `latest`. The release workflow derives the tag from the version and fails if it disagrees with the git tag.
+- Fixed `conveno init` failing with "internal error" in a colour terminal, right after you confirm. The prompt arrow and the separator, arrow and rule glyphs had no colour in the brand tokens, so painting them threw. They are now quiet grey, as the terminal spec says. `conveno status` hit the same bug when it printed its separator. The `--yes` path and piped output never painted them, which is why only an interactive terminal failed.
+- An unexpected error now shows its message instead of "internal error", and writes the full stack to `<data dir>/logs/<timestamp>-error.log` (readable by you only), and prints that path.
 - Codex can now call Conveno's tools in `codex exec`. `conveno init` sets `default_tools_approval_mode = "approve"` on the `conveno` server in `~/.codex/config.toml`, for that server only. Before, Codex asked for approval it had no way to get and blocked every call. `conveno uninstall` removes it with the rest of the entry.
 - `conveno doctor`, `status`, `daemon start`, `daemon status` and `mcp` now give a fix that matches the cause. When the socket path is too long, they say to set `XDG_RUNTIME_DIR` to a shorter directory instead of telling you to run `conveno daemon start`.
 - Only `daemon start` and the MCP server start the daemon. A test now checks that `status`, `doctor`, `daemon status`, `daemon stop`, `hook`, `init` and `uninstall` do not.
