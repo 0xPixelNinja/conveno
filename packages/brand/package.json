@@ -43,9 +43,9 @@
   },
   "scripts": {
     "generate": "node scripts/generate.mjs",
-    "build": "node scripts/generate.mjs && tsdown && node scripts/copy-assets.mjs",
-    "typecheck": "node scripts/generate.mjs && tsc -p tsconfig.json",
-    "test": "node scripts/generate.mjs && vitest run",
+    "build": "tsdown && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
     "prepack": "node ../../scripts/copy-license.mjs"
   }
 }

@@ -2,7 +2,7 @@
 
 Brand tokens, terminal theme and icon names for the CLI and the web apps.
 
-Everything here is generated from `brand/` by `scripts/generate.mjs`; nothing is copied by hand.
+Everything here is generated from `brand/` by `scripts/generate.mjs` (the turbo `generate` task); nothing is copied by hand.
 `brand/tokens.json` is the source of truth.
 
 | Export | What |

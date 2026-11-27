@@ -1,16 +1,20 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
+    "generate": {
+      "inputs": ["scripts/generate.mjs", "$TURBO_ROOT$/brand/**"],
+      "outputs": ["src/generated/**"]
+    },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["generate", "^build"],
       "outputs": ["dist/**"]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["generate", "^build"],
       "outputs": []
     },
     "test": {
-      "dependsOn": [],
+      "dependsOn": ["generate"],
       "outputs": []
     },
     "@conveno/e2e#build": {

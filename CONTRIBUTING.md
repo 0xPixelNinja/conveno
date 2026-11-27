@@ -37,8 +37,8 @@ CI runs install, lint, typecheck, build and test on Ubuntu, macOS and Windows wi
 Run them locally in that order before you push. Code must work on all three operating systems, so
 use `node:path` and avoid shell-specific commands.
 
-`packages/brand` generates its TypeScript and CSS from `brand/` each time you build, typecheck or test
-it. Edit `brand/tokens.json`, not the generated files.
+`packages/brand` generates its TypeScript and CSS from `brand/` in a turbo `generate` task that build, typecheck
+and test depend on. Edit `brand/tokens.json`, not the generated files.
 
 ## Commits
 
