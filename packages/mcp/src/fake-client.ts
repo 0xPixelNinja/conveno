@@ -146,6 +146,7 @@ export class FakeDaemon {
           createdAt: this.now(),
           fromName: from.name,
           fromCli: from.cli,
+          ...(p.replyTo ? { replyTo: p.replyTo } : {}),
         } as Message;
         this.mailboxes.get(target.id)?.push(createEntry(message, this.now()));
         return {

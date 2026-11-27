@@ -71,7 +71,7 @@ describe("three sessions on one daemon", () => {
     expect(inbox.text).toContain("Unread remaining: 0");
 
     // Read messages are not returned again as unread.
-    expect((await b.call("inbox")).text).toContain("No messages");
+    expect((await b.call("inbox")).text).toContain("No new messages");
   });
 
   it("send to orchestrator with no holder fails with the fix in the text", async () => {
@@ -153,7 +153,9 @@ describe("three sessions on one daemon", () => {
   });
 
   it("set_status is visible to the other sessions and can be cleared", async () => {
-    expect((await a.call("set_status", { text: "refactoring the parser" })).text).toBe("ok");
+    expect((await a.call("set_status", { text: "refactoring the parser" })).text).toBe(
+      "Status set.",
+    );
     const seen = await c.call("list_sessions");
     const row = seen.text.split("\n").find((l) => l.startsWith(nameA));
     expect(row).toContain("refactoring the parser");
