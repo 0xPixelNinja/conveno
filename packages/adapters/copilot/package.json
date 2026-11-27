@@ -1,8 +1,8 @@
 {
-  "name": "@0xpixelninja/caucus-adapter-copilot",
+  "name": "@0xpixelninja/conveno-adapter-copilot",
   "version": "0.0.0",
   "private": true,
-  "description": "Caucus adapter for copilot",
+  "description": "Conveno adapter for copilot",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

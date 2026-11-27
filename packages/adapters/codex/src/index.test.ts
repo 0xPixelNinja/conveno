@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { PACKAGE_NAME } from "./index.js";
 
-describe("@0xpixelninja/caucus-adapter-codex", () => {
+describe("@0xpixelninja/conveno-adapter-codex", () => {
   it("exports its package name", () => {
-    expect(PACKAGE_NAME).toBe("@0xpixelninja/caucus-adapter-codex");
+    expect(PACKAGE_NAME).toBe("@0xpixelninja/conveno-adapter-codex");
   });
 });

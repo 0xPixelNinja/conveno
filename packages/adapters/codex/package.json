@@ -1,8 +1,8 @@
 {
-  "name": "@0xpixelninja/caucus-adapter-codex",
+  "name": "@0xpixelninja/conveno-adapter-codex",
   "version": "0.0.0",
   "private": true,
-  "description": "Caucus adapter for codex",
+  "description": "Conveno adapter for codex",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,3 +1,3 @@
-# @0xpixelninja/caucus-adapter-codex
+# @0xpixelninja/conveno-adapter-codex
 
-Caucus adapter for codex. Stub: not implemented yet.
+Conveno adapter for codex. Stub: not implemented yet.

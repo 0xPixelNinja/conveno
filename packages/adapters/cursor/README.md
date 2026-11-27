@@ -1,3 +1,3 @@
-# @0xpixelninja/caucus-adapter-cursor
+# @0xpixelninja/conveno-adapter-cursor
 
-Caucus adapter for cursor. Stub: not implemented yet.
+Conveno adapter for cursor. Stub: not implemented yet.

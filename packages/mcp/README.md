@@ -1,3 +1,3 @@
-# @0xpixelninja/caucus-mcp
+# @0xpixelninja/conveno-mcp
 
-caucus-mcp: stdio MCP server that forwards tool calls to the daemon. Stub: not implemented yet.
+conveno-mcp: stdio MCP server that forwards tool calls to the daemon. Stub: not implemented yet.

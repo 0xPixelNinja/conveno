@@ -1,8 +1,8 @@
 {
-  "name": "@0xpixelninja/caucus-mcp",
+  "name": "@0xpixelninja/conveno-mcp",
   "version": "0.0.0",
   "private": true,
-  "description": "caucus-mcp: stdio MCP server that forwards tool calls to the daemon",
+  "description": "conveno-mcp: stdio MCP server that forwards tool calls to the daemon",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

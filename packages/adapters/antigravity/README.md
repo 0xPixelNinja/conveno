@@ -1,3 +1,3 @@
-# @0xpixelninja/caucus-adapter-antigravity
+# @0xpixelninja/conveno-adapter-antigravity
 
-Caucus adapter for antigravity. Stub: not implemented yet.
+Conveno adapter for antigravity. Stub: not implemented yet.

@@ -1,3 +1,3 @@
-# @0xpixelninja/caucus-adapter-claude
+# @0xpixelninja/conveno-adapter-claude
 
-Caucus adapter for claude. Stub: not implemented yet.
+Conveno adapter for claude. Stub: not implemented yet.

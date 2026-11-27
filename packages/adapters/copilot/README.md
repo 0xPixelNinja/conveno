@@ -1,3 +1,3 @@
-# @0xpixelninja/caucus-adapter-copilot
+# @0xpixelninja/conveno-adapter-copilot
 
-Caucus adapter for copilot. Stub: not implemented yet.
+Conveno adapter for copilot. Stub: not implemented yet.

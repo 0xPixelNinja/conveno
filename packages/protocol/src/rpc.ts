@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const JSONRPC_VERSION = "2.0";
 
-/** JSON-RPC 2.0 error codes: standard range plus Caucus codes in the implementation-defined range. */
+/** JSON-RPC 2.0 error codes: standard range plus Conveno codes in the implementation-defined range. */
 export const RpcErrorCode = {
   ParseError: -32700,
   InvalidRequest: -32600,

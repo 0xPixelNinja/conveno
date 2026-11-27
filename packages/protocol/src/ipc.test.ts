@@ -47,8 +47,8 @@ describe("method table", () => {
     );
   });
 
-  it("PROTOCOL_VERSION is caucus/1", () => {
-    expect(PROTOCOL_VERSION).toBe("caucus/1");
+  it("PROTOCOL_VERSION is conveno/1", () => {
+    expect(PROTOCOL_VERSION).toBe("conveno/1");
   });
 });
 
@@ -113,7 +113,7 @@ describe("hello", () => {
       }).success,
     ).toBe(true);
     expect(
-      ipcMethods.hello.result.safeParse({ protocolVersion: "caucus/2", daemonVersion: "0.1.0" })
+      ipcMethods.hello.result.safeParse({ protocolVersion: "conveno/2", daemonVersion: "0.1.0" })
         .success,
     ).toBe(false);
   });

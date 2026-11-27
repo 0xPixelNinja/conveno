@@ -259,7 +259,7 @@ function isMethod(name: string): name is IpcMethodName {
 }
 
 /**
- * Validate a decoded JSON value as a Caucus IPC request: JSON-RPC envelope first, then the
+ * Validate a decoded JSON value as a Conveno IPC request: JSON-RPC envelope first, then the
  * params schema for the named method. Never throws; failures carry a ready-to-send error object.
  */
 export function parseIpcRequest(input: unknown): ParseRequestResult {

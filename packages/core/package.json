@@ -1,5 +1,5 @@
 {
-  "name": "@0xpixelninja/caucus-core",
+  "name": "@0xpixelninja/conveno-core",
   "version": "0.0.0",
   "private": true,
   "description": "Session model, routing and mailbox logic",

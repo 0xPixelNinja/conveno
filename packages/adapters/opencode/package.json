@@ -1,8 +1,8 @@
 {
-  "name": "@0xpixelninja/caucus-adapter-opencode",
+  "name": "@0xpixelninja/conveno-adapter-opencode",
   "version": "0.0.0",
   "private": true,
-  "description": "Caucus adapter for opencode",
+  "description": "Conveno adapter for opencode",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,8 +1,8 @@
 {
-  "name": "@0xpixelninja/caucus-protocol",
+  "name": "@0xpixelninja/conveno-protocol",
   "version": "0.0.0",
   "private": true,
-  "description": "Wire protocol: zod schemas, framing and IPC helpers for Caucus",
+  "description": "Wire protocol: zod schemas, framing and IPC helpers for Conveno",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

@@ -1,12 +1,12 @@
 {
-  "name": "caucus-cli",
+  "name": "conveno",
   "version": "0.0.0",
   "private": true,
-  "description": "The `caucus` command: init, status, doctor, uninstall, pair, login, logs",
+  "description": "The `conveno` command: init, status, doctor, uninstall, pair, login, logs",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "caucus": "./dist/bin.js"
+    "conveno": "./dist/bin.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

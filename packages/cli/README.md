@@ -1,3 +1,3 @@
-# caucus-cli
+# conveno
 
-The `caucus` command: init, status, doctor, uninstall, pair, login, logs. Stub: not implemented yet.
+The `conveno` command: init, status, doctor, uninstall, pair, login, logs. Stub: not implemented yet.

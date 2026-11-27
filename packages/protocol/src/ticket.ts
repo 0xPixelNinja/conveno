@@ -10,7 +10,7 @@ export type TicketStatus = z.infer<typeof TicketStatus>;
  * A question routed to the orchestrator.
  *
  * Rule: a ticket never resolves by timeout. An `open` ticket stays open until it is answered
- * or cancelled; the asking CLI keeps its own native prompt meanwhile. Caucus never auto-approves.
+ * or cancelled; the asking CLI keeps its own native prompt meanwhile. Conveno never auto-approves.
  */
 export const Ticket = z
   .object({

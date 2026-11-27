@@ -1,3 +1,3 @@
-# @0xpixelninja/caucus-daemon
+# @0xpixelninja/conveno-daemon
 
-caucusd: local daemon (IPC server, SQLite, process management). Stub: not implemented yet.
+convenod: local daemon (IPC server, SQLite, process management). Stub: not implemented yet.

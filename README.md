@@ -1,6 +1,6 @@
-# Caucus
+# Conveno
 
-Caucus is a vendor-neutral mesh that lets AI coding CLI sessions (Claude Code, Codex,
+Conveno is a vendor-neutral mesh that lets AI coding CLI sessions (Claude Code, Codex,
 Antigravity, Cursor, Copilot, OpenCode) find each other, message each other, spawn each other and
 peek at each other, through a local daemon and a per-session MCP server. An end-to-end encrypted
 cloud relay for connecting machines is planned.

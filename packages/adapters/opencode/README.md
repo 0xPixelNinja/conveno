@@ -1,3 +1,3 @@
-# @0xpixelninja/caucus-adapter-opencode
+# @0xpixelninja/conveno-adapter-opencode
 
-Caucus adapter for opencode. Stub: not implemented yet.
+Conveno adapter for opencode. Stub: not implemented yet.

@@ -1,2 +1,2 @@
-export const PACKAGE_NAME = "caucus-cli";
+export const PACKAGE_NAME = "conveno";
 export const VERSION = "0.0.0";

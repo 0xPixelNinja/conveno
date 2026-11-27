@@ -1,7 +1,7 @@
-# Caucus Protocol, version `caucus/1`
+# Conveno Protocol, version `conveno/1`
 
 This document is the normative spec for everything that crosses a process or machine boundary in
-Caucus. The reference implementation is the zod schemas in `packages/protocol/src`; where this
+Conveno. The reference implementation is the zod schemas in `packages/protocol/src`; where this
 document and the schemas disagree, that is a bug in one of them. A non-TypeScript implementation
 (for example a Rust relay) must follow this document.
 
@@ -9,7 +9,7 @@ Keywords MUST, SHOULD, MAY are used as in RFC 2119.
 
 ## 1. Versioning
 
-- `PROTOCOL_VERSION = "caucus/1"`. The integer after the slash is bumped only for breaking changes.
+- `PROTOCOL_VERSION = "conveno/1"`. The integer after the slash is bumped only for breaking changes.
 - Adding optional fields, new event names or new methods is not breaking. Receivers MUST ignore
   unknown fields on objects and MUST reject unknown enum values.
 - The local IPC handshake (section 6) negotiates the version. Relay frames carry a numeric `v`
@@ -83,16 +83,16 @@ Invariants: when `status = answered`, `answer`, `answeredBy` and `answeredAt` MU
 any other status `answer` and `answeredBy` MUST be absent.
 
 **Rule: a ticket never resolves by timeout.** An `open` ticket stays open until answered or
-cancelled. Meanwhile the asking CLI keeps its own native prompt. Caucus MUST NOT auto-approve or
+cancelled. Meanwhile the asking CLI keeps its own native prompt. Conveno MUST NOT auto-approve or
 auto-answer on timeout.
 
 ## 6. Local IPC
 
 ### 6.1 Transport
 
-- POSIX: Unix domain socket, mode `0600`. Default path `$XDG_RUNTIME_DIR/caucus/caucusd.sock`
-  (when `XDG_RUNTIME_DIR` is an absolute path), else `~/.caucus/run/caucusd.sock`.
-- Windows: named pipe `\\.\pipe\caucusd-<username>`, ACL restricted to the current user. The
+- POSIX: Unix domain socket, mode `0600`. Default path `$XDG_RUNTIME_DIR/conveno/convenod.sock`
+  (when `XDG_RUNTIME_DIR` is an absolute path), else `~/.conveno/run/convenod.sock`.
+- Windows: named pipe `\\.\pipe\convenod-<username>`, ACL restricted to the current user. The
   username is taken from `USERNAME`, with characters outside `[A-Za-z0-9._-]` replaced by `_`.
 - Helper: `defaultSocketPath(platform, env, homedir?)` (pure function).
 - Unix socket paths are limited to roughly 104 (macOS) to 108 (Linux) bytes.

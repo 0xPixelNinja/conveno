@@ -1,8 +1,8 @@
 {
-  "name": "@0xpixelninja/caucus-adapter-claude",
+  "name": "@0xpixelninja/conveno-adapter-claude",
   "version": "0.0.0",
   "private": true,
-  "description": "Caucus adapter for claude",
+  "description": "Conveno adapter for claude",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
