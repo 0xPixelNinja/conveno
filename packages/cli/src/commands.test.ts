@@ -2,10 +2,10 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { chmod, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import claudeAdapter from "@0xpixelninja/conveno-adapter-claude";
-import codexAdapter from "@0xpixelninja/conveno-adapter-codex";
-import { connect } from "@0xpixelninja/conveno-client";
-import { dataPaths } from "@0xpixelninja/conveno-core";
+import claudeAdapter from "@conveno/adapter-claude";
+import codexAdapter from "@conveno/adapter-codex";
+import { connect } from "@conveno/client";
+import { dataPaths } from "@conveno/core";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { main } from "./main.js";
 import { convenoCommand, resolveDaemonEntry } from "./runtime.js";
@@ -43,7 +43,7 @@ describe("help, version, unknown", () => {
   it("prints the version", async () => {
     const c = await make();
     expect(await main(["--version"], c)).toBe(0);
-    expect(c.outText()).toBe("0.0.0\n");
+    expect(c.outText()).toBe("0.1.0\n");
   });
 
   it("prints plain, short help", async () => {
@@ -526,6 +526,23 @@ describe("conveno command and daemon entry", () => {
       "/usr/bin/node",
       "/x/bin.js",
     ]);
+  });
+
+  it("uses plain `conveno` on Windows when the PATH shim starts this install", () => {
+    const shim = "C:\\npm\\conveno.cmd";
+    const bin = "C:\\npm\\node_modules\\@conveno\\cli\\dist\\bin.js";
+    const text = `@ECHO off\r\n"%_prog%"  "%dp0%\\node_modules\\@conveno\\cli\\dist\\bin.js" %*\r\n`;
+    const io = {
+      isFile: (p: string) => p.toLowerCase() === shim.toLowerCase(),
+      readFile: (p: string) => (p.toLowerCase() === shim.toLowerCase() ? text : undefined),
+      realpath: (p: string) => p,
+    };
+    expect(convenoCommand({ PATH: "C:\\npm" }, "win32", bin, "C:\\node.exe", io)).toEqual([
+      "conveno",
+    ]);
+    expect(
+      convenoCommand({ PATH: "C:\\npm" }, "win32", "D:\\elsewhere\\bin.js", "C:\\node.exe", io),
+    ).toEqual(["C:\\node.exe", "D:\\elsewhere\\bin.js"]);
   });
 
   it.skipIf(process.platform === "win32")(

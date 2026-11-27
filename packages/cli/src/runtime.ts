@@ -5,14 +5,15 @@ import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import claudeAdapter from "@0xpixelninja/conveno-adapter-claude";
-import codexAdapter from "@0xpixelninja/conveno-adapter-codex";
-import opencodeAdapter from "@0xpixelninja/conveno-adapter-opencode";
-import { createTheme, type Theme } from "@0xpixelninja/conveno-brand";
-import { connect } from "@0xpixelninja/conveno-client";
-import { dataDir } from "@0xpixelninja/conveno-core";
-import { runStdio } from "@0xpixelninja/conveno-mcp";
+import claudeAdapter from "@conveno/adapter-claude";
+import codexAdapter from "@conveno/adapter-codex";
+import opencodeAdapter from "@conveno/adapter-opencode";
+import { createTheme, type Theme } from "@conveno/brand";
+import { connect } from "@conveno/client";
+import { dataDir } from "@conveno/core";
+import { runStdio } from "@conveno/mcp";
 import type { Ctx } from "./ctx.js";
+import { type ShimIo, windowsConvenoIsThisInstall } from "./shim.js";
 import { planSpawn } from "./win-spawn.js";
 
 /**
@@ -21,7 +22,7 @@ import { planSpawn } from "./win-spawn.js";
  */
 export function resolveDaemonEntry(): string | undefined {
   try {
-    return fileURLToPath(import.meta.resolve("@0xpixelninja/conveno-daemon/bin"));
+    return fileURLToPath(import.meta.resolve("@conveno/daemon/bin"));
   } catch {
     return undefined;
   }
@@ -40,13 +41,17 @@ const real = (p: string): string | undefined => {
   }
 };
 
-/** The first `conveno` on PATH, when it is a link to this very install. */
+/**
+ * The first `conveno` on PATH, when it is a link to this very install. On Windows that is a
+ * `.cmd` or `.ps1` shim, which is read to see which script it starts.
+ */
 export function pathConvenoIsThisInstall(
   env: Readonly<Record<string, string | undefined>>,
   binPath: string,
   platform: NodeJS.Platform,
+  shimIo?: ShimIo,
 ): boolean {
-  if (platform === "win32") return false; // .cmd shims cannot be compared with the script
+  if (platform === "win32") return windowsConvenoIsThisInstall(env, binPath, shimIo);
   const mine = real(binPath);
   if (!mine) return false;
   for (const dir of (env.PATH ?? "").split(delimiter)) {
@@ -62,8 +67,11 @@ export function convenoCommand(
   platform: NodeJS.Platform,
   binPath = cliBinPath(),
   nodePath = process.execPath,
+  shimIo?: ShimIo,
 ): string[] {
-  return pathConvenoIsThisInstall(env, binPath, platform) ? ["conveno"] : [nodePath, binPath];
+  return pathConvenoIsThisInstall(env, binPath, platform, shimIo)
+    ? ["conveno"]
+    : [nodePath, binPath];
 }
 
 function run(cmd: string, args: string[], timeout: number): Promise<string | null> {
