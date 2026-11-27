@@ -36,7 +36,14 @@ export async function testCtx(over: Partial<Ctx> = {}): Promise<TestCtx> {
   await mkdir(home, { recursive: true });
   const stdout: string[] = [];
   const stderr: string[] = [];
-  const norm = (s: string) => s.split(root).join("<tmp>").replaceAll("\\", "/");
+  // The socket is a named pipe on Windows, outside the temp root; show both as `<tmp>/d.sock`.
+  const norm = (s: string) =>
+    s
+      .split(ctx.socketPath ?? "\0")
+      .join(`${root}/d.sock`)
+      .split(root)
+      .join("<tmp>")
+      .replaceAll("\\", "/");
   const ctx: TestCtx = {
     home,
     platform: process.platform,
