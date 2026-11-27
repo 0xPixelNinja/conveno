@@ -41,9 +41,18 @@ async function readIfExists(path: string): Promise<string | null> {
   }
 }
 
+/**
+ * Quote one word of a hook command. Codex runs the command line with `$SHELL -lc` on Unix and with
+ * `%COMSPEC% /C "<line>"` (cmd.exe) on Windows, so Windows words are written for cmd.exe: double
+ * quotes, and forward slashes in paths. cmd.exe and every Windows API accept `/`, and it avoids
+ * any question of how `\` meets a quote.
+ */
 function quoteArg(arg: string, platform: NodeJS.Platform): string {
+  if (platform === "win32") {
+    const word = arg.replace(/\\/g, "/");
+    return /^[A-Za-z0-9_./:=@+,-]+$/.test(word) ? word : `"${word.replace(/"/g, '""')}"`;
+  }
   if (/^[A-Za-z0-9_./:=@%+,-]+$/.test(arg)) return arg;
-  if (platform === "win32") return `"${arg.replace(/"/g, '\\"')}"`;
   return `'${arg.replace(/'/g, `'\\''`)}'`;
 }
 

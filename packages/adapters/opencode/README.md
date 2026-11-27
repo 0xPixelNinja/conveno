@@ -31,6 +31,16 @@ Choice of shape: the adapter runs `opencode --version`.
 
 When it writes one shape it removes our entry from the other. Uninstall removes our entry from both shapes.
 
+## Is `mcp.servers` right for 2.x? (checked 2026-11-27)
+
+Yes, and a config with entries directly under `mcp` still works next to it. A real opencode.jsonc written for 1.x has `mcp.<name>` entries, which raised the question of whether `servers` would be read as a server called "servers". It is not:
+
+- Docs, https://opencode.ai/docs/mcp-servers/: local servers go under `mcp.servers.<name>`, "V2 does not place server names directly under `mcp`", and the off switch is `disabled`, not `enabled`. https://opencode.ai/docs/config/ shows the same layout. Neither page shows a V1 layout.
+- Schema, https://opencode.ai/config.json: `mcp.properties.servers` is the V2 map (`Mcp.LocalConfigEncoded`, with `disabled`). `mcp.additionalProperties` still accepts the legacy `mcp.<name>` entry (`McpLocalConfig`, with `enabled`) and marks it `"deprecated": true`.
+- Source, tag v2.3.2 (https://github.com/sst/opencode), `packages/core/src/config/normalize.ts`: for each key under `mcp`, a key named `servers` whose value is not itself a server (`type` is not `local` or `remote`) is read as the native map. Every other key is migrated as a legacy server (`packages/core/src/v1/config/migrate.ts`, `migrateMcp`, `enabled` becomes `!disabled`), and both sets are merged.
+
+So the adapter keeps writing `mcp.servers.conveno` for 2.2.0 and later and leaves existing `mcp.<name>` entries alone. The legacy layout is deprecated, so writing it for 2.x would only add to what has to be migrated later. V1 is still written for versions below 2.2.0 and for an unknown version with no `mcp.servers`. Not run against a live OpenCode 2.3.2 on Windows.
+
 ## Where 2.x is published
 
 `npm view opencode-ai dist-tags.latest` is 1.19.6, so the `opencode-ai` package is still the 1.x line. The V2 docs install 2.x as `@opencode/cli` on npm (`latest` is 2.4.2), `brew install anomalyco/tap/opencode-v2`, or `curl -fsSL https://opencode.ai/v2/install | bash`. `opencode --version` reports the installed line either way, which is what the adapter reads.

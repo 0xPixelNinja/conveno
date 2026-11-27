@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import {
   chmod,
   mkdir,
+  open,
   readdir,
   readFile,
   realpath,
@@ -52,15 +53,17 @@ export const sha256 = (data: string | Uint8Array): string =>
 
 /** A file changed between planning and writing. */
 export class StaleError extends Error {
+  /** True unless files written earlier in the same run could not be put back. */
+  rolledBack = true;
   constructor(readonly path: string) {
     super(`${path} changed while Conveno was working. Nothing in it was overwritten.`);
     this.name = "StaleError";
   }
 }
 
-/** Will this change be made by the CLI's own command? Never on Windows: .cmd shims need a shell. */
-export const usesCommand = (ctx: Ctx, item: PlannedChange): boolean =>
-  Boolean(item.change.viaCommand) && item.installed && ctx.platform !== "win32";
+/** Will this change be made by the CLI's own command? Yes when the CLI is installed and the plan has one. */
+export const usesCommand = (item: PlannedChange): boolean =>
+  Boolean(item.change.viaCommand) && item.installed;
 
 /** Print one block per file: path, what changes, the command that will run, the unified diff. */
 export function presentChanges(ctx: Ctx, items: PlannedChange[]): void {
@@ -71,7 +74,7 @@ export function presentChanges(ctx: Ctx, items: PlannedChange[]): void {
       `  ${t.bold(tilde(change.path, ctx.home))}${change.before === null ? t.paint("quiet", "  (new file)") : ""}\n`,
     );
     ctx.out(`    ${change.description}\n`);
-    const viaCommand = usesCommand(ctx, item) && change.viaCommand !== undefined;
+    const viaCommand = usesCommand(item) && change.viaCommand !== undefined;
     if (viaCommand && change.viaCommand) {
       ctx.out(`    ${t.paint("quiet", "will run")}  ${t.bold(change.viaCommand.join(" "))}\n`);
       ctx.out(
@@ -110,26 +113,105 @@ async function privateDir(ctx: Ctx, dir: string): Promise<void> {
   if (isPosix(ctx)) await chmod(dir, 0o700).catch(() => undefined);
 }
 
+/** The file operations `writeAtomic` uses. Tests replace them to simulate Windows lock errors. */
+export interface WriteIo {
+  realpath(path: string): Promise<string>;
+  mkdir(path: string): Promise<void>;
+  mode(path: string): Promise<number | undefined>;
+  writeFile(path: string, data: string | Uint8Array, mode: number): Promise<void>;
+  chmod(path: string, mode: number): Promise<void>;
+  rename(from: string, to: string): Promise<void>;
+  /** Open `path` truncated, write, flush to disk, close. */
+  overwrite(path: string, data: string | Uint8Array): Promise<void>;
+  rm(path: string): Promise<void>;
+  platform: NodeJS.Platform;
+}
+
+export const realIo: WriteIo = {
+  realpath: (p) => realpath(p),
+  mkdir: async (p) => void (await mkdir(p, { recursive: true })),
+  mode: (p) =>
+    stat(p).then(
+      (s) => s.mode & 0o777,
+      () => undefined,
+    ),
+  writeFile: (p, data, mode) => writeFile(p, data, { mode }),
+  chmod: (p, mode) => chmod(p, mode),
+  rename: (a, b) => rename(a, b),
+  overwrite: async (p, data) => {
+    const fh = await open(p, "w");
+    try {
+      await fh.writeFile(data);
+      await fh.sync();
+    } finally {
+      await fh.close();
+    }
+  },
+  rm: (p) => rm(p, { force: true }),
+  platform: process.platform,
+};
+
 /**
- * Write through a temp file in the same directory, then rename over the target, so a reader never
- * sees half a file. Keeps the mode of an existing file and writes through a symlink.
+ * Replace the contents of `path` with `data`, keeping its mode and writing through a symlink.
+ *
+ * POSIX: write a temp file in the same directory, then rename it over the target, so a reader
+ * never sees half a file.
+ *
+ * Windows: write the target in place (open truncated, write, fsync). Reason, confirmed in the
+ * libuv source Node uses: `fs.rename` is `MoveFileExW(MOVEFILE_REPLACE_EXISTING)`, which needs
+ * DELETE access to the existing target. That fails with ERROR_ACCESS_DENIED (reported as EPERM,
+ * with `err.path` set to the temp file, the source) whenever any other process holds the target
+ * open without FILE_SHARE_DELETE. Node itself shares READ, WRITE and DELETE on every handle, but
+ * C runtime, Python and .NET defaults share only READ and WRITE, and so may a running CLI or a
+ * virus scanner. Truncating in place needs only FILE_SHARE_WRITE from the other handles, so it
+ * succeeds in the cases where an atomic replace cannot. The cost is that a reader can see a
+ * half-written file for a moment. That is acceptable here because callers re-read the target and
+ * compare it with the plan just before writing, and `applyChanges` restores every file from its
+ * backup if any write fails. No temp file exists on this path, so none can be left behind.
  */
-export async function writeAtomic(path: string, data: string | Uint8Array): Promise<void> {
-  const target = await realpath(path).catch(() => path);
-  const dir = dirname(target);
-  await mkdir(dir, { recursive: true });
-  const mode = await stat(target).then(
-    (s) => s.mode & 0o777,
-    () => undefined,
+export async function writeAtomic(
+  path: string,
+  data: string | Uint8Array,
+  io: WriteIo = realIo,
+): Promise<void> {
+  const target = await io.realpath(path).catch(() => path);
+  await io.mkdir(dirname(target));
+  if (io.platform === "win32") {
+    await io.overwrite(target, data);
+    return;
+  }
+  const mode = await io.mode(target);
+  const tmp = join(
+    dirname(target),
+    `.${basename(target)}.conveno-${randomBytes(6).toString("hex")}.tmp`,
   );
-  const tmp = join(dir, `.${basename(target)}.conveno-${randomBytes(6).toString("hex")}.tmp`);
   try {
-    await writeFile(tmp, data, { mode: mode ?? 0o644 });
-    if (mode !== undefined && process.platform !== "win32") await chmod(tmp, mode);
-    await rename(tmp, target);
+    await io.writeFile(tmp, data, mode ?? 0o644);
+    if (mode !== undefined) await io.chmod(tmp, mode);
+    await io.rename(tmp, target);
   } catch (e) {
-    await rm(tmp, { force: true }).catch(() => undefined);
+    // Node names the temp file (the rename source) in the error. The user cares about the target.
+    if (e instanceof Error && (e as NodeJS.ErrnoException).path === tmp) {
+      (e as NodeJS.ErrnoException).path = target;
+    }
     throw e;
+  } finally {
+    await io.rm(tmp).catch(() => undefined);
+  }
+}
+
+/** A write failed. `rolledBack` says whether every file written before it was put back. */
+export class ApplyError extends Error {
+  constructor(
+    message: string,
+    readonly rolledBack: boolean,
+    /** Files that could not be restored, with the backup directory that holds their originals. */
+    readonly notRestored: string[],
+    readonly backupDir: string,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+    this.name = "ApplyError";
   }
 }
 
@@ -157,7 +239,7 @@ async function currentIfUnchanged(change: ConfigChange): Promise<Buffer | null> 
 export async function applyChanges(
   ctx: Ctx,
   items: PlannedChange[],
-  opts: { markRestored?: boolean } = {},
+  opts: { markRestored?: boolean; io?: WriteIo } = {},
 ): Promise<Applied> {
   const paths = dataPaths(ctx.platform, ctx.dataDir);
   const unique = items.filter(
@@ -202,26 +284,63 @@ export async function applyChanges(
     });
   await writeManifest();
 
+  const io = opts.io ?? realIo;
   const how: Applied["how"] = [];
-  for (const item of unique) {
-    const { cli, change } = item;
-    let done = false;
-    if (usesCommand(ctx, item) && change.viaCommand) {
-      const [bin, ...args] = change.viaCommand;
+  // Files touched so far, so a failure can put them back. A path is listed before its write is
+  // tried, because a CLI's own command may change the file and then fail.
+  const touched: string[] = [];
+  try {
+    for (const item of unique) {
+      const { cli, change } = item;
+      let done = false;
+      touched.push(change.path);
+      if (usesCommand(item) && change.viaCommand) {
+        const [bin, ...args] = change.viaCommand;
+        try {
+          const r = await ctx.exec(bin as string, args);
+          // A command that exits 0 but leaves the file alone did nothing we can rely on.
+          const now = await readBytes(change.path);
+          done = r.code === 0 && now !== null && now.toString("utf8") !== change.before;
+        } catch {
+          done = false;
+        }
+      }
+      if (!done) {
+        await currentIfUnchanged(change);
+        await writeAtomic(change.path, change.after, io);
+      }
+      how.push({ cli, path: change.path, via: done ? "command" : "file" });
+    }
+  } catch (e) {
+    const notRestored: string[] = [];
+    for (const path of touched.reverse()) {
+      const original = originals.get(path) ?? null;
       try {
-        const r = await ctx.exec(bin as string, args);
-        // A command that exits 0 but leaves the file alone did nothing we can rely on.
-        const now = await readBytes(change.path);
-        done = r.code === 0 && now !== null && now.toString("utf8") !== change.before;
+        const now = await readBytes(path);
+        const unchanged = original === null ? now === null : now?.equals(original) === true;
+        if (unchanged) continue; // the failed write never reached this file
+        if (original === null) await io.rm(path);
+        else await writeAtomic(path, original, io);
       } catch {
-        done = false;
+        notRestored.push(path);
       }
     }
-    if (!done) {
-      await currentIfUnchanged(change);
-      await writeAtomic(change.path, change.after);
+    const rolledBack = notRestored.length === 0;
+    // With everything restored, the backups and manifest describe a change that never happened.
+    if (rolledBack) await rm(backupDir, { recursive: true, force: true }).catch(() => undefined);
+    if (e instanceof StaleError) {
+      e.rolledBack = rolledBack;
+      throw e;
     }
-    how.push({ cli, path: change.path, via: done ? "command" : "file" });
+    throw new ApplyError(
+      e instanceof Error ? e.message : String(e),
+      rolledBack,
+      notRestored,
+      backupDir,
+      {
+        cause: e,
+      },
+    );
   }
 
   // Record what is on disk now, which differs from `after` when the CLI's command formatted it.

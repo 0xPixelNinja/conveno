@@ -121,6 +121,37 @@ describe("plan on an empty home", () => {
   });
 });
 
+describe("hook command on Windows", () => {
+  it("is written for cmd.exe: double quotes and forward slashes", async () => {
+    const changes = await named.plan(
+      env({
+        platform: "win32",
+        conveno: {
+          command: [
+            "C:\\Program Files\\nodejs\\node.exe",
+            "C:\\Users\\Dev User\\AppData\\Roaming\\npm\\node_modules\\conveno\\dist\\bin.js",
+          ],
+        },
+      }),
+    );
+    const command = JSON.parse(changes[1]?.after ?? "").hooks.SessionStart[0].hooks[0].command;
+    expect(command).toBe(
+      '"C:/Program Files/nodejs/node.exe" "C:/Users/Dev User/AppData/Roaming/npm/node_modules/conveno/dist/bin.js" hook codex SessionStart',
+    );
+    expect(command).not.toContain("\\");
+    expect(command).not.toContain("'");
+  });
+
+  it("leaves a path without spaces unquoted", async () => {
+    const changes = await named.plan(
+      env({ platform: "win32", conveno: { command: ["C:\\nodejs\\node.exe", "D:\\c\\bin.js"] } }),
+    );
+    expect(JSON.parse(changes[1]?.after ?? "").hooks.UserPromptSubmit[0].hooks[0].command).toBe(
+      "C:/nodejs/node.exe D:/c/bin.js hook codex UserPromptSubmit",
+    );
+  });
+});
+
 describe("plan with existing config", () => {
   const existing = `# my codex config
 model = "gpt-5"  # favourite

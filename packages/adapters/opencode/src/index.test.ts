@@ -230,6 +230,38 @@ describe("opencodeAdapter V1 fallback", () => {
     }
   });
 
+  it("on 2.3.2 leaves other mcp.<name> entries alone and adds ours under mcp.servers", async () => {
+    // A real 2.x config written in the legacy layout. OpenCode 2.3.2 reads both layouts and merges
+    // them (packages/core/src/config/normalize.ts), so the legacy entries keep working.
+    const text = `{
+  // my servers
+  "mcp": {
+    "docs": { "type": "local", "command": ["npx", "-y", "docs-mcp"], "enabled": true },
+    "remote": { "type": "remote", "url": "https://example.com/mcp" }
+  }
+}
+`;
+    await seed("opencode.jsonc", text);
+    const [c] = await opencodeAdapter.plan(ver("2.3.2"));
+    const after = parsed(c?.after);
+    expect(after.mcp.servers.conveno).toEqual(ENTRY);
+    expect(after.mcp.docs).toEqual({
+      type: "local",
+      command: ["npx", "-y", "docs-mcp"],
+      enabled: true,
+    });
+    expect(after.mcp.remote.url).toBe("https://example.com/mcp");
+    expect(after.mcp.conveno).toBeUndefined();
+    expect(c?.after).toContain("// my servers");
+    expect(c?.description).toContain("mcp.servers.conveno");
+    // Planning again on the result finds nothing to do, and uninstall leaves the legacy entries.
+    await seed("opencode.jsonc", c?.after ?? "");
+    expect(await opencodeAdapter.plan(ver("2.3.2"))).toEqual([]);
+    const [u] = await opencodeAdapter.uninstallPlan(ver("2.3.2"));
+    expect(parsed(u?.after).mcp.docs.enabled).toBe(true);
+    expect(parsed(u?.after).mcp.servers?.conveno).toBeUndefined();
+  });
+
   it("treats 2.1.9 as V1", async () => {
     await seed("opencode.json", "{}");
     const [c] = await opencodeAdapter.plan(ver("2.1.9"));
