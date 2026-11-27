@@ -1,8 +1,8 @@
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { mkdir, open, readFile, rm, stat } from "node:fs/promises";
 import { createConnection, type Socket } from "node:net";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   type ClientMethodName,
   type ConvenoClient,
@@ -41,12 +41,16 @@ export interface ConnectOptions {
   daemonEntry?: string;
   /** Per-request timeout in milliseconds. Default 5000. */
   requestTimeoutMs?: number;
-  /** Total time to keep retrying after auto-start, in milliseconds. Default 3000. */
+  /**
+   * Total time to keep retrying after auto-start, in milliseconds. Default 10000. A daemon that
+   * exits first fails the start at once, so the wait only matters for a slow first start.
+   */
   startTimeoutMs?: number;
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 5_000;
-const DEFAULT_START_TIMEOUT_MS = 3_000;
+// A first start on Windows, with real-time antivirus scanning the bundle, can take several seconds.
+const DEFAULT_START_TIMEOUT_MS = 10_000;
 const LOCK_STALE_MS = 10_000;
 
 const CLIENT_METHODS = [
@@ -86,6 +90,7 @@ const isMissingDaemon = (e: unknown) => errCode(e) === "ENOENT" || errCode(e) ==
  * - `token_empty`: the daemon token file exists but is empty.
  * - `daemon_missing`: the daemon program could not be found.
  * - `start_timeout`: a daemon was started and did not come up in time.
+ * - `start_exited`: the daemon that was started exited before it began listening.
  * - `connection`: the connection broke or timed out.
  */
 export type ClientErrorKind =
@@ -96,6 +101,7 @@ export type ClientErrorKind =
   | "token_empty"
   | "daemon_missing"
   | "start_timeout"
+  | "start_exited"
   | "connection";
 
 /** An error whose message is already written for the user. Never remapped. */
@@ -375,16 +381,57 @@ function requireDaemonEntry(entry: string | undefined): string {
   );
 }
 
-function spawnDaemon(entry: string): void {
-  const child = spawn(process.execPath, [entry], {
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-  });
-  child.on("error", () => {
-    // A failed spawn surfaces as a start timeout in the retry loop.
-  });
-  child.unref();
+/** How a spawned daemon ended, once it has. */
+interface Spawned {
+  child: ChildProcess;
+  exit?: { code: number | null; signal: NodeJS.Signals | null };
+  spawnError?: Error;
+}
+
+/**
+ * Start the daemon detached, with its stdout and stderr in `logPath`, truncated at each start. The
+ * daemon writes its own `daemon.log` once it runs; this file catches what it prints before that,
+ * such as a crash at startup, which would otherwise be lost.
+ */
+async function spawnDaemon(entry: string, logPath: string): Promise<Spawned> {
+  await mkdir(dirname(logPath), { recursive: true });
+  // Readable by you only, like daemon.log.
+  const fh = await open(logPath, "w", 0o600);
+  try {
+    const child = spawn(process.execPath, [entry], {
+      detached: true,
+      stdio: ["ignore", fh.fd, fh.fd],
+      windowsHide: true,
+    });
+    const spawned: Spawned = { child };
+    child.on("error", (e) => {
+      spawned.spawnError = e;
+    });
+    child.on("exit", (code, signal) => {
+      spawned.exit = { code, signal };
+    });
+    child.unref();
+    return spawned;
+  } finally {
+    // The child holds its own handle to the file.
+    await fh.close();
+  }
+}
+
+/** The last lines the daemon printed at startup, for an error message. */
+async function startLogTail(logPath: string, lines = 12): Promise<string> {
+  try {
+    const text = (await readFile(logPath, "utf8")).trimEnd();
+    return text.split(/\r?\n/).slice(-lines).join("\n");
+  } catch {
+    return "";
+  }
+}
+
+function startFailureDetail(logPath: string, tail: string): string {
+  return tail
+    ? ` Its output, from ${logPath}:\n${tail}`
+    : ` It printed nothing; its output would be in ${logPath}.`;
 }
 
 /** Take the start lock. Returns a release function, or null if another client holds it. */
@@ -416,21 +463,34 @@ async function startAndConnect(
   startTimeout: number,
 ): Promise<Connection> {
   await mkdir(dir, { recursive: true });
+  const logPath = dataPaths(process.platform, dir).daemonStartLog;
   const release = await acquireStartLock(join(dir, "client-start.lock"));
-  // Only the lock holder spawns. Other clients just wait for the daemon to appear.
-  if (release) spawnDaemon(entry);
   const deadline = Date.now() + startTimeout;
   let delay = 25;
   let last: unknown;
   try {
+    // Only the lock holder spawns. Other clients just wait for the daemon to appear.
+    const spawned = release ? await spawnDaemon(entry, logPath) : undefined;
     for (;;) {
       await sleep(delay);
       delay = Math.min(delay * 2, 250);
+      // Read before the attempt: a daemon that lost a start race to another one exits at once,
+      // and the attempt then reaches the winner.
+      const ended = spawned?.exit ?? spawned?.spawnError;
       try {
         return await attempt();
       } catch (e) {
         if (!isMissingDaemon(e)) throw e;
         last = e;
+      }
+      if (spawned && ended) {
+        const how = spawned.spawnError
+          ? `could not be started (${spawned.spawnError.message})`
+          : `exited with ${spawned.exit?.signal ? `signal ${spawned.exit.signal}` : `code ${spawned.exit?.code}`} before it listened on ${socketPath}`;
+        throw new ClientError(
+          `The Conveno daemon ${how}.${startFailureDetail(logPath, await startLogTail(logPath))}`,
+          { cause: spawned.spawnError ?? last, kind: "start_exited" },
+        );
       }
       if (Date.now() >= deadline) break;
     }
@@ -438,7 +498,7 @@ async function startAndConnect(
     await release?.();
   }
   throw new ClientError(
-    `The Conveno daemon did not start within ${startTimeout} ms (socket ${socketPath}). Run "conveno daemon status" to check it.`,
+    `The Conveno daemon did not start within ${startTimeout} ms (socket ${socketPath}).${startFailureDetail(logPath, await startLogTail(logPath))}`,
     { cause: last, kind: "start_timeout" },
   );
 }

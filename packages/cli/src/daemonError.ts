@@ -57,6 +57,12 @@ export function daemonProblem(t: Theme, e: unknown): DaemonProblem {
         fix: `Run ${status} to see whether it came up, or ${cmd(t, "conveno doctor")} to check the install.`,
         notRunning: false,
       };
+    case "start_exited":
+      return {
+        why,
+        fix: `Fix what its output above shows, then run ${start}. If it is unclear, report it with that output.`,
+        notRunning: false,
+      };
     case "connection":
       return { why, fix: `Run ${status}, then try again.`, notRunning: false };
     case "no_daemon":
