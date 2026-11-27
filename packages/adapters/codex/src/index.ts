@@ -28,7 +28,7 @@ const HOOK_TIMEOUT_SECONDS = 2;
 
 type Json = Record<string, unknown>;
 
-const codexDir = (env: AdapterEnv): string => join(env.home, ".codex");
+const codexDir = (env: AdapterEnv): string => env.env.CODEX_HOME || join(env.home, ".codex");
 const configPath = (env: AdapterEnv): string => join(codexDir(env), "config.toml");
 const hooksPath = (env: AdapterEnv): string => join(codexDir(env), "hooks.json");
 

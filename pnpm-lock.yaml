@@ -246,9 +246,33 @@ importers:
 
   packages/cli:
     dependencies:
+      '@0xpixelninja/conveno-adapter-claude':
+        specifier: workspace:*
+        version: link:../adapters/claude
+      '@0xpixelninja/conveno-adapter-codex':
+        specifier: workspace:*
+        version: link:../adapters/codex
+      '@0xpixelninja/conveno-adapter-opencode':
+        specifier: workspace:*
+        version: link:../adapters/opencode
       '@0xpixelninja/conveno-brand':
         specifier: workspace:*
         version: link:../brand
+      '@0xpixelninja/conveno-client':
+        specifier: workspace:*
+        version: link:../client
+      '@0xpixelninja/conveno-core':
+        specifier: workspace:*
+        version: link:../core
+      '@0xpixelninja/conveno-daemon':
+        specifier: workspace:*
+        version: link:../daemon
+      '@0xpixelninja/conveno-mcp':
+        specifier: workspace:*
+        version: link:../mcp
+      '@0xpixelninja/conveno-protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/client:
     dependencies:

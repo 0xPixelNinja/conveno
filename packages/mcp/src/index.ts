@@ -1,10 +1,12 @@
 import { access } from "node:fs/promises";
+import { connect } from "@0xpixelninja/conveno-client";
 import {
   baseName,
   type ConvenoClient,
   detectRepo,
   formatInbox,
   HEARTBEAT_INTERVAL_MS,
+  validateRename,
 } from "@0xpixelninja/conveno-core";
 import {
   type CliKind,
@@ -280,11 +282,14 @@ export function createServer(opts: CreateServerOptions): McpServer {
       },
     },
     tool(async (me, a: { name: string }) => {
-      // The daemon validates the name and replies with a plain error message.
-      const res = await client["session.rename"]({
-        sessionId: me.id,
-        name: a.name as SessionName,
-      });
+      // Core's rule gives the plain message; the daemon still enforces it.
+      const { sessions } = await client["session.list"]({ includeOffline: true });
+      const name = validateRename(
+        me.id,
+        a.name,
+        sessions.map((s) => ({ id: s.id, name: s.name, status: s.status })),
+      );
+      const res = await client["session.rename"]({ sessionId: me.id, name: name as SessionName });
       return `Renamed to ${res.session.name}.`;
     }),
   );
@@ -325,15 +330,13 @@ export function createServer(opts: CreateServerOptions): McpServer {
   return mcp;
 }
 
-type ConnectFn = (opts: { kind: "mcp"; autoStart: boolean }) => Promise<ConvenoClient>;
-
 /** Run the MCP server over stdio until stdin closes or SIGTERM arrives. */
-export async function runStdio(opts: { cli: CliKind }): Promise<void> {
-  // Imported lazily so the package loads (and tests run) without a daemon client installed.
-  const { connect } = (await import("@0xpixelninja/conveno-client")) as unknown as {
-    connect: ConnectFn;
-  };
-  const client = await connect({ kind: "mcp", autoStart: true });
+export async function runStdio(opts: { cli: CliKind; daemonEntry?: string }): Promise<void> {
+  const client = await connect({
+    kind: "mcp",
+    autoStart: true,
+    ...(opts.daemonEntry ? { daemonEntry: opts.daemonEntry } : {}),
+  });
   const mcp = createServer({
     cli: opts.cli,
     client,

@@ -56,6 +56,16 @@ describe("connect", () => {
     });
   });
 
+  it("names the field and the rule, not zod's raw output", async () => {
+    const s = await setup();
+    const c = await client(s);
+    const bad = { sessionId: newSessionId(), name: "Bad Name" } as unknown as Parameters<
+      (typeof c)["session.rename"]
+    >[0];
+    const err = await c["session.rename"](bad).catch((e: Error) => e);
+    expect((err as Error).message).toBe('Invalid "name": invalid session name.');
+  });
+
   it("maps JSON-RPC errors to ConvenoError with code and message", async () => {
     const s = await setup();
     const c = await client(s);

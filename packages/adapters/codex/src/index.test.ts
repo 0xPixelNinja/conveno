@@ -21,6 +21,7 @@ const env = (over: Partial<AdapterEnv> = {}): AdapterEnv => ({
   cwd: home,
   exec: async () => ({ code: 0, stdout: "codex-cli 0.99.1\n" }),
   conveno: { command: ["conveno"] },
+  env: {},
   ...over,
 });
 const cfg = () => join(home, ".codex", "config.toml");
@@ -302,5 +303,14 @@ describe("hook", () => {
         ),
       ),
     ).toEqual(empty);
+  });
+});
+
+describe("CODEX_HOME", () => {
+  it("is honoured from env.env", async () => {
+    const alt = join(home, "alt-codex");
+    const changes = await codexAdapter.plan(env({ env: { CODEX_HOME: alt } }));
+    expect(changes.map((c) => c.path)).toContain(join(alt, "config.toml"));
+    expect(changes.map((c) => c.path)).toContain(join(alt, "hooks.json"));
   });
 });

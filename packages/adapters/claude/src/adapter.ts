@@ -20,7 +20,7 @@ const EMPTY: HookOutput = { stdout: "", exitCode: 0 };
 
 /** `~/.claude.json` holds user-scope MCP servers; settings.json holds hooks. Both honor CLAUDE_CONFIG_DIR. */
 function paths(env: AdapterEnv): { mcp: string; settings: string } {
-  const dir = process.env.CLAUDE_CONFIG_DIR;
+  const dir = env.env.CLAUDE_CONFIG_DIR;
   if (dir) return { mcp: join(dir, ".claude.json"), settings: join(dir, "settings.json") };
   return {
     mcp: join(env.home, ".claude.json"),
