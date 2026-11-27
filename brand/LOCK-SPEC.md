@@ -9,7 +9,7 @@ Everything below derives from the mark's grid and the Minutes tokens. Nothing sh
 - Type: Schibsted Grotesk (display), IBM Plex Sans (body), IBM Plex Mono (mono, timestamps, terminal).
 
 ## 1. Custom icon set
-One family drawn from the mark's language: 24×24 grid (also checked at 16 and 20), 1.5px stroke at 24, flat cut ends, square joins, the entry accent used only for the "point" in an icon. Outline style by default, plus a solid state for "active". Each icon has an SVG file, a name, and a one-line meaning. No vendor logos anywhere.
+One family drawn from the mark's language: 24×24 grid (also checked at 16 and 20), 1.5px stroke at 24, flat cut ends, square joins, the point uses currentColor by default; entry blue only on orchestrator, live and status-orchestrator icons (see tokens.color.accentDiscipline). Outline style by default, plus a solid state for "active". Each icon has an SVG file, a name, and a one-line meaning. No vendor logos anywhere.
 
 **Concepts:** session, orchestrator (claim / held), peer, spawn, handoff, peek (recent / full / summary), message send, inbox, unread, ack, ticket (open / answered / cancelled), question to owner, decision.
 
