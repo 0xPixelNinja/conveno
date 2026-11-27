@@ -19,7 +19,15 @@ export function parseToml(path: string, text: string): Table {
 export interface ServerSpec {
   command: string;
   args: string[];
+  /**
+   * Value for `default_tools_approval_mode`, Codex's per-server setting for MCP tool approval
+   * (auto, prompt, writes or approve). Conveno writes `approve` so Codex does not ask before each call.
+   */
+  approval: string;
 }
+
+/** The approval mode Conveno asks for. A mode the user already set on the server is kept instead. */
+export const APPROVAL_MODE = "approve";
 
 export function serverOf(doc: Table): Table | undefined {
   const servers = doc.mcp_servers;
@@ -34,7 +42,8 @@ export function matchesSpec(server: Table | undefined, spec: ServerSpec): boolea
   return (
     server !== undefined &&
     server.command === spec.command &&
-    JSON.stringify(server.args) === JSON.stringify(spec.args)
+    JSON.stringify(server.args) === JSON.stringify(spec.args) &&
+    server.default_tools_approval_mode === spec.approval
   );
 }
 
@@ -48,6 +57,7 @@ function tableText(spec: ServerSpec, eol: string): string {
     `[mcp_servers.${SERVER_NAME}]`,
     `command = ${q(spec.command)}`,
     `args = [${spec.args.map(q).join(", ")}]`,
+    `default_tools_approval_mode = ${q(spec.approval)}`,
     "",
   ].join(eol);
 }
@@ -70,7 +80,11 @@ export function addServer(path: string, before: string, spec: ServerSpec): strin
   const doc = parseToml(path, before);
   const expected = structuredClone(doc);
   const servers = (expected.mcp_servers ?? {}) as Table;
-  servers[SERVER_NAME] = { command: spec.command, args: spec.args };
+  servers[SERVER_NAME] = {
+    command: spec.command,
+    args: spec.args,
+    default_tools_approval_mode: spec.approval,
+  };
   expected.mcp_servers = servers;
 
   const eol = eolOf(before);

@@ -10,6 +10,7 @@ import {
   type HookOutput,
 } from "@conveno/core";
 import {
+  APPROVAL_MODE,
   addServer,
   ConfigParseError,
   matchesSpec,
@@ -163,28 +164,31 @@ async function uninstallHooks(env: AdapterEnv): Promise<ConfigChange[]> {
   ];
 }
 
-function serverSpec(env: AdapterEnv) {
+function serverSpec(env: AdapterEnv, existing?: Record<string, unknown>) {
   const [command, ...rest] = env.conveno.command;
   if (!command) throw new Error("conveno command is empty; cannot build the Codex MCP entry.");
-  return { command, args: [...rest, "mcp", "--cli", "codex"] };
+  // A mode the user chose for this server stays; only a missing one is filled in.
+  const chosen = existing?.default_tools_approval_mode;
+  return {
+    command,
+    args: [...rest, "mcp", "--cli", "codex"],
+    approval: typeof chosen === "string" ? chosen : APPROVAL_MODE,
+  };
 }
 
 async function planMcp(env: AdapterEnv): Promise<ConfigChange[]> {
   const path = configPath(env);
   const before = await readIfExists(path);
-  const spec = serverSpec(env);
   const existing = serverOf(parseToml(path, before ?? ""));
+  const spec = serverSpec(env, existing);
   if (matchesSpec(existing, spec)) return [];
   return [
     {
       path,
       before,
       after: addServer(path, before ?? "", spec),
-      description: `${existing ? "Update" : "Add"} the "${SERVER_NAME}" MCP server in Codex config (mcp_servers.${SERVER_NAME}).`,
-      // `codex mcp add` fails if the name exists, so only use it for a fresh install.
-      ...(existing
-        ? {}
-        : { viaCommand: ["codex", "mcp", "add", SERVER_NAME, "--", spec.command, ...spec.args] }),
+      description: `${existing ? "Update" : "Add"} the "${SERVER_NAME}" MCP server in Codex config (mcp_servers.${SERVER_NAME}). It lets Codex call Conveno's own tools without asking each time (default_tools_approval_mode = "${spec.approval}", this server only).`,
+      // No viaCommand: `codex mcp add` has no flag for the approval mode, so Conveno writes the whole entry.
     },
   ];
 }
