@@ -249,9 +249,21 @@ importers:
 
   packages/mcp:
     dependencies:
+      '@0xpixelninja/conveno-client':
+        specifier: workspace:*
+        version: link:../client
+      '@0xpixelninja/conveno-core':
+        specifier: workspace:*
+        version: link:../core
+      '@0xpixelninja/conveno-protocol':
+        specifier: workspace:*
+        version: link:../protocol
       '@modelcontextprotocol/sdk':
         specifier: 1.32.2
         version: 1.32.2(zod@4.6.7)
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
   packages/protocol:
     dependencies:
