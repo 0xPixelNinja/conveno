@@ -39,6 +39,7 @@ import {
   type EventPayload,
   encodeFrame,
   type IpcParams,
+  isSocketPathTooLong,
   type Message,
   makeError,
   makeEventNotification,
@@ -53,6 +54,7 @@ import {
   type Session,
   SessionId,
   sanitizeLine,
+  socketPathTooLongMessage,
 } from "@0xpixelninja/conveno-protocol";
 import {
   acquireLock,
@@ -685,6 +687,9 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
   const platform = process.platform;
   const paths = dataPaths(platform, opts.dataDir);
   const socketPath = opts.socketPath ?? defaultSocketPath(platform, process.env, homedir());
+  if (isSocketPathTooLong(socketPath, platform)) {
+    throw new Error(socketPathTooLongMessage(socketPath, platform));
+  }
   const now = opts.now ?? (() => new Date());
   const isAlive = opts.isAlive ?? defaultIsAlive;
 

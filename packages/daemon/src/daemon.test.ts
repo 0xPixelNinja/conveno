@@ -1093,6 +1093,16 @@ describe("single instance and stale files", () => {
     },
   );
 
+  it.skipIf(process.platform === "win32")("refuses a socket path that is too long", async () => {
+    await expect(
+      startDaemon({
+        dataDir: h.dir,
+        socketPath: join(h.dir, `${"x".repeat(120)}.sock`),
+        sweepIntervalMs: 3_600_000,
+      }),
+    ).rejects.toThrow(/too long.*XDG_RUNTIME_DIR/);
+  });
+
   it("removes the lock file on close", async () => {
     await h.daemon.close();
     expect(() => statSync(join(h.dir, "daemon.lock"))).toThrow();
