@@ -243,7 +243,14 @@ importers:
 
   packages/crypto: {}
 
-  packages/daemon: {}
+  packages/daemon:
+    dependencies:
+      '@0xpixelninja/conveno-core':
+        specifier: workspace:*
+        version: link:../core
+      '@0xpixelninja/conveno-protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/e2e: {}
 

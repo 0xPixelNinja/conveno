@@ -20,6 +20,9 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./bin": {
+      "import": "./dist/bin.js"
     }
   },
   "files": [
@@ -32,5 +35,12 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
+  },
+  "bin": {
+    "convenod": "./dist/bin.js"
+  },
+  "dependencies": {
+    "@0xpixelninja/conveno-core": "workspace:*",
+    "@0xpixelninja/conveno-protocol": "workspace:*"
   }
 }
