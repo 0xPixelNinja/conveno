@@ -125,8 +125,8 @@ auto-answer on timeout.
   username is taken from `USERNAME`, with characters outside `[A-Za-z0-9._-]` replaced by `_`.
 - Helper: `defaultSocketPath(platform, env, homedir?)` (pure function).
 - Unix socket paths are limited to roughly 104 (macOS) to 108 (Linux) bytes.
-- A per-boot auth token file readable only by the user is the shared secret for the mutual
-  handshake in section 6.4. The token itself is never sent over the socket.
+- An auth token file (`daemon.token`, mode 0600) is the shared secret for the mutual handshake in
+  section 6.4. The daemon creates it on first start and keeps it until the user deletes it. The token itself is never sent over the socket.
 
 ### 6.2 Framing
 

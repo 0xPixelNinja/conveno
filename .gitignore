@@ -1,21 +1,11 @@
 .env
 .env.*
-!.env.example
 node_modules/
 dist/
 .turbo/
 coverage/
 *.log
 .DS_Store
-.impeccable/
-
-# brand generators: downloaded fonts and scratch output
-.fonts/
-.build/
-.tools/
-.venv/
-__pycache__/
-.claude/worktrees/
 
 # Copied from the root by the prepack script
 packages/**/LICENSE
