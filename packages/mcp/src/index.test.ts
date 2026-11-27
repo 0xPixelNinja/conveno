@@ -38,7 +38,6 @@ async function startPeer(cwd: string, cli: "claude" | "codex" = "claude"): Promi
   return peer;
 }
 
-
 beforeEach(async () => {
   daemon = new FakeDaemon();
   root = await mkdtemp(join(tmpdir(), "conveno-mcp-"));
