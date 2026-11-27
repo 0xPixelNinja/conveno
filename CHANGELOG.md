@@ -4,6 +4,10 @@
 
 Fixes from the first run of 0.1.0 against the real Claude Code, OpenCode and Codex on Windows. It goes out first as `0.1.1-rc.1` on the npm dist-tag `next` (`npm i -g @conveno/cli@next`), and becomes `0.1.1` on `latest` once the real-CLI check passes on it.
 
+- Conveno is now one npm package, `@conveno/cli`. The protocol, core, client, daemon, MCP server, brand and adapter code is bundled into it, and the daemon is `dist/daemon.js` inside it. Install and upgrade as before with `npm i -g @conveno/cli`. The nine other `@conveno/*` packages published with 0.1.0 (`protocol`, `core`, `client`, `daemon`, `mcp`, `brand`, `adapter-claude`, `adapter-codex`, `adapter-opencode`) are no longer published and will be deprecated; they were never meant to be installed on their own.
+- The release workflow publishes with npm trusted publishing and provenance, with no stored npm token.
+- Unexpected errors in the daemon are now written to `<data dir>/logs/daemon.log` (readable by you only, rotated at 1 MiB), and the error message names that file. Before, it pointed at a log that did not exist.
+- The security policy now names its contacts and supported versions, and says the daemon's auth token is created once and kept until deleted, not renewed at each boot.
 - Releases now publish a prerelease version such as `0.1.1-rc.1` to `next` and only a plain version to `latest`. The release workflow derives the tag from the version and fails if it disagrees with the git tag.
 - Fixed `conveno init` failing with "internal error" in a colour terminal, right after you confirm. The prompt arrow and the separator, arrow and rule glyphs had no colour in the brand tokens, so painting them threw. They are now quiet grey, as the terminal spec says. `conveno status` hit the same bug when it printed its separator. The `--yes` path and piped output never painted them, which is why only an interactive terminal failed.
 - An unexpected error now shows its message instead of "internal error", and writes the full stack to `<data dir>/logs/<timestamp>-error.log` (readable by you only), and prints that path.

@@ -1,3 +1,5 @@
 # @conveno/crypto
 
-libsodium wrappers: device keys, sealing, pairing, history keys. Stub: not implemented yet.
+Planned. Not implemented yet, and not published.
+
+libsodium wrappers for the relay: device keys, pairing, sealing messages and history keys.
