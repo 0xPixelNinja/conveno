@@ -8,7 +8,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { type PlannedChange, usesCommand } from "./apply.js";
 import { levenshtein } from "./fmt.js";
 import { main } from "./main.js";
-import { parentOf, windowsShellSafe } from "./runtime.js";
+import { parentOf } from "./runtime.js";
 import { fakeAdapter, seed, startTestDaemon, type TestCtx, testCtx } from "./test-utils.js";
 
 beforeAll(() => {
@@ -166,24 +166,18 @@ describe("apply safety", () => {
     expect(c.outText()).toContain("expected result");
   });
 
-  it("never uses a CLI's own command on Windows", () => {
-    const item = {
-      cli: "claude",
-      installed: true,
-      change: { path: "x", before: null, after: "", description: "", viaCommand: ["claude", "x"] },
-    } as PlannedChange;
-    const base = { platform: "linux" } as TestCtx;
-    expect(usesCommand(base, item)).toBe(true);
-    expect(usesCommand({ ...base, platform: "win32" } as TestCtx, item)).toBe(false);
-  });
-
-  it("refuses to hand shell metacharacters or spaces to a Windows shell", () => {
-    expect(windowsShellSafe("claude", ["--version"])).toBe(true);
-    expect(windowsShellSafe("taskkill", ["/PID", "12", "/T", "/F"])).toBe(true);
-    expect(windowsShellSafe("claude", ["mcp", "add", "C:\\Program Files\\x.js"])).toBe(false);
-    expect(windowsShellSafe("claude", ["a&calc"])).toBe(false);
-    expect(windowsShellSafe("claude", ["a^b"])).toBe(false);
-    expect(windowsShellSafe("claude & calc", [])).toBe(false);
+  it("uses a CLI's own command on every platform, when the CLI is installed", () => {
+    const change = {
+      path: "x",
+      before: null,
+      after: "",
+      description: "",
+      viaCommand: ["claude", "x"],
+    };
+    expect(usesCommand({ cli: "claude", installed: true, change })).toBe(true);
+    expect(usesCommand({ cli: "claude", installed: false, change })).toBe(false);
+    const { viaCommand: _v, ...plain } = change;
+    expect(usesCommand({ cli: "claude", installed: true, change: plain })).toBe(false);
   });
 });
 

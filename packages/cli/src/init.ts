@@ -2,6 +2,7 @@ import { type Adapter, type Detection, dataPaths } from "@0xpixelninja/conveno-c
 import { CLI_KINDS, type CliKind } from "@0xpixelninja/conveno-protocol";
 import {
   type Applied,
+  ApplyError,
   applyChanges,
   type PlannedChange,
   presentChanges,
@@ -120,7 +121,11 @@ export function reportFailures(
 export const staleFailure = (ctx: Ctx, e: StaleError, rerun: string): number =>
   fail(ctx, {
     what: `${tilde(e.path, ctx.home)} changed while Conveno was waiting`,
-    detail: ["Conveno did not overwrite it. Some other files may already be changed."],
+    detail: [
+      e.rolledBack
+        ? "Conveno did not overwrite it. Nothing was left changed."
+        : "Conveno did not overwrite it. Some other files may already be changed.",
+    ],
     fix: `Run ${cmd(ctx.theme, rerun)} again to plan from the file as it is now.`,
     exit: 1,
     ref: "e_stale",
@@ -168,11 +173,28 @@ export async function confirmAndApply(
     };
   } catch (e) {
     if (e instanceof StaleError) return { exit: staleFailure(ctx, e, opts.rerun) };
+    if (e instanceof ApplyError && !e.rolledBack) {
+      return {
+        exit: fail(ctx, {
+          what: "Could not write the changes",
+          detail: [
+            plainError(e.cause ?? e),
+            `These files could not be put back and may be changed: ${e.notRestored.map((p) => tilde(p, ctx.home)).join(", ")}.`,
+          ],
+          fix: `The originals are in ${tilde(e.backupDir, ctx.home)}. Copy them back, then fix the problem and run again.`,
+          exit: 1,
+          ref: "e_write",
+        }),
+      };
+    }
     return {
       exit: fail(ctx, {
         what: "Could not write the changes",
-        detail: [plainError(e), "Some files may already be changed."],
-        fix: `Run ${cmd(t, "conveno uninstall")} to restore the backups, then fix the problem and run again.`,
+        detail: [
+          plainError(e instanceof ApplyError ? (e.cause ?? e) : e),
+          "Files already written in this run were restored. Nothing was left changed.",
+        ],
+        fix: "Close the program that has the file open (a running Claude Code, an editor), then run again.",
         exit: 1,
         ref: "e_write",
       }),

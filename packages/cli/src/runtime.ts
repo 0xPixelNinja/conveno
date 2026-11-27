@@ -13,6 +13,7 @@ import { connect } from "@0xpixelninja/conveno-client";
 import { dataDir } from "@0xpixelninja/conveno-core";
 import { runStdio } from "@0xpixelninja/conveno-mcp";
 import type { Ctx } from "./ctx.js";
+import { planSpawn } from "./win-spawn.js";
 
 /**
  * Path to the daemon entry script, resolved from this package's own dependencies so it works from
@@ -63,18 +64,6 @@ export function convenoCommand(
   nodePath = process.execPath,
 ): string[] {
   return pathConvenoIsThisInstall(env, binPath, platform) ? ["conveno"] : [nodePath, binPath];
-}
-
-/** Characters that cmd.exe passes through untouched, so no quoting or escaping is needed. */
-const WIN_SAFE = /^[A-Za-z0-9_.:=@+/-]+$/;
-
-/**
- * On Windows `claude`, `codex` and `opencode` are `.cmd` shims, which only run through a shell.
- * A shell would split paths with spaces and act on `&` or `^`, so it is used only when the
- * command and every argument are plain words. Anything else is refused.
- */
-export function windowsShellSafe(cmd: string, args: string[]): boolean {
-  return /^[A-Za-z0-9_.-]+$/.test(cmd) && args.every((a) => WIN_SAFE.test(a));
 }
 
 function run(cmd: string, args: string[], timeout: number): Promise<string | null> {
@@ -135,15 +124,17 @@ export async function parentOf(
 }
 
 function exec(cmd: string, args: string[]): Promise<{ code: number; stdout: string }> {
-  const win = process.platform === "win32";
-  if (win && !windowsShellSafe(cmd, args)) {
-    return Promise.reject(new Error(`Refused to run ${cmd}: its arguments need shell quoting.`));
-  }
+  const plan = planSpawn(cmd, args);
   return new Promise((resolve, reject) => {
     execFile(
-      cmd,
-      args,
-      { timeout: 15_000, windowsHide: true, shell: win, encoding: "utf8" },
+      plan.file,
+      plan.args,
+      {
+        timeout: 15_000,
+        windowsHide: true,
+        encoding: "utf8",
+        ...(plan.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+      },
       (err, stdout) => {
         if (!err) return resolve({ code: 0, stdout });
         const code = (err as NodeJS.ErrnoException & { code?: unknown }).code;
