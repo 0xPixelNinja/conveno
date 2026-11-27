@@ -1,0 +1,25 @@
+{
+  "name": "@0xpixelninja/conveno-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cross-platform end-to-end tests for Conveno (private, not published)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0xPixelNinja/conveno.git",
+    "directory": "packages/e2e"
+  },
+  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "bugs": {
+    "url": "https://github.com/0xPixelNinja/conveno/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "node -e \"\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}
