@@ -34,14 +34,21 @@ Without a terminal and without `--approve-init` the script prints the plan, writ
 | `hook-smoke` | `conveno hook claude UserPromptSubmit` prints nothing and exits 0 when no session owns the calling pid. |
 | `pair-claude-claude` | Two `claude -p` processes in temporary git repos. The receiver calls `whoami` and polls `inbox` (with `sleep 5` between polls). When it shows in `conveno status`, the sender calls `whoami`, `list_sessions` and `send`. |
 | `pair-opencode-claude` | Same, with `opencode run` as the sender. |
-| `pair-codex-claude` | Same, with `codex exec` as the sender. Best effort: Codex may ask to approve MCP tool calls, which blocks a non-interactive run. A failure here is recorded with the reason. |
+| `pair-codex-claude` | Same, with `codex exec` as the sender. `conveno init` writes `default_tools_approval_mode = "approve"` on the `conveno` server in `~/.codex/config.toml`, so Codex does not ask before each Conveno tool call, and the run needs no approval flag. |
 | `liveness` | After the CLIs exit, no test session is shown as online. |
 | `manual` (only with `--manual`) | The two-terminal interactive check below. |
 | `uninstall` | `conveno daemon stop`, `conveno uninstall --yes`, then `conveno doctor`. Runs in a `finally` block, so it also runs after a failed init or pair. Skipped with `--keep-installed`. |
+| `stale-cleanup` | Only when an earlier run was killed. See below. |
 
 Each pair is checked three ways: the agents' replies, the exit codes, and a read-only query of `<data dir>/conveno.db` for the message (it must exist and be `read` or `acked`).
 
 The script does not read any CLI config or credential file. To confirm the files were restored byte for byte, use the backups that `conveno uninstall` reports.
+
+## If a run is killed
+
+A `finally` block cannot run after SIGKILL (a low-memory reaper can send it), so the uninstall step is skipped and Conveno stays installed. To catch this, the script writes `real-cli-run.json` in Conveno's data directory before `conveno init` and removes it after `conveno uninstall` succeeds. It writes none with `--keep-installed`.
+
+At the start of a run, if that file exists, the script shows it (start time, pid, CLIs, nonce) and runs `conveno daemon stop` and `conveno uninstall --yes` before anything else. That edits your config, so the approval rules are the same as for init: it asks in a terminal, and without one it changes nothing and exits with code 2 unless `--approve-init` is given. If the cleanup fails, the file stays and the next run tries again. Delete the file by hand only if you have already removed Conveno yourself.
 
 ## Report
 
@@ -68,5 +75,6 @@ For OpenCode, replace `claude` with `opencode`. OpenCode has no hook delivery in
 ## Notes
 
 - The `-p` runs use `--allowedTools "mcp__conveno,Bash(sleep *)"` so the agent can call Conveno tools and sleep without a permission prompt. If your Claude Code version rejects that syntax, the step fails and the report keeps stderr.
-- Non-interactive OpenCode and Codex runs depend on those CLIs' permission settings for MCP tools. If a tool call is denied, the step fails with the CLI's output in the report.
+- Non-interactive OpenCode runs depend on that CLI's permission settings for MCP tools. If a tool call is denied, the step fails with the CLI's output in the report.
+- Codex needs no extra flag. Its per-server setting `default_tools_approval_mode` (documented at https://developers.openai.com/codex/mcp) is written by `conveno init`. Without it, `codex exec` cannot ask and blocks the call.
 - Session names are predictable: `<cli>@<temp repo name>-1`, which is how the script finds the receiver.

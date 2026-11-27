@@ -13,6 +13,7 @@ import { createInterface } from "node:readline/promises";
 import { DatabaseSync } from "node:sqlite";
 // One resolver for the CLI and this script. Node strips the types from this file.
 import { planSpawn } from "../../core/src/win-spawn.ts";
+import { cleanupStale, markerPath, readMarker, removeMarker, writeMarker } from "./marker.ts";
 
 const USAGE = `Usage: node run.mjs [options]
 
@@ -371,6 +372,29 @@ if (pre.status === "fail") {
   process.exit(1);
 }
 
+// A run killed with SIGKILL skips its uninstall. Its marker is still here: show it and clean up
+// first, under the same approval rules as init. Nothing is changed without approval.
+const MARKER = markerPath(dataDir());
+if (readMarker(MARKER).kind !== "none") {
+  let outcome = "none";
+  await step("stale-cleanup", "Clean up after an earlier interrupted run", async () => {
+    outcome = await cleanupStale({
+      markerFile: MARKER,
+      conveno: (...a) => conveno(...a),
+      approved: flag("--approve-init"),
+      ask,
+      log: console.log,
+    });
+    if (outcome === "failed") throw new Error("cleanup of the earlier run failed");
+    if (outcome !== "cleaned") return { skip: `earlier run not cleaned up (${outcome})` };
+    return { detail: "cleaned up the earlier run" };
+  });
+  if (outcome !== "cleaned") {
+    save();
+    process.exit(outcome === "failed" ? 1 : 2);
+  }
+}
+
 // Show the plan, then ask. Nothing is changed before this point.
 console.log("\n--- PLAN (nothing has been changed yet) ---");
 console.log(
@@ -413,6 +437,17 @@ if (!approved) {
 let initAttempted = false;
 try {
   initAttempted = true;
+  // Written before init and removed after a successful uninstall, so a killed run leaves a trace.
+  if (!flag("--keep-installed")) {
+    writeMarker(MARKER, {
+      nonce: NONCE,
+      pid: process.pid,
+      startedAt: report.startedAt,
+      platform: report.platform,
+      targets,
+      conveno: CONVENO,
+    });
+  }
   await step("init", "conveno init --yes", () => {
     const r = conveno("init", "--yes", "--cli", targets.join(","));
     if (r.code !== 0) throw new Error(`init failed (${r.code}): ${r.err || r.out}`.slice(0, 600));
@@ -511,6 +546,7 @@ try {
         const r = conveno("uninstall", "--yes");
         if (r.code !== 0)
           throw new Error(`uninstall failed (${r.code}): ${(r.err || r.out).slice(0, 500)}`);
+        removeMarker(MARKER);
         const d = conveno("doctor");
         return {
           detail: "uninstalled",
