@@ -38,7 +38,6 @@ async function startPeer(cwd: string, cli: "claude" | "codex" = "claude"): Promi
   return peer;
 }
 
-const flush = () => new Promise((r) => setTimeout(r, 0));
 
 beforeEach(async () => {
   daemon = new FakeDaemon();
@@ -81,7 +80,7 @@ describe("tools", () => {
     await mkdir(join(root, "myrepo", "src"));
     vi.stubEnv("CONVENO_CLI_VERSION", "1.2.3");
     await startPeer(join(root, "myrepo", "src"), "codex");
-    await flush();
+    await vi.waitFor(() => expect(daemon.sessions.size).toBe(1), { timeout: 5000 });
     vi.unstubAllEnvs();
     const [s] = [...daemon.sessions.values()];
     expect(s?.cli).toBe("codex");
@@ -188,8 +187,9 @@ describe("lifecycle", () => {
     const p = await startPeer(root);
     await p.text("whoami");
     await p.client.close();
-    await flush();
-    expect([...daemon.sessions.values()][0]?.status).toBe("offline");
+    await vi.waitFor(() => expect([...daemon.sessions.values()][0]?.status).toBe("offline"), {
+      timeout: 5000,
+    });
   });
 });
 
