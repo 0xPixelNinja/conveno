@@ -13,7 +13,7 @@ exports[`doctor > is green after init with a daemon up 1`] = `
 exports[`doctor > reports each CLI, the daemon and fixes when nothing is set up > stderr 1`] = `
 "
 ! The Conveno daemon is not running.
-  why  No Conveno daemon is listening at <tmp>/d.sock. Start convenod or enable autoStart.
+  why  No Conveno daemon is listening at <tmp>/d.sock. Run "conveno daemon start".
   fix  Run conveno daemon start. It also starts when a CLI opens the Conveno MCP server.
 
 ! Claude Code is missing the MCP server and the hooks.

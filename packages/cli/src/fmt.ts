@@ -136,7 +136,8 @@ export function plainError(e: unknown): string {
   if (e instanceof TypeError || e instanceof RangeError || e instanceof ReferenceError) {
     return "Conveno hit an internal error.";
   }
-  return e.message;
+  // Library hints about options a user of this command cannot set.
+  return e.message.replace(/,? or enable autoStart\.?/i, ".").replace(/\.\.$/, ".");
 }
 
 export function warnBlock(theme: Theme, what: string, fix: string, why?: string): string {
