@@ -88,7 +88,7 @@ export function presentChanges(ctx: Ctx, items: PlannedChange[]): void {
 }
 
 /** `<backups>/files/<path without drive or leading separator>`. */
-const mirrored = (path: string): string =>
+export const mirrored = (path: string): string =>
   join("files", path.replace(/^[A-Za-z]:/, "").replace(/^[\\/]+/, ""));
 
 async function uniqueDir(base: string, stamp: string): Promise<string> {

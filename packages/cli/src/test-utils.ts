@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import claudeAdapter from "@conveno/adapter-claude";
@@ -31,7 +31,8 @@ const socketIn = (dir: string): string =>
 
 /** A context rooted in fresh temp directories, with every side effect captured. */
 export async function testCtx(over: Partial<Ctx> = {}): Promise<TestCtx> {
-  const root = await mkdtemp(join(tmpdir(), "conveno-cli-"));
+  // Resolve symlinks and 8.3 short names (macOS /var, Windows RUNNER~1) so paths match what the code sees.
+  const root = await realpath(await mkdtemp(join(tmpdir(), "conveno-cli-")));
   const home = join(root, "home");
   await mkdir(home, { recursive: true });
   const stdout: string[] = [];
