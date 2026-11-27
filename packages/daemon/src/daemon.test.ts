@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DaemonAlreadyRunningError } from "./lifecycle.js";
 import { startDaemon } from "./server.js";
 import { MIGRATIONS, Store } from "./store.js";
-import { type Harness, RawClient, register, startHarness } from "./test-utils.js";
+import { bodyOf, type Harness, RawClient, register, startHarness } from "./test-utils.js";
 
 let h: Harness;
 beforeEach(async () => {
@@ -46,9 +46,9 @@ describe("handshake and auth", () => {
     expect(r.result?.protocolVersion).toBe(PROTOCOL_VERSION);
     expect(r.result?.daemonVersion).toBe("0.1.1-rc.1");
     expect(r.result?.proof).toBe(daemonProof(h.token(), nonce));
-    expect(r.result?.challenge).toMatch(/^[0-9a-f]{64}$/);
+    expect(r.result?.challenge ?? "").toMatch(/^[0-9a-f]{64}$/);
     const other = await hello(await h.client());
-    expect(other.result?.challenge).not.toBe(r.result?.challenge);
+    expect(other.result?.challenge ?? "").not.toBe(r.result?.challenge ?? "");
   });
 
   it("never sees or reveals the token on the wire", async () => {
@@ -61,7 +61,7 @@ describe("handshake and auth", () => {
     const c = await h.client();
     const r = await hello(c);
     expect((await c.rpc("session.list", {})).error?.code).toBe(RpcErrorCode.Unauthorized);
-    const ok = await c.rpc("auth", { proof: clientProof(h.token(), r.result?.challenge) });
+    const ok = await c.rpc("auth", { proof: clientProof(h.token(), r.result?.challenge ?? "") });
     expect(ok.result).toEqual({ ok: true });
     expect((await c.call("session.list", {})).sessions).toEqual([]);
   });
@@ -226,7 +226,7 @@ describe("sessions", () => {
       const c = await h.authed();
       const { session } = await register(c, { cwd: join(repo, "src", "deep") });
       expect(session.name).toBe("claude@api-1");
-      expect(session.repo.root).toBe(repo);
+      expect(session.repo?.root).toBe(repo);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -276,7 +276,7 @@ describe("sessions", () => {
     expect(clash.error?.code).toBe(RpcErrorCode.Conflict);
     const reserved = await c.rpc("session.rename", { sessionId: a.id, name: "orchestrator" });
     expect(reserved.error?.code).toBe(RpcErrorCode.InvalidParams);
-    expect((await c.call("session.list", {})).sessions.map((s: any) => s.name)).toContain("gamma");
+    expect((await c.call("session.list", {})).sessions.map((s) => s.name)).toContain("gamma");
   });
 
   it("sets and clears status text, rejects status offline", async () => {
@@ -335,7 +335,7 @@ describe("sessions", () => {
     const gone = (await register(c, { cwd: join(tmpdir(), "one") })).session;
     await c.call("session.unregister", { sessionId: gone.id });
     const names = async (p: Record<string, unknown>) =>
-      (await c.call("session.list", p)).sessions.map((s: any) => s.name);
+      (await c.call("session.list", p)).sessions.map((s) => s.name);
     expect(await names({})).toEqual(["claude@one-1", "codex@two-1"]);
     expect(await names({ repo: "one" })).toEqual([a.name]);
     expect(await names({ repo: join(tmpdir(), "two") })).toEqual([]);
@@ -398,9 +398,7 @@ describe("sessions", () => {
       expect(none.hostPids).toBeUndefined();
       const chained = (await register(c, { hostPid: 20, hostPids: [30, 20, 10] })).session;
       expect(chained).toMatchObject({ hostPid: 20, hostPids: [30, 20, 10] });
-      const listed = (await c.call("session.list", {})).sessions.find(
-        (s: any) => s.id === chained.id,
-      );
+      const listed = (await c.call("session.list", {})).sessions.find((s) => s.id === chained.id);
       expect(listed).toMatchObject({ hostPid: 20, hostPids: [30, 20, 10] });
     });
 
@@ -423,7 +421,7 @@ describe("sessions", () => {
     h.dead.add(5101);
     h.dead.add(5103);
     h.daemon.sweep();
-    expect((await c.call("session.list", {})).sessions.map((s: any) => s.id)).toEqual([a.id]);
+    expect((await c.call("session.list", {})).sessions.map((s) => s.id)).toEqual([a.id]);
     h.dead.add(5102);
     h.daemon.sweep();
     expect((await c.call("session.list", {})).sessions).toEqual([]);
@@ -446,7 +444,7 @@ describe("sessions", () => {
     expect(await c.call("session.unregister", { sessionId: session.id })).toEqual({ ok: true });
     expect(await c.call("session.unregister", { sessionId: session.id })).toEqual({ ok: true });
     const all = (await c.call("session.list", { includeOffline: true })).sessions;
-    expect(all[0].status).toBe("offline");
+    expect(all[0]?.status).toBe("offline");
   });
 });
 
@@ -459,14 +457,14 @@ describe("orchestrator", () => {
       previous: null,
     });
     const listed = (await c.call("session.list", {})).sessions[0];
-    expect(listed.isOrchestrator).toBe(true);
+    expect(listed?.isOrchestrator).toBe(true);
     const inbox = await c.call("message.inbox", { sessionId: a.id });
     expect(inbox.messages).toHaveLength(1);
     expect(inbox.messages[0]).toMatchObject({
       kind: "system",
       body: { event: "orchestrator.granted" },
     });
-    expect(inbox.messages[0].fromName).toBeUndefined();
+    expect(inbox.messages[0]?.fromName).toBeUndefined();
   });
 
   it("hands over: new holder granted, previous holder revoked, exactly one holder", async () => {
@@ -476,17 +474,17 @@ describe("orchestrator", () => {
     await c.call("orchestrator.claim", { sessionId: a.id });
     const r = await c.call("orchestrator.claim", { sessionId: b.id });
     expect(r).toEqual({ orchestrator: b.id, previous: a.id });
-    const flags = (await c.call("session.list", {})).sessions.map((s: any) => s.isOrchestrator);
+    const flags = (await c.call("session.list", {})).sessions.map((s) => s.isOrchestrator);
     expect(flags).toEqual([false, true]);
     const aMsgs = (await c.call("message.inbox", { sessionId: a.id, unreadOnly: false })).messages;
-    expect(aMsgs.map((m: any) => m.body.event)).toEqual([
+    expect(aMsgs.map((m) => bodyOf(m).event)).toEqual([
       "orchestrator.granted",
       "orchestrator.revoked",
     ]);
-    expect(aMsgs[1].body.detail).toContain(b.name);
+    expect(bodyOf(aMsgs[1]).detail).toContain(b.name);
     const bMsgs = (await c.call("message.inbox", { sessionId: b.id })).messages;
     expect(bMsgs).toHaveLength(1);
-    expect(bMsgs[0].body.detail).toContain(a.name);
+    expect(bodyOf(bMsgs[0]).detail).toContain(a.name);
   });
 
   it("claiming while already the holder changes nothing", async () => {
@@ -674,10 +672,10 @@ describe("messages", () => {
       await c.call("message.send", text(b, a, "two", { urgent: true }));
       await c.call("message.send", text(b, a, "three"));
       const r = await c.call("message.inbox", { sessionId: b, limit: 2 });
-      expect(r.messages.map((m: any) => m.body.text)).toEqual(["two", "one"]);
+      expect(r.messages.map((m) => bodyOf(m).text)).toEqual(["two", "one"]);
       expect(r.unreadCount).toBe(1);
       const rest = await c.call("message.inbox", { sessionId: b });
-      expect(rest.messages.map((m: any) => m.body.text)).toEqual(["three"]);
+      expect(rest.messages.map((m) => bodyOf(m).text)).toEqual(["three"]);
       expect(rest.unreadCount).toBe(0);
       expect((await c.call("message.inbox", { sessionId: b })).messages).toEqual([]);
       const history = await c.call("message.inbox", { sessionId: b, unreadOnly: false });
@@ -689,10 +687,10 @@ describe("messages", () => {
       await c.call("message.send", text(b, a, "two", { urgent: true }));
       await c.call("message.send", text(b, a, "three"));
       const d = await c.call("message.deliver", { sessionId: b, limit: 2 });
-      expect(d.messages.map((m: any) => m.body.text)).toEqual(["two", "one"]);
+      expect(d.messages.map((m) => bodyOf(m).text)).toEqual(["two", "one"]);
       expect(d.remaining).toBe(1);
       const d2 = await c.call("message.deliver", { sessionId: b });
-      expect(d2.messages.map((m: any) => m.body.text)).toEqual(["three"]);
+      expect(d2.messages.map((m) => bodyOf(m).text)).toEqual(["three"]);
       expect(d2.remaining).toBe(0);
       expect((await c.call("message.deliver", { sessionId: b })).messages).toEqual([]);
     });
@@ -704,7 +702,7 @@ describe("messages", () => {
       expect(inbox.messages).toEqual([]);
       expect(inbox.unreadCount).toBe(0);
       const all = await c.call("message.inbox", { sessionId: b, unreadOnly: false });
-      expect(all.messages.map((m: any) => m.body.text)).toEqual(["one"]);
+      expect(all.messages.map((m) => bodyOf(m).text)).toEqual(["one"]);
     });
 
     it("returns every message of an oversize backlog over several calls, losing none", async () => {
@@ -717,11 +715,11 @@ describe("messages", () => {
       for (;;) {
         const r = await c.rpc("message.inbox", { sessionId: b, limit: 200 });
         expect(r.error).toBeUndefined();
-        const batch = r.result.messages as any[];
+        const batch = r.result?.messages ?? [];
         if (batch.length === 0) break;
         calls++;
-        for (const m of batch) seen.push(m.body.text.slice(0, 2).trim());
-        expect(r.result.unreadCount).toBe(total - seen.length);
+        for (const m of batch) seen.push(String(bodyOf(m).text).slice(0, 2).trim());
+        expect(r.result?.unreadCount).toBe(total - seen.length);
       }
       expect(calls).toBeGreaterThan(1);
       expect(seen).toHaveLength(total);
@@ -738,10 +736,10 @@ describe("messages", () => {
       for (;;) {
         const r = await c.rpc("message.deliver", { sessionId: b, limit: 200 });
         expect(r.error).toBeUndefined();
-        if (r.result.messages.length === 0) break;
+        if ((r.result?.messages.length ?? 0) === 0) break;
         calls++;
-        got += r.result.messages.length;
-        expect(r.result.remaining).toBe(total - got);
+        got += r.result?.messages.length ?? 0;
+        expect(r.result?.remaining).toBe(total - got);
       }
       expect(calls).toBeGreaterThan(1);
       expect(got).toBe(total);
@@ -752,7 +750,7 @@ describe("messages", () => {
       const r = await c.rpc("message.send", text(b, a, "one too many"));
       expect(r.error?.code).toBe(RpcErrorCode.LimitExceeded);
       expect(r.error?.message).toContain("too many unread messages");
-      expect(r.error?.message).toContain((await c.call("session.list", {})).sessions[1].name);
+      expect(r.error?.message).toContain((await c.call("session.list", {})).sessions[1]?.name);
       // Reading frees room.
       await c.call("message.inbox", { sessionId: b, limit: 200 });
       await c.call("message.send", text(b, a, "fits now"));
@@ -773,7 +771,7 @@ describe("messages", () => {
       expect(await c.call("message.ack", { sessionId: b, ids: [m1] })).toEqual({ acked: 0 });
       expect(await c.call("message.ack", { sessionId: a, ids: [m2] })).toEqual({ acked: 0 });
       const unread = await c.call("message.inbox", { sessionId: b });
-      expect(unread.messages.map((m: any) => m.id)).toEqual([m2]);
+      expect(unread.messages.map((m) => m.id)).toEqual([m2]);
       // An acked message is no longer unread and is not re-delivered.
       expect((await c.call("message.deliver", { sessionId: b })).messages).toEqual([]);
       const all = await c.call("message.inbox", { sessionId: b, unreadOnly: false });
@@ -888,7 +886,7 @@ describe("concurrent clients", () => {
       limit: 200,
     });
     expect(inbox.messages).toHaveLength(n * 5);
-    expect(new Set(inbox.messages.map((m: any) => m.id)).size).toBe(n * 5);
+    expect(new Set(inbox.messages.map((m) => m.id)).size).toBe(n * 5);
   });
 });
 
@@ -925,7 +923,7 @@ describe("liveness", () => {
     h.clock.ms += 1_000;
     h.daemon.sweep();
     const online = (await c.call("session.list", {})).sessions;
-    expect(online.map((s: any) => s.id)).toEqual([other.session.id]);
+    expect(online.map((s) => s.id)).toEqual([other.session.id]);
   });
 
   it("frees the name of an offline session and vacates the orchestrator role", async () => {
@@ -970,7 +968,7 @@ describe("liveness", () => {
     h.daemon.sweep();
     expect((await c.call("session.list", {})).sessions).toHaveLength(0);
     await c.call("session.heartbeat", { sessionId: a.id });
-    expect((await c.call("session.list", {})).sessions.map((s: any) => s.id)).toEqual([a.id]);
+    expect((await c.call("session.list", {})).sessions.map((s) => s.id)).toEqual([a.id]);
   });
 
   it("refuses to revive a session whose name was taken or whose host died", async () => {
@@ -995,19 +993,19 @@ describe("liveness", () => {
     h.clock.ms += 6 * 24 * 3_600_000;
     h.daemon.sweep();
     expect(
-      (await c.call("session.list", { includeOffline: true })).sessions.map((s: any) => s.name),
+      (await c.call("session.list", { includeOffline: true })).sessions.map((s) => s.name),
     ).toContain("gone");
     h.clock.ms += 25 * 3_600_000;
     await c.call("session.heartbeat", { sessionId: a.id });
     await c.call("session.heartbeat", { sessionId: b.id });
     h.daemon.sweep();
     const names = (await c.call("session.list", { includeOffline: true })).sessions.map(
-      (s: any) => s.name,
+      (s) => s.name,
     );
     expect(names).not.toContain("gone");
     expect(names).toContain("keeper");
     const mine = await c.call("message.inbox", { sessionId: b.id });
-    expect(mine.messages.map((m: any) => m.body.text)).toEqual(["to keeper"]);
+    expect(mine.messages.map((m) => bodyOf(m).text)).toEqual(["to keeper"]);
     expect((await c.rpc("session.heartbeat", { sessionId: d.id })).error?.code).toBe(
       RpcErrorCode.NotFound,
     );
@@ -1078,14 +1076,14 @@ describe("persistence", () => {
     await h.restart();
     const d = await h.authed();
     const sessions = (await d.call("session.list", {})).sessions;
-    expect(sessions.map((s: any) => [s.name, s.isOrchestrator])).toEqual([
+    expect(sessions.map((s) => [s.name, s.isOrchestrator])).toEqual([
       ["alpha", false],
       ["beta", true],
     ]);
-    expect(sessions[0].deviceId).toBe(deviceId);
+    expect(sessions[0]?.deviceId).toBe(deviceId);
     const rest = await d.call("message.inbox", { sessionId: b.id });
     // "read me" was delivered by the hook, so it is no longer unread.
-    expect(rest.messages.map((m: any) => m.body.text)).toEqual(["inject me", "leave me"]);
+    expect(rest.messages.map((m) => bodyOf(m).text)).toEqual(["inject me", "leave me"]);
     const all = await d.call("message.inbox", { sessionId: b.id, unreadOnly: false });
     expect(all.messages).toHaveLength(4);
     // Messages still route to the persisted holder, and new messages queue after a restart.
@@ -1269,7 +1267,7 @@ describe("daemon.shutdown", () => {
     await h.restart();
     const again = await h.authed();
     const names = (await again.call("session.list", { includeOffline: true })).sessions.map(
-      (s: any) => s.name,
+      (s) => s.name,
     );
     expect(names).toEqual([a.name]);
   });

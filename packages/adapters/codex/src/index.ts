@@ -98,7 +98,7 @@ function withoutOurs(groups: unknown[], event: HookEvent): unknown[] {
   return out;
 }
 
-function hasOurs(groups: unknown[], event: HookEvent, command: string): boolean {
+function hasOurs(groups: unknown[], command: string): boolean {
   return groups.some((g) => handlersOf(g).some((h) => asObject(h).command === command));
 }
 
@@ -114,7 +114,7 @@ async function planHooks(env: AdapterEnv): Promise<ConfigChange[]> {
   for (const event of HOOK_EVENTS) {
     const groups = asArray(hooks[event]);
     const command = hookCommand(env, event);
-    if (hasOurs(groups, event, command)) continue;
+    if (hasOurs(groups, command)) continue;
     changed = true;
     next[event] = [
       ...withoutOurs(groups, event),

@@ -8,14 +8,16 @@ import {
   createLineDecoder,
   type EventPayload,
   encodeFrame,
+  type IpcMethodName,
+  type IpcResult,
   PROTOCOL_VERSION,
 } from "@conveno/protocol";
 import { type DaemonHandle, type DaemonOptions, startDaemon } from "./server.js";
 
-export interface RpcReply {
+export interface RpcReply<R = unknown> {
   jsonrpc: "2.0";
   id: number | string | null;
-  result?: any;
+  result?: R;
   error?: { code: number; message: string; data?: unknown };
 }
 
@@ -71,19 +73,28 @@ export class RawClient {
   }
 
   /** Send a request and return the full JSON-RPC reply (result or error). */
-  async rpc(method: string, params?: Record<string, unknown>): Promise<RpcReply> {
+  async rpc<M extends string>(
+    method: M,
+    params?: Record<string, unknown>,
+  ): Promise<RpcReply<M extends IpcMethodName ? IpcResult<M> : unknown>> {
     const id = this.nextId++;
     this.socket.write(encodeFrame({ jsonrpc: "2.0", id, method, ...(params ? { params } : {}) }));
     const r = await this.nextReply();
     if (r.id !== id) throw new Error(`reply id ${String(r.id)} does not match request ${id}`);
-    return r;
+    return r as RpcReply<M extends IpcMethodName ? IpcResult<M> : unknown>;
   }
 
-  /** Send a request and return its result; throws on a JSON-RPC error. */
-  async call(method: string, params?: Record<string, unknown>): Promise<any> {
+  /**
+   * Send a request and return its result, typed by the protocol schema; throws on a JSON-RPC error.
+   * Params stay loose so tests can send values the schema would reject. Use `rpc` for the raw reply.
+   */
+  async call<M extends IpcMethodName>(
+    method: M,
+    params?: Record<string, unknown>,
+  ): Promise<IpcResult<M>> {
     const r = await this.rpc(method, params);
     if (r.error) throw new Error(`${method} failed: ${r.error.code} ${r.error.message}`);
-    return r.result;
+    return r.result as IpcResult<M>;
   }
 
   async waitForEvents(count: number): Promise<EventPayload[]> {
@@ -185,6 +196,8 @@ export async function startHarness(over: Partial<DaemonOptions> = {}): Promise<H
 }
 
 export const register = (c: RawClient, over: Record<string, unknown> = {}) =>
-  c.call("session.register", { cli: "claude", cwd: join(tmpdir(), "proj"), ...over }) as Promise<{
-    session: { id: string; name: string } & Record<string, any>;
-  }>;
+  c.call("session.register", { cli: "claude", cwd: join(tmpdir(), "proj"), ...over });
+
+/** A message body as a plain record, for tests that read fields of one body kind. */
+export const bodyOf = (m: { body: unknown } | undefined): Record<string, unknown> =>
+  (m?.body ?? {}) as Record<string, unknown>;

@@ -227,7 +227,7 @@ describe("plan", () => {
       conveno: {
         command: [
           "C:\\Program Files\\nodejs\\node.exe",
-          "C:\\Users\\Dev User\\AppData\\Roaming\\npm\\node_modules\\conveno\\dist\\bin.js",
+          "C:\\Users\\Dev User\\AppData\\Roaming\\npm\\node_modules\\@conveno\\cli\\dist\\bin.js",
         ],
       },
     });

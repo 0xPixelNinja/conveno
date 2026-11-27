@@ -32,7 +32,10 @@ function deps(over: Partial<CleanupDeps> = {}) {
   const ok: CommandResult = { code: 0, out: "", err: "" };
   const d: CleanupDeps = {
     markerFile: markerPath(join(dir, "data")),
-    conveno: (...a) => (calls.push(a), ok),
+    conveno: (...a) => {
+      calls.push(a);
+      return ok;
+    },
     approved: false,
     ask: async () => null,
     log: (l) => lines.push(l),

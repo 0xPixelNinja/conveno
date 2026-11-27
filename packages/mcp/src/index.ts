@@ -75,7 +75,7 @@ const repoName = (s: Session): string => (s.repo ? baseName(s.repo.root) : "-");
 /** Text written by other sessions can carry control or direction characters; show it as one plain line. */
 export function cleanText(text: string, max = 200): string {
   const flat = text
-    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]/g, " ")
+    .replace(/[\p{Cc}\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]/gu, " ")
     .replace(/ {2,}/g, " ")
     .trim();
   return flat.length > max ? `${flat.slice(0, max - 3)}...` : flat;

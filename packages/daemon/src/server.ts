@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, rmSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import {
   ackEntries,
   baseName,
@@ -376,7 +376,7 @@ class Daemon {
   private emit(payload: EventPayload, onlyTo?: SessionId): void {
     for (const c of this.conns) {
       const sub = c.sub;
-      if (!sub || !sub.topics.has(payload.event)) continue;
+      if (!sub?.topics.has(payload.event)) continue;
       if (onlyTo !== undefined && sub.sessionId !== onlyTo) continue;
       this.send(c, makeEventNotification(payload));
     }

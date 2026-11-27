@@ -10,6 +10,7 @@ export function tilde(path: string, home: string): string {
 }
 
 /** Length of a string without ANSI escapes. */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching the ESC byte of ANSI sequences is the point
 export const visibleLength = (s: string): number => s.replace(/\u001b\[[0-9;]*m/g, "").length;
 
 export const padEnd = (s: string, width: number): string =>

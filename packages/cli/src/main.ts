@@ -5,7 +5,7 @@ import { runDaemon } from "./daemon.js";
 import { daemonProblem } from "./daemonError.js";
 import { runDoctor } from "./doctor.js";
 import { rawMessage, writeErrorLog } from "./errorLog.js";
-import { closest, cmd, fail, plainError, tilde } from "./fmt.js";
+import { closest, cmd, fail, tilde } from "./fmt.js";
 import { runHook } from "./hook.js";
 import { runInit } from "./init.js";
 import { runStatus } from "./status.js";

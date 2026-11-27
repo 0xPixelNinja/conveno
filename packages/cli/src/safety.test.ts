@@ -5,7 +5,7 @@ import claudeAdapter from "@conveno/adapter-claude";
 import { connect } from "@conveno/client";
 import { dataPaths } from "@conveno/core";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { type PlannedChange, usesCommand } from "./apply.js";
+import { usesCommand } from "./apply.js";
 import { levenshtein } from "./fmt.js";
 import { main } from "./main.js";
 import {
@@ -256,7 +256,10 @@ describe("hook finds the CLI above a shell", () => {
       ancestry: ancestryOf(procs, { pid: 330, ppid: 320 }, { platform: "darwin" }),
       connect: (async () => ({
         close: async () => undefined,
-        "session.byHost": async (p: unknown) => (lookups.push(p), { session: null }),
+        "session.byHost": async (p: unknown) => {
+          lookups.push(p);
+          return { session: null };
+        },
       })) as never,
     });
     expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
