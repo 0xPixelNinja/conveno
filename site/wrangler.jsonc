@@ -1,0 +1,13 @@
+{
+  // conveno.dev: a static site served by Workers static assets.
+  // Deploy from this folder with `npx wrangler deploy`.
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "conveno",
+  "compatibility_date": "2026-11-27",
+  "assets": { "directory": "./public" },
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "conveno.dev", "custom_domain": true },
+    { "pattern": "www.conveno.dev", "custom_domain": true }
+  ]
+}
