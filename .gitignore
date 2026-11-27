@@ -7,5 +7,6 @@ coverage/
 *.log
 .DS_Store
 
-# Copied from the root by the prepack script
-packages/**/LICENSE
+# Copied from the root by the prepack script (scripts/copy-legal.mjs)
+packages/cli/LICENSE
+packages/cli/NOTICE

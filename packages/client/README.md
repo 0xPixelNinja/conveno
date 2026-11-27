@@ -12,7 +12,7 @@ The package exports one function, `connect(options)`. It opens the daemon socket
 - `dataDir`: directory that holds `daemon.token`. Defaults to core's `dataDir` for the platform.
 - `socketPath`: daemon endpoint. Defaults to the protocol's default socket path.
 - `autoStart`: spawn the daemon when nothing is listening. Default `true`.
-- `daemonEntry`: path to the daemon's entry script
+- `daemonEntry`: path to the daemon's entry script. Auto-start needs it; without one, a missing daemon is an error.
 - `requestTimeoutMs`: per-request timeout. Default 5000 ms.
 - `startTimeoutMs`: how long to retry after auto-start. Default 3000 ms.
 

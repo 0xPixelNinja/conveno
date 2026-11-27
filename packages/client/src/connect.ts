@@ -3,7 +3,6 @@ import { mkdir, open, readFile, rm, stat } from "node:fs/promises";
 import { createConnection, type Socket } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   type ClientMethodName,
   type ConvenoClient,
@@ -38,7 +37,7 @@ export interface ConnectOptions {
   socketPath?: string;
   /** Spawn the daemon when nothing is listening, at first connect and when reconnecting. Default true. */
   autoStart?: boolean;
-  /** Path to the daemon's entry script. Default: resolve `@conveno/daemon/bin`. */
+  /** Path to the daemon's entry script. Auto-start needs it: without one, a missing daemon is an error. */
   daemonEntry?: string;
   /** Per-request timeout in milliseconds. Default 5000. */
   requestTimeoutMs?: number;
@@ -367,16 +366,12 @@ async function handshake(
   }
 }
 
-function resolveDaemonEntry(explicit?: string): string {
-  if (explicit) return explicit;
-  try {
-    return fileURLToPath(import.meta.resolve("@conveno/daemon/bin"));
-  } catch {
-    throw new ClientError(
-      'Cannot find the Conveno daemon program. Pass daemonEntry to connect(), or run "conveno daemon start" yourself.',
-      { kind: "daemon_missing" },
-    );
-  }
+function requireDaemonEntry(entry: string | undefined): string {
+  if (entry) return entry;
+  throw new ClientError(
+    'Cannot find the Conveno daemon program. Pass daemonEntry to connect(), or run "conveno daemon start" yourself.',
+    { kind: "daemon_missing" },
+  );
 }
 
 function spawnDaemon(entry: string): void {
@@ -567,7 +562,7 @@ export async function connect(opts: ConnectOptions): Promise<ConvenoClient> {
         if (opts.autoStart === false)
           throw new ClientError(noDaemonMessage(socketPath), { cause: e, kind: "no_daemon" });
         return await startAndConnect(
-          resolveDaemonEntry(opts.daemonEntry),
+          requireDaemonEntry(opts.daemonEntry),
           dir,
           attempt,
           socketPath,

@@ -153,6 +153,13 @@ describe("connect", () => {
     ).rejects.toThrow(/No Conveno daemon is listening.*conveno daemon start/);
   });
 
+  it("will not guess where the daemon program is when auto-start has no daemonEntry", async () => {
+    const dir = await tempDataDir();
+    await expect(
+      connect({ kind: "cli", dataDir: dir, socketPath: tempSocketPath(dir) }),
+    ).rejects.toThrow(/Cannot find the Conveno daemon program.*daemonEntry/);
+  });
+
   it.skipIf(process.platform === "win32")(
     "rejects a socket path that is too long before connecting",
     async () => {

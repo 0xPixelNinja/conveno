@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import claudeAdapter from "@conveno/adapter-claude";
 import codexAdapter from "@conveno/adapter-codex";
 import { connect } from "@conveno/client";
@@ -969,10 +971,23 @@ describe("conveno command and daemon entry", () => {
     },
   );
 
-  it("resolves the daemon entry through this package's own dependency", () => {
-    const entry = resolveDaemonEntry();
-    expect(entry).toBeDefined();
-    expect(entry).toMatch(/conveno-daemon|daemon/);
-    expect(existsSync(entry as string)).toBe(true);
+  it("finds daemon.js next to the running script", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cvdaemon-"));
+    try {
+      await writeFile(join(dir, "daemon.js"), "");
+      const entry = resolveDaemonEntry(pathToFileURL(join(dir, "bin.js")));
+      expect(entry).toBe(join(dir, "daemon.js"));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("has no daemon entry when daemon.js is not built next to the script", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cvdaemon-"));
+    try {
+      expect(resolveDaemonEntry(pathToFileURL(join(dir, "bin.js")))).toBeUndefined();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

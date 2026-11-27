@@ -249,6 +249,22 @@ importers:
 
   packages/cli:
     dependencies:
+      '@decimalturn/toml-patch':
+        specifier: 3.3.3
+        version: 3.3.3
+      '@modelcontextprotocol/sdk':
+        specifier: 1.32.2
+        version: 1.32.2(zod@4.6.7)
+      jsonc-parser:
+        specifier: 3.3.1
+        version: 3.3.1
+      ulid:
+        specifier: 3.0.2
+        version: 3.0.2
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+    devDependencies:
       '@conveno/adapter-claude':
         specifier: workspace:*
         version: link:../adapters/claude

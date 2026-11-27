@@ -16,15 +16,12 @@ import type { Ctx } from "./ctx.js";
 import { type ShimIo, windowsConvenoIsThisInstall } from "./shim.js";
 
 /**
- * Path to the daemon entry script, resolved from this package's own dependencies so it works from
- * a pnpm-installed layout (where the daemon is not hoisted next to the client).
+ * Path of the daemon's entry script: `daemon.js`, built next to `bin.js` in this package's dist.
+ * Undefined when it is not there (running from source), so auto-start reports a missing program.
  */
-export function resolveDaemonEntry(): string | undefined {
-  try {
-    return fileURLToPath(import.meta.resolve("@conveno/daemon/bin"));
-  } catch {
-    return undefined;
-  }
+export function resolveDaemonEntry(from: string | URL = import.meta.url): string | undefined {
+  const entry = fileURLToPath(new URL("./daemon.js", from));
+  return existsSync(entry) ? entry : undefined;
 }
 
 /** Path of this install's `bin.js` (a sibling of the bundled chunk that holds this code). */
