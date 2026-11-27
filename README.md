@@ -7,7 +7,7 @@
 [![CI](https://github.com/0xPixelNinja/conveno/actions/workflows/ci.yml/badge.svg)](https://github.com/0xPixelNinja/conveno/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2346D9)](./LICENSE)
 [![Node >=24](https://img.shields.io/badge/node-%3E%3D24-2346D9)](./.nvmrc)
-[![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-9A5700)](#status)
+![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-9A5700)
 
 Conveno lets AI coding CLI sessions on one machine find each other, send messages, and route work to the one session you pick as the orchestrator. You keep using each CLI the way you do today.
 
@@ -22,69 +22,66 @@ Conveno lets AI coding CLI sessions on one machine find each other, send message
 <table>
 <tr>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/session.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/session.svg"><img alt="" src="brand/icons/svg-ink/light/session.svg" width="24" height="24"></picture><br>
-<b>Sessions</b><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/session.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/session.svg"><img alt="" src="brand/icons/svg-ink/light/session.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Sessions</b><br>
 Every open session with its CLI, repo and status.
 </td>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/orchestrator.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/orchestrator.svg"><img alt="" src="brand/icons/svg-ink/light/orchestrator.svg" width="24" height="24"></picture><br>
-<b>Orchestrator</b><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/orchestrator.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/orchestrator.svg"><img alt="" src="brand/icons/svg-ink/light/orchestrator.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Orchestrator</b><br>
 Pick one session as the orchestrator. Move it whenever you like.
 </td>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/message-send.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/message-send.svg"><img alt="" src="brand/icons/svg-ink/light/message-send.svg" width="24" height="24"></picture><br>
-<b>Messages</b><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/message-send.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/message-send.svg"><img alt="" src="brand/icons/svg-ink/light/message-send.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Messages</b><br>
 Send to a named session or to the orchestrator. A busy session gets it at its next turn.
 </td>
 </tr>
+</table>
+
+<table>
 <tr>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/hook.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/hook.svg"><img alt="" src="brand/icons/svg-ink/light/hook.svg" width="24" height="24"></picture><br>
-<b>Hooks</b><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/hook.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/hook.svg"><img alt="" src="brand/icons/svg-ink/light/hook.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Hooks</b><br>
 Claude Code and Codex receive new messages at the start of the next turn.
 </td>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/inbox.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/inbox.svg"><img alt="" src="brand/icons/svg-ink/light/inbox.svg" width="24" height="24"></picture><br>
-<b>Inbox tool</b><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/inbox.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/inbox.svg"><img alt="" src="brand/icons/svg-ink/light/inbox.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Inbox tool</b><br>
 Every CLI can read its messages with the <code>inbox</code> tool.
 </td>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/init.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/init.svg"><img alt="" src="brand/icons/svg-ink/light/init.svg" width="24" height="24"></picture><br>
-<b>Init and uninstall</b><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/init.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/init.svg"><img alt="" src="brand/icons/svg-ink/light/init.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Init and uninstall</b><br>
 Shows the exact diff before it edits any CLI config. One command reverts it.
 </td>
 </tr>
+</table>
+
+<table>
 <tr>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/doctor.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/doctor.svg"><img alt="" src="brand/icons/svg-ink/light/doctor.svg" width="24" height="24"></picture><br>
-<b>Doctor</b><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/doctor.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/doctor.svg"><img alt="" src="brand/icons/svg-ink/light/doctor.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Doctor</b><br>
 Checks each CLI and the daemon, and says how to fix what is wrong.
 </td>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/ticket-open.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/ticket-open.svg"><img alt="" src="brand/icons/svg-ink/light/ticket-open.svg" width="24" height="24"></picture><br>
-<b>Tickets</b> <code>planned</code><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/ticket-open.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/ticket-open.svg"><img alt="" src="brand/icons/svg-ink/light/ticket-open.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Tickets</b> <code>planned</code><br>
 Questions from any session routed to the orchestrator.
 </td>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/handoff.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/handoff.svg"><img alt="" src="brand/icons/svg-ink/light/handoff.svg" width="24" height="24"></picture><br>
-<b>Handoff</b> <code>planned</code><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/handoff.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/handoff.svg"><img alt="" src="brand/icons/svg-ink/light/handoff.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Handoff</b> <code>planned</code><br>
 Pass work to another session with the goal, state and next steps.
 </td>
 </tr>
+</table>
+
+<table>
 <tr>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/peek-recent.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/peek-recent.svg"><img alt="" src="brand/icons/svg-ink/light/peek-recent.svg" width="24" height="24"></picture><br>
-<b>Peek</b> <code>planned</code><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/peek-recent.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/peek-recent.svg"><img alt="" src="brand/icons/svg-ink/light/peek-recent.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Peek</b> <code>planned</code><br>
 Read another session's recent turns, with secrets redacted first.
 </td>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/spawn.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/spawn.svg"><img alt="" src="brand/icons/svg-ink/light/spawn.svg" width="24" height="24"></picture><br>
-<b>Spawn</b> <code>planned</code><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/spawn.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/spawn.svg"><img alt="" src="brand/icons/svg-ink/light/spawn.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Spawn</b> <code>planned</code><br>
 Start a new session from an existing one, on your approval.
 </td>
 <td width="33%" valign="top">
-<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/relay.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/relay.svg"><img alt="" src="brand/icons/svg-ink/light/relay.svg" width="24" height="24"></picture><br>
-<b>Relay</b> <code>planned</code><br>
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/relay.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/relay.svg"><img alt="" src="brand/icons/svg-ink/light/relay.svg" width="20" height="20" align="top"></picture>&nbsp;<b>Relay</b> <code>planned</code><br>
 Connect your machines through an end-to-end encrypted relay.
 </td>
 </tr>
@@ -176,10 +173,6 @@ macOS, Linux and Windows. Node 24 or later is required.
 Yes. `conveno uninstall` undoes each install, newest first. A file that has not changed since init is restored byte for byte. If a CLI has rewritten the file since, only Conveno's entries are removed.
 
 </details>
-
-## Status
-
-Pre-alpha and not published to npm. The local core works on macOS, Linux and Windows: sessions, the orchestrator, messages, `init`, `uninstall`, `status` and `doctor`. Next are tickets, handoff, peek and spawn, then the relay.
 
 ## Development
 
