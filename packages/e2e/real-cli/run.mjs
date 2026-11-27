@@ -13,7 +13,14 @@ import { createInterface } from "node:readline/promises";
 import { DatabaseSync } from "node:sqlite";
 // One resolver for the CLI and this script. Node strips the types from this file.
 import { planSpawn } from "../../core/src/win-spawn.ts";
-import { cleanupStale, markerPath, readMarker, removeMarker, writeMarker } from "./marker.ts";
+import {
+  cleanupStale,
+  forgetArgs,
+  markerPath,
+  readMarker,
+  removeMarker,
+  writeMarker,
+} from "./marker.ts";
 
 const USAGE = `Usage: node run.mjs [options]
 
@@ -537,6 +544,23 @@ try {
 } finally {
   // Always undo what init did, also when init or a pair failed: a failed init may have left
   // files changed. Its own step, so the report shows whether the cleanup worked.
+  if (initAttempted) {
+    // First, while the daemon still runs: forget this run's own test sessions. Only the daemon
+    // can remove them, so this comes before the uninstall step stops it. A session whose CLI is
+    // still running is skipped, never removed. It runs with --keep-installed too: the sessions
+    // are test leftovers whether or not Conveno stays installed.
+    await step("forget", "conveno forget removes this run's test sessions", () => {
+      const r = conveno(...forgetArgs(NONCE));
+      if (r.code === 1 && /not running/i.test(r.err))
+        return { skip: "the daemon is not running, so it holds no sessions" };
+      if (r.code !== 0)
+        throw new Error(`forget failed (${r.code}): ${(r.err || r.out).slice(0, 400)}`);
+      return {
+        detail: r.out.split("\n").filter(Boolean).pop() ?? "",
+        data: { output: r.out.slice(0, 2000) },
+      };
+    });
+  }
   if (initAttempted && !flag("--keep-installed")) {
     await step(
       "uninstall",

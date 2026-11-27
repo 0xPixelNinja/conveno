@@ -69,9 +69,19 @@ export function describeMarker(path: string, state: MarkerState): string[] {
     `  started   ${m.startedAt} (pid ${m.pid}, ${m.platform})`,
     `  nonce     ${m.nonce}`,
     `  CLIs      ${Array.isArray(m.targets) ? m.targets.join(", ") : "unknown"}`,
-    "Conveno may still be installed in those CLIs. Cleaning up runs `conveno daemon stop` and `conveno uninstall --yes`.",
+    "Conveno may still be installed in those CLIs. Cleaning up forgets that run's test sessions, then runs `conveno daemon stop` and `conveno uninstall --yes`.",
   ];
 }
+
+/**
+ * Pattern for the sessions one run created. Its temporary repos are named `conveno-real-<label>-<id>`,
+ * where `<id>` is the nonce without its `cvn-` prefix, and a session is named `<cli>@<repo name>-<n>`.
+ */
+export const sessionPattern = (nonce: string): string =>
+  `*@conveno-real-*-${nonce.replace(/^cvn-/, "")}-*`;
+
+/** Arguments for `conveno` that forget one run's sessions. They must be offline; live ones are skipped. */
+export const forgetArgs = (nonce: string): string[] => ["forget", sessionPattern(nonce), "--yes"];
 
 export interface CommandResult {
   code: number;
@@ -100,14 +110,19 @@ export interface CleanupDeps {
  */
 export type CleanupOutcome = "none" | "cleaned" | "no-approval" | "declined" | "failed";
 
-/** Clean up after an earlier run, under the same approval rules as `conveno init`. */
+/**
+ * Clean up after an earlier run, under the same approval rules as `conveno init`: forget its test
+ * sessions, stop the daemon, uninstall.
+ */
 export async function cleanupStale(deps: CleanupDeps): Promise<CleanupOutcome> {
   const state = readMarker(deps.markerFile);
   if (state.kind === "none") return "none";
   for (const line of describeMarker(deps.markerFile, state)) deps.log(line);
 
   if (!deps.approved) {
-    const answer = await deps.ask("Clean up now (daemon stop, uninstall --yes)? [y/N] ");
+    const answer = await deps.ask(
+      "Clean up now (forget its sessions, daemon stop, uninstall --yes)? [y/N] ",
+    );
     if (answer === null) {
       deps.log(
         "No terminal and no --approve-init. Nothing was changed. Re-run with --approve-init to clean up.",
@@ -120,7 +135,12 @@ export async function cleanupStale(deps: CleanupDeps): Promise<CleanupOutcome> {
     }
   }
 
-  // `daemon stop` may report that nothing runs; only uninstall decides the outcome.
+  // Forgetting needs the daemon, so it comes before `daemon stop`. Like `daemon stop` it is best
+  // effort: with no daemon there is nothing to forget, and only uninstall decides the outcome.
+  if (state.kind === "found" && typeof state.marker.nonce === "string") {
+    const forget = deps.conveno(...forgetArgs(state.marker.nonce));
+    deps.log(`forget the earlier run's sessions: exit ${forget.code}`);
+  }
   const stop = deps.conveno("daemon", "stop");
   deps.log(`daemon stop: exit ${stop.code}`);
   const un = deps.conveno("uninstall", "--yes");
