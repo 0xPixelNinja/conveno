@@ -124,9 +124,7 @@ describe("hook path with real host pids", () => {
     expect(right.stdout).toContain("only for sender");
   });
 
-  // Bug found by e2e (client/mcp): the client's zod check answers before the daemon, so the agent
-  // sees "invalid session name" without the rule from core's validateRename. Remove `.fails` when fixed.
-  it.fails("rename with a bad name tells the agent the naming rule", async () => {
+  it("rename with a bad name tells the agent the naming rule", async () => {
     const r = await sender.call("rename", { name: "Not Valid!" });
     expect(r.isError).toBe(true);
     expect(r.text).toContain("Use 1 to 64 characters");
