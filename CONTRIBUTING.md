@@ -28,6 +28,7 @@ node packages/cli/dist/bin.js init
 |---|---|
 | `pnpm lint` | Biome check (format, imports, lint) |
 | `pnpm format` | Biome format, writes changes |
+| `pnpm deps:check` | List outdated dependencies across the workspace (`pnpm outdated -r`); exits 1 when any are |
 | `pnpm typecheck` | `tsc` in every package, through turbo |
 | `pnpm smoke:pack` | Pack the publishable packages, install them with npm in a temp project and run the installed `conveno` |
 | `pnpm build` | `tsdown` in every package, through turbo |
@@ -48,8 +49,8 @@ Use Conventional Commits: `type(scope): subject`.
 
 - Subject in lowercase imperative mood, no trailing period, 72 characters or fewer.
 - Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `build`, `style`, `perf`.
-- Scopes: `brand`, `protocol`, `cli`, `daemon`, `mcp`, `core`, `crypto`, `relay`, `adapters`, `repo`,
-  `deps`.
+- Scopes: `brand`, `protocol`, `cli`, `client`, `daemon`, `mcp`, `core`, `crypto`, `relay`, `redact`,
+  `adapters`, `e2e`, `site`, `release`, `repo`, `deps`.
 - Use the body to say why, when the diff does not make it obvious.
 
 Examples:
@@ -72,20 +73,30 @@ docs(repo): explain delivery tiers
 
 ## Adding a CLI adapter
 
-Adapters live in `packages/adapters/<cli>`. Each one covers the same five jobs, and each declares the
-CLI versions it was tested on:
+Adapters live in `packages/adapters/<cli>` and implement the `Adapter` interface from
+`packages/core/src/adapter.ts`:
 
-1. **Detect** whether the CLI is installed and which version.
-2. **Install** the MCP server entry and hooks into the CLI's config, backing up every file it changes
-   so `conveno uninstall` can restore it.
-3. **Deliver** messages: live push if the CLI offers it, next-turn injection through a hook, and the
-   `inbox` fallback. Report which tier is active for `conveno doctor`.
-4. **Spawn** the unmodified official binary, visible or headless, with ACP where the CLI supports it.
-5. **Read transcripts** into the common `Turn[]` shape for `peek`. On an unknown format, return the raw
-   tail with a warning rather than failing.
+1. `detect(env)` reports whether the CLI is installed, its version and the config paths it uses.
+2. `plan(env)` returns the `ConfigChange` list that adds the Conveno MCP server entry and hooks to the
+   CLI's config. It is idempotent: empty when already installed. `conveno init` applies it and backs up
+   every file it changes. `uninstallPlan(env)` returns the reverse, for `conveno uninstall`.
+3. `hook(event, input, ctx)` handles a hook call from the CLI and returns its output. An adapter with
+   `deliveryTier: "next_turn"` injects pending messages into the next turn. One with
+   `deliveryTier: "inbox"` returns empty output, and the agent reads messages with the `inbox` tool.
+   `conveno doctor` reports the tier.
 
-Start with the CLI adapter request issue template, and add recorded hook payloads and transcripts as
-test fixtures for each supported version. Use only documented, official mechanisms.
+Use only documented, official mechanisms. Start with the CLI adapter request issue template, and add
+recorded hook payloads as test fixtures. Copy the layout of an existing adapter (`src/index.ts` plus
+focused modules and tests).
+
+Planned and not implemented yet: spawning the CLI (with ACP where it offers it), reading transcripts
+for `peek`, live push, and declaring the tested CLI versions.
+
+## Labels
+
+`.github/labels.yml` lists the issue and pull request labels: type, area (one per package), tier,
+`good first issue`, `help wanted`, `compliance` and `security`. A maintainer applies them with
+`gh label create --force`. Pick the area label that matches the package you change.
 
 ## Compliance rules
 
