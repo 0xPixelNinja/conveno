@@ -4,6 +4,8 @@
 Unix socket or Windows named pipe, stores sessions and messages in SQLite, and tracks which sessions
 are alive. All rules (naming, liveness, orchestrator, mailbox) come from `@conveno/core`.
 
+This is a private workspace package. `@conveno/cli` bundles it and ships it as `dist/daemon.js`.
+
 ## API
 
 ```ts
@@ -19,7 +21,7 @@ startDaemon(opts: {
 ```
 
 `sweep()` runs one liveness and idle check immediately; tests use it with a fake clock.
-The `convenod` bin (`dist/bin.js`) reads the data directory from core's `dataDir()` and exits on
+The daemon entry (`src/bin.ts`, shipped as `dist/daemon.js` inside `@conveno/cli`) reads the data directory from core's `dataDir()` and exits on
 SIGINT or SIGTERM after closing cleanly.
 
 ## Behaviour
