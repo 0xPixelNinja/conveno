@@ -711,6 +711,9 @@ describe("liveness", () => {
     const c = await h.authed();
     const a = (await register(c, { hostPid: 5001 })).session;
     await c.call("orchestrator.claim", { sessionId: a.id });
+    // Events for w travel on its own socket, so the claim's events can still be in flight here
+    // (seen on Windows). A reply on w arrives after every event written to it before the reply.
+    await w.call("session.list", {});
     const before = w.events.length;
     h.dead.add(5001);
     h.daemon.sweep();
