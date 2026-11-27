@@ -98,7 +98,14 @@ describe("applyChanges is all or nothing", () => {
   const plan = (c: TestCtx, name: string, before: string | null, after: string): PlannedChange => ({
     cli: "claude",
     installed: false,
-    change: { path: join(c.home, name), before, after, description: `edit ${name}` },
+    change: {
+      component: "mcp",
+      kind: "add",
+      path: join(c.home, name),
+      before,
+      after,
+      description: `edit ${name}`,
+    },
   });
 
   it("puts the first file back and drops the backups when the second write fails", async () => {

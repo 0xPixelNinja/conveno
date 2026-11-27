@@ -1,7 +1,12 @@
 import { newSessionId, RpcErrorCode, SESSION_NAME_PATTERN, SessionName } from "@conveno/protocol";
 import { describe, expect, it } from "vitest";
 import { ConvenoError } from "./errors.js";
-import { generateSessionName, sanitizeNamePart, validateRename } from "./naming.js";
+import {
+  generateSessionName,
+  nameMatchesPattern,
+  sanitizeNamePart,
+  validateRename,
+} from "./naming.js";
 import { rng, sess } from "./test-utils.js";
 
 describe("generateSessionName", () => {
@@ -84,5 +89,25 @@ describe("validateRename", () => {
 describe("reserved names", () => {
   it.each(["conveno", "orchestrator", "system", "user"])("refuses %s on rename", (name) => {
     expect(() => validateRename(newSessionId(), name, [])).toThrow(/reserved/);
+  });
+});
+
+describe("nameMatchesPattern", () => {
+  it("matches an exact name only", () => {
+    expect(nameMatchesPattern("claude@api-1", "claude@api-1")).toBe(true);
+    expect(nameMatchesPattern("claude@api-1", "claude@api-10")).toBe(false);
+  });
+  it("lets * match any run, including none", () => {
+    expect(nameMatchesPattern("claude@conveno-real-*", "claude@conveno-real-abc-1")).toBe(true);
+    expect(nameMatchesPattern("*-1", "codex@api-1")).toBe(true);
+    expect(nameMatchesPattern("claude@*", "claude@")).toBe(true);
+    expect(nameMatchesPattern("*", "anything")).toBe(true);
+    expect(nameMatchesPattern("a*c*e", "abcde")).toBe(true);
+    expect(nameMatchesPattern("a*c*e", "abcdf")).toBe(false);
+  });
+  it("anchors both ends and treats the dot literally", () => {
+    expect(nameMatchesPattern("claude*", "xclaude")).toBe(false);
+    expect(nameMatchesPattern("a.b*", "axb-1")).toBe(false);
+    expect(nameMatchesPattern("a.b*", "a.b-1")).toBe(true);
   });
 });

@@ -161,6 +161,8 @@ export async function startHarness(over: Partial<DaemonOptions> = {}): Promise<H
     isAlive: (pid) => !dead.has(pid),
     idleExitMs: Number.POSITIVE_INFINITY,
     sweepIntervalMs: 3_600_000,
+    // Tests register sessions in made-up folders; a test of the missing-folder rule overrides this.
+    pathExists: () => true,
     ...over,
   });
   const h: Harness = {

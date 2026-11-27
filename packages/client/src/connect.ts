@@ -56,6 +56,7 @@ const CLIENT_METHODS = [
   "session.rename",
   "session.setStatus",
   "session.byHost",
+  "session.forget",
   "daemon.shutdown",
   "session.list",
   "orchestrator.claim",

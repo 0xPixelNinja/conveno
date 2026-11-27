@@ -40,6 +40,14 @@ export const isReservedSessionName = (n: string): boolean =>
 export const SessionNameInput = z.string().regex(SESSION_NAME_PATTERN, "invalid session name");
 
 /**
+ * A session name or a simple glob over names: the name characters plus `*`, which matches any run
+ * of characters (including none). Used by `session.forget`.
+ */
+export const SessionNamePattern = z
+  .string()
+  .regex(/^[a-z0-9._@*-]{1,64}$/, "invalid session name pattern");
+
+/**
  * Human-readable session name, unique per account. Reserved names are refused. ULIDs are
  * uppercase, names are lowercase, so ids and names never collide.
  */

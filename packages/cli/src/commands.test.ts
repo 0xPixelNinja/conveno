@@ -53,7 +53,7 @@ describe("help, version, unknown", () => {
   it("prints the version", async () => {
     const c = await make();
     expect(await main(["--version"], c)).toBe(0);
-    expect(c.outText()).toBe("0.1.1-rc.1\n");
+    expect(c.outText()).toBe("0.1.1-rc.2\n");
   });
 
   it("prints plain, short help", async () => {
@@ -162,6 +162,8 @@ describe("init", () => {
       cli: "claude",
       plan: async () => [
         {
+          component: "mcp" as const,
+          kind: "add" as const,
           path: target,
           before: null,
           after: '{"a":1}\n',

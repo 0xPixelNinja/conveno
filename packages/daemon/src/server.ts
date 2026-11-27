@@ -19,6 +19,7 @@ import {
   type MailboxEntry,
   markDelivered,
   type NamedSession,
+  nameMatchesPattern,
   newAuthNonce,
   pendingForInjection,
   proofsMatch,
@@ -67,7 +68,7 @@ import {
 import { createDaemonLog, type DaemonLog } from "./log.js";
 import { type SessionRow, Store, toSession } from "./store.js";
 
-export const DAEMON_VERSION = "0.1.1-rc.1";
+export const DAEMON_VERSION = "0.1.1-rc.2";
 export const DEFAULT_IDLE_EXIT_MS = 10 * 60_000;
 export const SWEEP_INTERVAL_MS = 15_000;
 /** A connection that has not finished the handshake by then is closed. */
@@ -92,6 +93,11 @@ export const PRUNE_SUPERSEDED_AFTER_MS = 5 * 60_000;
  * say, so mail sent to a closed session survives a weekend. Then the session and its mailbox go.
  */
 export const PRUNE_UNREAD_AFTER_MS = 7 * 24 * 3_600_000;
+/**
+ * An offline session whose folder is missing is forgotten after this grace, not at once, so a
+ * drive or network share that is briefly unavailable does not wipe its sessions.
+ */
+export const PRUNE_MISSING_FOLDER_AFTER_MS = 5 * 60_000;
 
 /** Sender id on `system` messages made by the daemon itself (no session sent them). */
 export const DAEMON_SENDER_ID = SessionId.parse("0".repeat(26));
@@ -111,6 +117,8 @@ export interface DaemonOptions {
   onShutdown?: () => void;
   /** Close connections that have not finished the handshake after this long. Default 5 s. */
   authTimeoutMs?: number;
+  /** Does a path exist on disk. Default `existsSync`. The sweep uses it to forget sessions whose folder is gone. */
+  pathExists?: (path: string) => boolean;
 }
 
 export interface DaemonHandle {
@@ -152,6 +160,7 @@ class Daemon {
     private readonly requestShutdown: () => void,
     private readonly log: DaemonLog,
     private readonly authTimeoutMs: number = AUTH_TIMEOUT_MS,
+    private readonly pathExists: (path: string) => boolean = existsSync,
   ) {
     this.deviceId = store.deviceId();
     this.startedMs = now().getTime();
@@ -294,6 +303,8 @@ class Daemon {
         return this.list(req.params);
       case "session.byHost":
         return this.byHost(req.params.pid);
+      case "session.forget":
+        return this.forget(req.params);
       case "daemon.shutdown":
         return { ok: true as const };
       case "orchestrator.claim":
@@ -548,6 +559,54 @@ class Daemon {
     return { session: only ? this.view(only) : null };
   }
 
+  /**
+   * Remove offline sessions on the owner's request. Selection: with `ids` or `names` the
+   * candidates are the sessions matching either; with neither, every session. `olderThanMs` then
+   * keeps only sessions last seen at least that long ago. Online candidates are never removed:
+   * those picked by `ids` or `names` come back in `skippedOnline`, and with `olderThanMs` alone
+   * they are ignored, since the caller asked for offline sessions. A removed session takes its
+   * mailbox with it, in one transaction.
+   */
+  private forget(p: IpcParams<"session.forget">) {
+    const nowMs = this.now().getTime();
+    const explicit = p.ids !== undefined || p.names !== undefined;
+    const ids = new Set<string>(p.ids ?? []);
+    const names = p.names ?? [];
+    const matched = this.store.allSessions().filter((r) => {
+      if (explicit && !ids.has(r.id) && !names.some((n) => nameMatchesPattern(n, r.name))) {
+        return false;
+      }
+      return p.olderThanMs === undefined || nowMs - Date.parse(r.lastSeenAt) >= p.olderThanMs;
+    });
+    const brief = (r: SessionRow) => ({ id: r.id, name: r.name as Session["name"] });
+    const offline = matched.filter((r) => r.status === "offline");
+    const skippedOnline = explicit ? matched.filter((r) => r.status !== "offline") : [];
+    if (!p.dryRun) this.forgetRows(offline);
+    return { forgotten: offline.map(brief), skippedOnline: skippedOnline.map(brief) };
+  }
+
+  private forgetRows(rows: SessionRow[]): void {
+    if (rows.length === 0) return;
+    this.store.tx(() => {
+      for (const r of rows) this.store.deleteSession(r.id);
+    });
+  }
+
+  /**
+   * An offline session whose working folder (or repository root) has been missing for
+   * PRUNE_MISSING_FOLDER_AFTER_MS is forgotten. One with unread messages is left to the unread
+   * rule, so queued mail is never dropped early. One whose host process still runs is kept,
+   * because it can come back with a heartbeat.
+   */
+  private workspaceGone(row: SessionRow, nowMs: number): boolean {
+    if (nowMs - Date.parse(row.lastSeenAt) < PRUNE_MISSING_FOLDER_AFTER_MS) return false;
+    if (this.store.unreadCount(row.id) > 0) return false;
+    if (row.hostPid !== undefined && this.isAlive(row.hostPid)) return false;
+    return (
+      !this.pathExists(row.cwd) || (row.repoRoot !== undefined && !this.pathExists(row.repoRoot))
+    );
+  }
+
   /* ---- orchestrator ---- */
 
   private claim(sessionId: SessionId) {
@@ -700,6 +759,7 @@ class Daemon {
    * 2. Replaced by a newer live session with the same name, CLI and repo: delete after
    *    PRUNE_SUPERSEDED_AFTER_MS.
    * 3. Otherwise delete after PRUNE_OFFLINE_AFTER_MS.
+   * Besides these rules, `workspaceGone` forgets an offline session whose folder has been gone a while.
    */
   private shouldPrune(row: SessionRow, all: SessionRow[], nowMs: number): boolean {
     const offlineMs = nowMs - Date.parse(row.lastSeenAt);
@@ -723,8 +783,8 @@ class Daemon {
     const rows = this.store.allSessions();
     for (const row of rows) {
       if (row.status === "offline") {
-        if (this.shouldPrune(row, rows, nowMs)) {
-          this.store.tx(() => this.store.deleteSession(row.id));
+        if (this.shouldPrune(row, rows, nowMs) || this.workspaceGone(row, nowMs)) {
+          this.forgetRows([row]);
         }
         continue;
       }
@@ -782,6 +842,7 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
       },
       createDaemonLog(paths.daemonLog, { now }),
       opts.authTimeoutMs ?? AUTH_TIMEOUT_MS,
+      opts.pathExists ?? existsSync,
     );
 
     const srv = createServer((socket) => daemon.attach(socket));

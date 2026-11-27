@@ -36,6 +36,7 @@ describe("method table", () => {
         "session.setStatus",
         "session.list",
         "session.byHost",
+        "session.forget",
         "daemon.shutdown",
         "message.deliver",
         "orchestrator.claim",
@@ -297,6 +298,30 @@ describe("message.*", () => {
     ).toBe(true);
     expect(r.safeParse({ session: sessionFixture({ hostPids: [] }) }).success).toBe(false);
     expect(r.safeParse({}).success).toBe(false);
+  });
+
+  it("forget: needs a selector, accepts globs, defaults dryRun to false", () => {
+    expect(req("session.forget", {}).ok).toBe(false);
+    expect(req("session.forget", { dryRun: true }).ok).toBe(false);
+    expect(req("session.forget", { ids: [] }).ok).toBe(false);
+    expect(req("session.forget", { names: [] }).ok).toBe(false);
+    expect(req("session.forget", { ids: [sid] }).ok).toBe(true);
+    expect(req("session.forget", { names: ["conveno-real-*", "claude@repo-1"] }).ok).toBe(true);
+    expect(req("session.forget", { olderThanMs: 0 }).ok).toBe(true);
+    expect(req("session.forget", { olderThanMs: -1 }).ok).toBe(false);
+    expect(req("session.forget", { olderThanMs: 1.5 }).ok).toBe(false);
+    expect(req("session.forget", { names: ["Has Space"] }).ok).toBe(false);
+    expect(req("session.forget", { names: ["a?"] }).ok).toBe(false);
+    expect(req("session.forget", { ids: ["not-an-id"] }).ok).toBe(false);
+    expect(okParams("session.forget", { olderThanMs: 1000 }).dryRun).toBe(false);
+    const r = ipcMethods["session.forget"].result;
+    expect(
+      r.safeParse({
+        forgotten: [{ id: sid, name: "claude@repo-1" }],
+        skippedOnline: [],
+      }).success,
+    ).toBe(true);
+    expect(r.safeParse({ forgotten: [] }).success).toBe(false);
   });
 
   it("daemon.shutdown: takes no params and answers ok", () => {

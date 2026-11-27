@@ -1,6 +1,6 @@
 {
   "name": "@conveno/brand",
-  "version": "0.1.1-rc.1",
+  "version": "0.1.1-rc.2",
   "private": true,
   "description": "Conveno brand tokens, terminal theme and icon names.",
   "license": "Apache-2.0",

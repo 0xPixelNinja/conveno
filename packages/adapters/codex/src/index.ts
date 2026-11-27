@@ -123,8 +123,15 @@ async function planHooks(env: AdapterEnv): Promise<ConfigChange[]> {
     ];
   }
   if (!changed) return [];
+  const installed = HOOK_EVENTS.some((event) =>
+    asArray(hooks[event]).some((g) =>
+      handlersOf(g).some((h) => isOurs(asObject(h).command, event)),
+    ),
+  );
   return [
     {
+      component: "hooks",
+      kind: installed ? "update" : "add",
       path,
       before,
       after: json({ ...doc, hooks: next }),
@@ -155,6 +162,8 @@ async function uninstallHooks(env: AdapterEnv): Promise<ConfigChange[]> {
   const after = Object.keys(next).length > 0 ? { ...rest, hooks: next } : rest;
   return [
     {
+      component: "hooks",
+      kind: "remove",
       path,
       before,
       after: json(after),
@@ -183,6 +192,8 @@ async function planMcp(env: AdapterEnv): Promise<ConfigChange[]> {
   if (matchesSpec(existing, spec)) return [];
   return [
     {
+      component: "mcp",
+      kind: existing ? "update" : "add",
       path,
       before,
       after: addServer(path, before ?? "", spec),
@@ -198,6 +209,8 @@ async function uninstallMcp(env: AdapterEnv): Promise<ConfigChange[]> {
   if (before === null || !serverOf(parseToml(path, before))) return [];
   return [
     {
+      component: "mcp",
+      kind: "remove",
       path,
       before,
       after: removeServer(path, before),

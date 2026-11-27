@@ -40,6 +40,7 @@ Usage: conveno <command> [options]
   init [--yes] [--dry-run] [--cli <list>]  Set up Claude Code, Codex and OpenCode
   uninstall [--yes]                        Undo what init changed
   status [--all]                           List online sessions by repo
+  forget [<name|pattern>...] [options]     Remove offline sessions from the list
   doctor                                   Check each CLI and the daemon
   daemon start|stop|status                 Manage the background daemon
   mcp --cli <cli>                          MCP server on stdio (CLIs launch this)
@@ -47,13 +48,13 @@ Usage: conveno <command> [options]
   --version                                Print the version
 
 Run conveno <command> --help for the options of one command.
-conveno 0.1.1-rc.1
+conveno 0.1.1-rc.2
 "
 `;
 
 exports[`help, version, unknown > rejects an unknown command with exit 2 and a fix 1`] = `
 "x Unknown command "frobnicate"
-  conveno 0.1.1-rc.1 has: init, uninstall, status, doctor, daemon, mcp, hook.
+  conveno 0.1.1-rc.2 has: init, uninstall, status, forget, doctor, daemon, mcp, hook.
   fix  Run conveno --help to see usage.
 
 exit 2 · ref e_usage

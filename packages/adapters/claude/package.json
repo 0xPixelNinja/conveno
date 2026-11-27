@@ -1,6 +1,6 @@
 {
   "name": "@conveno/adapter-claude",
-  "version": "0.1.1-rc.1",
+  "version": "0.1.1-rc.2",
   "private": true,
   "description": "Conveno adapter for Claude Code.",
   "license": "Apache-2.0",

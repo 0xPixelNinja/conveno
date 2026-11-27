@@ -9,6 +9,7 @@ export type ClientMethodName =
   | "session.rename"
   | "session.setStatus"
   | "session.byHost"
+  | "session.forget"
   | "daemon.shutdown"
   | "session.list"
   | "orchestrator.claim"

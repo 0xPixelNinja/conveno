@@ -80,7 +80,16 @@ describe("uninstall keeps what changed since init", () => {
       cli: "claude",
       plan: async () => {
         const before = existsSync(file) ? await readFile(file, "utf8") : null;
-        return [{ path: file, before, after: `${before ?? ""}x\n`, description: "Add x." }];
+        return [
+          {
+            component: "mcp",
+            kind: "add",
+            path: file,
+            before,
+            after: `${before ?? ""}x\n`,
+            description: "Add x.",
+          },
+        ];
       },
     });
     const ctx = { ...c, adapters: [adapter] };
@@ -175,6 +184,8 @@ describe("apply safety", () => {
 
   it("uses a CLI's own command on every platform, when the CLI is installed", () => {
     const change = {
+      component: "mcp" as const,
+      kind: "add" as const,
       path: "x",
       before: null,
       after: "",

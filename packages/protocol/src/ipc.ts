@@ -15,6 +15,7 @@ import {
   IsoTimestamp,
   SessionName,
   SessionNameInput,
+  SessionNamePattern,
   SessionStatus,
   Sha256Hex,
 } from "./primitives.js";
@@ -88,6 +89,25 @@ const ListParams = z.object({
   cli: CliKind.optional(),
   includeOffline: z.boolean().default(false),
 });
+
+export const FORGET_MAX_SELECTORS = 100;
+
+const ForgetParams = z
+  .object({
+    /** Sessions to forget, by id. */
+    ids: z.array(SessionId).min(1).max(FORGET_MAX_SELECTORS).optional(),
+    /** Exact names or `*` globs. A name or id selector is joined with `ids` by OR. */
+    names: z.array(SessionNamePattern).min(1).max(FORGET_MAX_SELECTORS).optional(),
+    /** Only sessions last seen at least this long ago. With no `ids` or `names`, every offline session this old. */
+    olderThanMs: z.number().int().min(0).optional(),
+    /** Report what would be forgotten and change nothing. */
+    dryRun: z.boolean().default(false),
+  })
+  .refine((p) => p.ids !== undefined || p.names !== undefined || p.olderThanMs !== undefined, {
+    message: "provide ids, names and/or olderThanMs",
+  });
+
+const ForgottenSession = z.object({ id: SessionId, name: SessionName });
 
 /* ---------- messages ---------- */
 
@@ -194,6 +214,15 @@ export const ipcMethods = {
     // several give null.
     params: z.object({ pid: z.number().int().positive() }),
     result: z.object({ session: Session.nullable() }),
+  },
+  "session.forget": {
+    params: ForgetParams,
+    // `forgotten` lists what was removed (or, with `dryRun`, what would be). Online sessions that
+    // matched an `ids` or `names` selector are never removed and come back in `skippedOnline`.
+    result: z.object({
+      forgotten: z.array(ForgottenSession),
+      skippedOnline: z.array(ForgottenSession),
+    }),
   },
   "daemon.shutdown": { params: z.object({}), result: z.object({ ok: z.literal(true) }) },
   "session.list": { params: ListParams, result: z.object({ sessions: z.array(Session) }) },

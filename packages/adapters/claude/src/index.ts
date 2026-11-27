@@ -133,6 +133,8 @@ async function plan(env: AdapterEnv): Promise<ConfigChange[]> {
   if (!sameJson(servers[SERVER_NAME], want)) {
     const after = editJson(mcpFile, [{ path: ["mcpServers", SERVER_NAME], value: want }]);
     changes.push({
+      component: "mcp",
+      kind: servers[SERVER_NAME] === undefined ? "add" : "update",
       path: p.mcp,
       before: mcpFile.raw,
       after,
@@ -154,7 +156,17 @@ async function plan(env: AdapterEnv): Promise<ConfigChange[]> {
         },
       ];
     }
+    const installed = HOOK_EVENTS.some((e) =>
+      groupsOf(hooks, e).some(
+        (g) =>
+          isObject(g) &&
+          Array.isArray(g.hooks) &&
+          g.hooks.some((h) => isObject(h) && isOurHookCommand(h.command)),
+      ),
+    );
     changes.push({
+      component: "hooks",
+      kind: installed ? "update" : "add",
       path: p.settings,
       before: setFile.raw,
       after: editJson(
@@ -175,6 +187,8 @@ async function uninstallPlan(env: AdapterEnv): Promise<ConfigChange[]> {
   const servers = mcpObject(mcpFile.value, p.mcp);
   if (SERVER_NAME in servers) {
     changes.push({
+      component: "mcp",
+      kind: "remove",
       path: p.mcp,
       before: mcpFile.raw,
       after: editJson(mcpFile, [{ path: ["mcpServers", SERVER_NAME], value: undefined }]),
@@ -199,6 +213,8 @@ async function uninstallPlan(env: AdapterEnv): Promise<ConfigChange[]> {
     // Dropping the last event takes the empty `hooks` object with it.
     if (Object.keys(next).length === 0) edits.push({ path: ["hooks"], value: undefined });
     changes.push({
+      component: "hooks",
+      kind: "remove",
       path: p.settings,
       before: setFile.raw,
       after: editJson(setFile, edits),

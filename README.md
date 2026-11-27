@@ -112,6 +112,19 @@ Open two CLI sessions, for example Claude Code and Codex. In one, ask it to run 
 
 To build from source instead, see [CONTRIBUTING](CONTRIBUTING.md).
 
+### Commands
+
+| Command | What it does |
+|---|---|
+| `conveno init` | Add the Conveno MCP server and hooks to each detected CLI, after showing the diff. |
+| `conveno uninstall` | Undo what `init` changed. |
+| `conveno status [--all]` | List online sessions by repo. `--all` includes offline ones. |
+| `conveno forget [<name\|pattern>...] [--offline] [--older-than 7d] [--dry-run] [--yes]` | Remove offline sessions from the list, such as the leftovers of deleted test repos. Never touches a running session. |
+| `conveno doctor` | Check each CLI and the daemon, and say how to fix what is wrong. |
+| `conveno daemon start\|stop\|status` | Control the local daemon. |
+
+`conveno <command> --help` shows the options of one command.
+
 ## Supported CLIs
 
 | | CLI | Delivery | Notes |

@@ -324,3 +324,31 @@ describe("opencodeAdapter V1 fallback", () => {
     expect(at(after, "mcp", "servers", "keep")).toBeDefined();
   });
 });
+
+describe("change component and kind", () => {
+  it("marks a first install as an addition of the MCP server", async () => {
+    const changes = await opencodeAdapter.plan(envFor());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([["mcp", "add"]]);
+  });
+  it("marks a stale conveno entry as an update", async () => {
+    await seed(
+      "opencode.json",
+      '{"mcp":{"servers":{"conveno":{"type":"local","command":["/old/conveno","mcp","--cli","opencode"]}}}}',
+    );
+    const changes = await opencodeAdapter.plan(envFor());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([["mcp", "update"]]);
+  });
+  it("marks an entry in the other config shape as an update", async () => {
+    await seed(
+      "opencode.json",
+      '{"mcp":{"conveno":{"type":"local","command":["conveno"],"enabled":true}}}',
+    );
+    const changes = await opencodeAdapter.plan(envFor());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([["mcp", "update"]]);
+  });
+  it("marks an uninstall change as a removal", async () => {
+    await seed("opencode.json", `{"mcp":{"servers":{"conveno":${JSON.stringify(ENTRY)}}}}`);
+    const changes = await opencodeAdapter.uninstallPlan(envFor());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([["mcp", "remove"]]);
+  });
+});

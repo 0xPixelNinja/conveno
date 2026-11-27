@@ -25,7 +25,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const SERVER_VERSION = "0.1.1-rc.1";
+const SERVER_VERSION = "0.1.1-rc.2";
 
 export interface HostInfo {
   /** The CLI process: the first ancestor that is not part of launching Conveno. */
