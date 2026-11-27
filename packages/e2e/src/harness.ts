@@ -141,13 +141,14 @@ export async function startFakeSession(
   t: TestEnv,
   cli: CliKind,
   repo: string,
+  extraEnv: Record<string, string> = {},
 ): Promise<FakeSession> {
   const pidFile = join(t.root, `mcp-${Math.random().toString(36).slice(2)}.pid`);
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [HOST, MCP_ENTRY],
     cwd: repo,
-    env: { ...process.env, ...t.env, FAKE_CLI: cli, FAKE_PIDFILE: pidFile } as Record<
+    env: { ...process.env, ...t.env, FAKE_CLI: cli, FAKE_PIDFILE: pidFile, ...extraEnv } as Record<
       string,
       string
     >,
