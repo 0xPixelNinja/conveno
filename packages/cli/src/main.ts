@@ -6,6 +6,7 @@ import { daemonProblem } from "./daemonError.js";
 import { runDoctor } from "./doctor.js";
 import { rawMessage, writeErrorLog } from "./errorLog.js";
 import { closest, cmd, fail, tilde } from "./fmt.js";
+import { runForget } from "./forget.js";
 import { runHook } from "./hook.js";
 import { runInit } from "./init.js";
 import { runStatus } from "./status.js";
@@ -83,6 +84,8 @@ async function dispatch(command: string, rest: string[], ctx: Ctx): Promise<numb
       return runUninstall(ctx, rest);
     case "status":
       return runStatus(ctx, rest);
+    case "forget":
+      return runForget(ctx, rest);
     case "doctor":
       return runDoctor(ctx, rest);
     case "daemon":

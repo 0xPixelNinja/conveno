@@ -59,6 +59,29 @@ export const COMMANDS: CommandSpec[] = [
     flags: { all: { type: "boolean", help: "Also list offline sessions" } },
   },
   {
+    name: "forget",
+    usage: "conveno forget [<name|pattern>...] [options]",
+    summary: "Remove offline sessions from the list",
+    flags: {
+      offline: { type: "boolean", help: "Every offline session, when no name is given" },
+      "older-than": {
+        type: "string",
+        value: "<duration>",
+        help: "Only sessions last seen this long ago, such as 30m, 24h or 7d",
+      },
+      "dry-run": { type: "boolean", help: "List the sessions and change nothing" },
+      yes: { type: "boolean", short: "y", help: "Forget without asking" },
+    },
+    notes: [
+      "A name is an exact session name or a pattern where * matches any run of characters.",
+      "Quote a pattern so the shell leaves it alone: conveno forget 'conveno-real-*'.",
+      "Only offline sessions are forgotten. A running session is listed as skipped.",
+      "Forgetting deletes the queued messages of the session. Messages it sent stay with the receivers.",
+      "Without a terminal it needs --yes, and exits 2 without it.",
+    ],
+    positionals: true,
+  },
+  {
     name: "doctor",
     usage: "conveno doctor",
     summary: "Check each CLI and the daemon",
