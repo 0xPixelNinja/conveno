@@ -44,7 +44,7 @@ describe("handshake and auth", () => {
     const nonce = newAuthNonce();
     const r = await hello(c, nonce);
     expect(r.result?.protocolVersion).toBe(PROTOCOL_VERSION);
-    expect(r.result?.daemonVersion).toBe("0.1.0");
+    expect(r.result?.daemonVersion).toBe("0.1.1-rc.1");
     expect(r.result?.proof).toBe(daemonProof(h.token(), nonce));
     expect(r.result?.challenge).toMatch(/^[0-9a-f]{64}$/);
     const other = await hello(await h.client());

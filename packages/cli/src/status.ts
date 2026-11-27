@@ -2,6 +2,7 @@ import type { Theme } from "@conveno/brand";
 import type { DeliveryTier, Session } from "@conveno/protocol";
 import { COMMANDS, parseFlags } from "./args.js";
 import { type Ctx, connectOpts } from "./ctx.js";
+import { daemonProblem } from "./daemonError.js";
 import { cmd, columns, plural, tilde, warnBlock } from "./fmt.js";
 
 const CLI_SHORT: Record<string, string> = {
@@ -86,38 +87,51 @@ export function renderSessions(ctx: Ctx, sessions: Session[]): string {
 export async function runStatus(ctx: Ctx, argv: string[] = []): Promise<number> {
   const t = ctx.theme;
   const spec = COMMANDS.find((c) => c.name === "status");
+  let all = false;
   if (spec) {
     const parsed = parseFlags(ctx, spec, argv);
     if (typeof parsed === "number") return parsed;
+    all = parsed.values.all === true;
   }
   let client: Awaited<ReturnType<Ctx["connect"]>>;
   try {
     client = await ctx.connect(connectOpts(ctx, false));
-  } catch {
+  } catch (e) {
+    const problem = daemonProblem(t, e);
     ctx.err(
-      warnBlock(
-        t,
-        "The Conveno daemon is not running.",
-        `Run ${cmd(t, "conveno daemon start")}, or open a supported CLI after ${cmd(t, "conveno init")}.`,
-        "Sessions are listed by the daemon, and nothing is listening on its socket.",
-      ),
+      problem.notRunning
+        ? warnBlock(
+            t,
+            "The Conveno daemon is not running.",
+            `Run ${cmd(t, "conveno daemon start")}, or open a supported CLI after ${cmd(t, "conveno init")}.`,
+            "Sessions are listed by the daemon, and nothing is listening on its socket.",
+          )
+        : warnBlock(t, "The Conveno daemon cannot be reached.", problem.fix, problem.why),
     );
     return 0;
   }
   try {
-    const { sessions } = await client["session.list"]({ includeOffline: true });
+    const everyone = (await client["session.list"]({ includeOffline: true })).sessions;
+    const sessions = all ? everyone : everyone.filter((s) => s.status !== "offline");
+    const hidden = everyone.length - sessions.length;
     const repos = new Set(sessions.map((s) => s.repo?.root ?? s.cwd)).size;
+    const hint =
+      hidden > 0 ? `${hidden} offline hidden, ${cmd(t, "conveno status --all")} shows them` : "";
     ctx.out(
       `daemon up ${t.status("bullet")} relay: off (local only) ${t.status("bullet")} ${plural(sessions.length, "session")}\n`,
     );
     if (sessions.length === 0) {
       ctx.out(
-        `\nNo sessions yet. Open a supported CLI after ${cmd(t, "conveno init")} and it appears here.\n`,
+        hidden > 0
+          ? `\nNo sessions online. ${hint}.\n`
+          : `\nNo sessions yet. Open a supported CLI after ${cmd(t, "conveno init")} and it appears here.\n`,
       );
       return 0;
     }
     ctx.out(`\n${renderSessions(ctx, sessions)}\n\n`);
-    ctx.out(`${plural(sessions.length, "session")} in ${plural(repos, "repo")}\n`);
+    ctx.out(
+      `${plural(sessions.length, "session")} in ${plural(repos, "repo")}${hint ? ` ${t.status("bullet")} ${hint}` : ""}\n`,
+    );
     return 0;
   } finally {
     await client.close().catch(() => undefined);

@@ -1,6 +1,7 @@
 import type { Adapter, Detection } from "@conveno/core";
 import { COMMANDS, parseFlags } from "./args.js";
 import { adapterEnv, type Ctx, connectOpts } from "./ctx.js";
+import { daemonProblem } from "./daemonError.js";
 import { cmd, columns, errorBlock, plainError, plural, warnBlock } from "./fmt.js";
 
 interface Row {
@@ -67,16 +68,24 @@ export async function runDoctor(ctx: Ctx, argv: string[] = []): Promise<number> 
       await client.close().catch(() => undefined);
     }
   } catch (e) {
-    daemonLine = [`  ${t.status("warn")} daemon`, "not running"];
-    warnings++;
-    notes.push(
-      warnBlock(
-        t,
-        "The Conveno daemon is not running.",
-        `Run ${cmd(t, "conveno daemon start")}. It also starts when a CLI opens the Conveno MCP server.`,
-        plainError(e),
-      ),
-    );
+    const problem = daemonProblem(t, e);
+    if (problem.notRunning) {
+      daemonLine = [`  ${t.status("warn")} daemon`, "not running"];
+      warnings++;
+      notes.push(warnBlock(t, "The Conveno daemon is not running.", problem.fix, problem.why));
+    } else {
+      daemonLine = [`  ${t.status("error")} daemon`, "cannot be reached"];
+      problems++;
+      notes.push(
+        errorBlock(t, {
+          what: "The Conveno daemon cannot be reached",
+          detail: [problem.why],
+          fix: problem.fix,
+          exit: 1,
+          ref: "e_daemon",
+        }),
+      );
+    }
   }
   ctx.out(`${columns([daemonLine]).join("\n")}\n\n`);
 

@@ -77,12 +77,35 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const errCode = (e: unknown) => (e as NodeJS.ErrnoException | undefined)?.code;
 const isMissingDaemon = (e: unknown) => errCode(e) === "ENOENT" || errCode(e) === "ECONNREFUSED";
 
+/**
+ * Why a connection failed, so a caller can pick the matching fix instead of parsing the message.
+ * - `no_daemon`: nothing is listening, and the client was told not to start one.
+ * - `socket_path_too_long`: the Unix socket path is over the OS limit.
+ * - `permission`: the socket exists but this user may not use it.
+ * - `not_daemon`: something else is listening on the socket.
+ * - `token_empty`: the daemon token file exists but is empty.
+ * - `daemon_missing`: the daemon program could not be found.
+ * - `start_timeout`: a daemon was started and did not come up in time.
+ * - `connection`: the connection broke or timed out.
+ */
+export type ClientErrorKind =
+  | "no_daemon"
+  | "socket_path_too_long"
+  | "permission"
+  | "not_daemon"
+  | "token_empty"
+  | "daemon_missing"
+  | "start_timeout"
+  | "connection";
+
 /** An error whose message is already written for the user. Never remapped. */
-class ClientError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
+export class ClientError extends Error {
+  constructor(message: string, options?: ErrorOptions & { kind?: ClientErrorKind }) {
     super(message, options);
     this.name = "ConvenoClientError";
+    this.kind = options?.kind;
   }
+  readonly kind: ClientErrorKind | undefined;
 }
 
 /** The socket broke or closed. `sent` tells whether the request may have reached the daemon. */
@@ -107,28 +130,29 @@ function plainError(e: unknown, socketPath: string): Error {
   switch (code) {
     case "ECONNREFUSED":
     case "ENOENT":
-      return new ClientError(noDaemonMessage(socketPath), { cause: e });
+      return new ClientError(noDaemonMessage(socketPath), { cause: e, kind: "no_daemon" });
     case "EACCES":
     case "EPERM":
       return new ClientError(
         `Permission denied on the Conveno daemon socket at ${socketPath}. It may belong to another user. Check who owns it, or remove it and run "conveno daemon start".`,
-        { cause: e },
+        { cause: e, kind: "permission" },
       );
     case "EPIPE":
     case "ECONNRESET":
       return new ClientError(
         `The connection to the Conveno daemon at ${socketPath} broke. Run "conveno daemon status", then try again.`,
-        { cause: e },
+        { cause: e, kind: "connection" },
       );
     case "ENAMETOOLONG":
       return new ClientError(socketPathTooLongMessage(socketPath, process.platform), {
         cause: e,
+        kind: "socket_path_too_long",
       });
     default:
       if (code !== undefined) {
         return new ClientError(
           `Could not talk to the Conveno daemon at ${socketPath} (${code}). Run "conveno daemon status", then try again.`,
-          { cause: e },
+          { cause: e, kind: "connection" },
         );
       }
       return e instanceof Error ? e : new Error(String(e));
@@ -161,6 +185,7 @@ async function readToken(tokenPath: string): Promise<string> {
       throw Object.assign(
         new ClientError(
           `The Conveno daemon token file is missing at ${tokenPath}. Run "conveno daemon start", then try again.`,
+          { kind: "no_daemon" },
         ),
         { code: "ENOENT" },
       );
@@ -171,6 +196,7 @@ async function readToken(tokenPath: string): Promise<string> {
   if (!token) {
     throw new ClientError(
       `The Conveno daemon token file ${tokenPath} is empty. Run "conveno daemon stop", then "conveno daemon start".`,
+      { kind: "token_empty" },
     );
   }
   return token;
@@ -247,6 +273,7 @@ class Connection {
         reject(
           new ClientError(
             `Request ${method} timed out after ${this.timeoutMs} ms. Check that the daemon is running with "conveno daemon status".`,
+            { kind: "connection" },
           ),
         );
       }, this.timeoutMs);
@@ -329,6 +356,7 @@ async function handshake(
     if (!proofsMatch(hello.proof, daemonProof(token, nonce))) {
       throw new ClientError(
         `The process on ${socketPath} is not the Conveno daemon. Stop it, or remove the socket, and try again.`,
+        { kind: "not_daemon" },
       );
     }
     await typedCall(conn, "auth", { proof: clientProof(token, hello.challenge) });
@@ -346,6 +374,7 @@ function resolveDaemonEntry(explicit?: string): string {
   } catch {
     throw new ClientError(
       'Cannot find the Conveno daemon program. Pass daemonEntry to connect(), or run "conveno daemon start" yourself.',
+      { kind: "daemon_missing" },
     );
   }
 }
@@ -414,7 +443,7 @@ async function startAndConnect(
   }
   throw new ClientError(
     `The Conveno daemon did not start within ${startTimeout} ms (socket ${socketPath}). Run "conveno daemon status" to check it.`,
-    { cause: last },
+    { cause: last, kind: "start_timeout" },
   );
 }
 
@@ -521,7 +550,9 @@ export async function connect(opts: ConnectOptions): Promise<ConvenoClient> {
   const dir = opts.dataDir ?? dataDir(platform, process.env, homedir());
   const socketPath = opts.socketPath ?? defaultSocketPath(platform, process.env, homedir());
   if (isSocketPathTooLong(socketPath, platform)) {
-    throw new ClientError(socketPathTooLongMessage(socketPath, platform));
+    throw new ClientError(socketPathTooLongMessage(socketPath, platform), {
+      kind: "socket_path_too_long",
+    });
   }
   const tokenPath = dataPaths(platform, dir).token;
   const timeout = opts.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
@@ -534,7 +565,7 @@ export async function connect(opts: ConnectOptions): Promise<ConvenoClient> {
       } catch (e) {
         if (!isMissingDaemon(e)) throw e;
         if (opts.autoStart === false)
-          throw new ClientError(noDaemonMessage(socketPath), { cause: e });
+          throw new ClientError(noDaemonMessage(socketPath), { cause: e, kind: "no_daemon" });
         return await startAndConnect(
           resolveDaemonEntry(opts.daemonEntry),
           dir,

@@ -6,10 +6,11 @@ Conveno adapter for the OpenAI Codex CLI. Exports `codexAdapter` (also the defau
 
 | Piece | Where | Content |
 | --- | --- | --- |
-| MCP server | `~/.codex/config.toml` | `[mcp_servers.conveno]` with `command = "<conveno command>"` and `args = [..., "mcp", "--cli", "codex"]` |
+| MCP server | `~/.codex/config.toml` | `[mcp_servers.conveno]` with `command = "<conveno command>"`, `args = [..., "mcp", "--cli", "codex"]` and `default_tools_approval_mode = "approve"` |
 | Hooks | `~/.codex/hooks.json` | `SessionStart` and `UserPromptSubmit` command hooks running `<conveno command> hook codex <event>`, `timeout = 5` (seconds) |
 
-- The MCP change carries `viaCommand` (`codex mcp add conveno -- <command> mcp --cli codex`) alongside the equivalent file diff. It is omitted when a `conveno` entry already exists with other values, because `codex mcp add` is documented only for new servers; the file diff is used then. Uninstall has no command: the docs do not describe `codex mcp remove`, so uninstall edits the file.
+- `default_tools_approval_mode` is Codex's per-server setting for MCP tool approval (`auto`, `prompt`, `writes` or `approve`). With the default `auto`, Codex asks before any tool that does not declare itself read-only and closed-world, and `codex exec` cannot ask, so it blocks the call. `approve` stops the question for the `conveno` server only; no other server and no global approval policy is touched. Conveno's tools only exchange messages between the user's own sessions. The plan says so in plain words. A mode the user already set on the `conveno` server is kept.
+- The MCP change has no `viaCommand`. `codex mcp add` has no flag for the approval mode (`AddArgs` in `codex-rs/cli/src/mcp_cmd.rs`), so the whole entry is written to the file. Uninstall edits the file too.
 - `plan` returns an empty list when everything is already installed. If the conveno command path changed, the existing entries are replaced, not duplicated.
 - `uninstallPlan` removes only the `conveno` MCP table and handlers whose command ends in `hook codex SessionStart` or `hook codex UserPromptSubmit`. Other hooks and servers stay.
 - Config is read from `<home>/.codex`. `CODEX_HOME` is not read; pass a different `home` in `AdapterEnv` if needed.
@@ -34,7 +35,9 @@ Codex asks the user to review and trust new or changed hooks (`/hooks`) before t
 ## Sources
 
 - Hooks: https://learn.chatgpt.com/docs/hooks (locations `$CODEX_HOME/hooks.json` or `~/.codex/hooks.json`, `[hooks]` in `config.toml`, matcher groups, `timeout` in seconds, stdin fields, `hookSpecificOutput.additionalContext`, trust by hash, no feature flag needed)
-- MCP: https://learn.chatgpt.com/docs/extend/mcp?surface=cli (formerly https://developers.openai.com/codex/mcp; `[mcp_servers.<name>]` with `command`, `args`, `env`; `codex mcp add <name> -- <command>`)
+- MCP: https://learn.chatgpt.com/docs/extend/mcp?surface=cli (formerly https://developers.openai.com/codex/mcp; `[mcp_servers.<name>]` with `command`, `args`, `env`; `codex mcp add <name> -- <command>`; `default_tools_approval_mode` and `tools.<tool>.approval_mode`)
+- Config reference: https://developers.openai.com/codex/config-reference (`mcp_servers.<id>.default_tools_approval_mode`: auto, prompt, writes, approve)
+- Approval logic: `requires_mcp_tool_approval_for_mode` in `codex-rs/core/src/mcp_tool_call.rs` at tag `rust-v0.172.0` (`approve` never requires approval), and the exec-mode message "interactive approval is unavailable in exec mode" in the same file
 - Source: https://github.com/openai/codex
 
 ## Hook command quoting on Windows

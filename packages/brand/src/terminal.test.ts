@@ -159,6 +159,29 @@ describe("glyphs", () => {
     expect(t.status("orchestrator")).toBe("\u001b[34m●\u001b[0m");
     expect(t.status("waiting")).toBe("\u001b[33m◉\u001b[0m");
   });
+  it("gives every glyph a colour, so status() works with colour on for any glyph name", () => {
+    for (const color of ["always", "never"] as const) {
+      for (const level of ["xterm", "xterm-256color", "dumb"]) {
+        const t = createTheme({
+          env: { ...unicodeEnv, TERM: level, COLORTERM: level === "xterm" ? "truecolor" : "" },
+          isTTY: true,
+          platform: "linux",
+          color,
+        });
+        for (const name of Object.keys(tokens.terminal.glyphs)) {
+          expect(() => t.status(name as keyof typeof tokens.terminal.glyphs), name).not.toThrow();
+        }
+      }
+    }
+  });
+  it("paints the prompt chevron quiet, as the terminal spec says", () => {
+    const t = createTheme({
+      env: { ...unicodeEnv, TERM: "xterm" },
+      isTTY: true,
+      platform: "linux",
+    });
+    expect(t.status("prompt")).toBe(t.paint("quiet", "›"));
+  });
 });
 
 describe("spinner gating", () => {

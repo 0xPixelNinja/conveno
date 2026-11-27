@@ -28,13 +28,19 @@ jobs:
       - run: pnpm build
       - run: pnpm test
       - run: pnpm smoke:pack
+      # Fails when the tag and the package versions disagree. A prerelease version (v1.2.3-rc.1)
+      # gets the dist-tag "next"; a plain version (v1.2.3) gets "latest".
       - name: Check the tag against every package version
+        id: release
         env:
           TAG: ${{ github.ref_name }}
-        run: node scripts/check-release.mjs "$TAG"
+        run: |
+          node scripts/check-release.mjs "$TAG"
+          echo "dist_tag=$(node scripts/check-release.mjs "$TAG" --print-dist-tag)" >> "$GITHUB_OUTPUT"
       # Provenance is off: npm provenance needs a public repository. Turn it on (--provenance), or
       # switch to trusted publishing, when the repo goes public.
       - name: Publish
-        run: pnpm -r publish --access public --no-git-checks
+        run: pnpm -r publish --access public --no-git-checks --tag "$DIST_TAG"
         env:
+          DIST_TAG: ${{ steps.release.outputs.dist_tag }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,2 +1,2 @@
-export type { ConnectOptions } from "./connect.js";
-export { connect } from "./connect.js";
+export type { ClientErrorKind, ConnectOptions } from "./connect.js";
+export { ClientError, connect } from "./connect.js";

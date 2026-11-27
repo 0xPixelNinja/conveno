@@ -42,7 +42,14 @@ SIGINT or SIGTERM after closing cleanly.
   lives and its name is free; otherwise it must register again.
 - Limits: a recipient may hold 1000 unread messages (`-32004` beyond that). One `message.inbox` or
   `message.deliver` response carries at most about 900 KB of messages; the rest stay unread for the
-  next call. Offline sessions not seen for 7 days are deleted with their mailbox by the sweep.
+  next call.
+- Pruning: the sweep deletes an offline session, with its mailbox, by these rules in order. (1) A
+  session with unread (queued) messages is kept for 7 days offline, so mail sent to a closed session
+  survives a weekend; after that it and its mail are deleted. (2) A session replaced by a newer live
+  session with the same name, CLI and repo is deleted 5 minutes after it went offline. It cannot come
+  back, because a heartbeat is refused while another live session holds its name. (3) Any other
+  offline session is deleted after 24 hours: it returns only while its host process lives, and a new
+  run of the CLI registers as a new session. Online sessions are never deleted.
 - Status text is reduced to one line: control characters become spaces and whitespace collapses.
 - Clients cannot send `system` messages, and `conveno`, `orchestrator`, `system` and `user` are
   reserved session names. Binding a session to the connection that registered it is deferred to M2.

@@ -39,7 +39,7 @@ Usage: conveno <command> [options]
 
   init [--yes] [--dry-run] [--cli <list>]  Set up Claude Code, Codex and OpenCode
   uninstall [--yes]                        Undo what init changed
-  status                                   List sessions by repo
+  status [--all]                           List online sessions by repo
   doctor                                   Check each CLI and the daemon
   daemon start|stop|status                 Manage the background daemon
   mcp --cli <cli>                          MCP server on stdio (CLIs launch this)
@@ -47,13 +47,13 @@ Usage: conveno <command> [options]
   --version                                Print the version
 
 Run conveno <command> --help for the options of one command.
-conveno 0.1.0
+conveno 0.1.1-rc.1
 "
 `;
 
 exports[`help, version, unknown > rejects an unknown command with exit 2 and a fix 1`] = `
 "x Unknown command "frobnicate"
-  conveno 0.1.0 has: init, uninstall, status, doctor, daemon, mcp, hook.
+  conveno 0.1.1-rc.1 has: init, uninstall, status, doctor, daemon, mcp, hook.
   fix  Run conveno --help to see usage.
 
 exit 2 · ref e_usage
@@ -260,13 +260,12 @@ Conveno will change 4 files. Nothing else is touched.
     +}
 
   ~/.codex/config.toml  (new file)
-    Add the "conveno" MCP server in Codex config (mcp_servers.conveno).
-    will run  codex mcp add conveno -- conveno mcp --cli codex
-    expected result (the command may format the file differently)
-    @@ -0,0 +1,3 @@
+    Add the "conveno" MCP server in Codex config (mcp_servers.conveno). It lets Codex call Conveno's own tools without asking each time (default_tools_approval_mode = "approve", this server only).
+    @@ -0,0 +1,4 @@
     +[mcp_servers.conveno]
     +command = "conveno"
     +args = ["mcp", "--cli", "codex"]
+    +default_tools_approval_mode = "approve"
 
   ~/.codex/hooks.json  (new file)
     Add SessionStart and UserPromptSubmit hooks that deliver Conveno messages on the next turn. Codex asks you to trust new hooks: review them with /hooks.

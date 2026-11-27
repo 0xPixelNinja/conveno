@@ -83,20 +83,13 @@ describe("plan on an empty home", () => {
     expect(changes.map((c) => c.path)).toEqual([cfg(), hooksFile()]);
     const [mcp, hooks] = changes as [ConfigChange, ConfigChange];
     expect(mcp.before).toBeNull();
-    expect(mcp.viaCommand).toEqual([
-      "codex",
-      "mcp",
-      "add",
-      "conveno",
-      "--",
-      "conveno",
-      "mcp",
-      "--cli",
-      "codex",
-    ]);
+    // `codex mcp add` cannot set the approval mode, so the whole entry is written directly.
+    expect(mcp.viaCommand).toBeUndefined();
+    expect(mcp.description).toContain("without asking each time");
     expect(asToml(mcp.after).mcp_servers.conveno).toEqual({
       command: "conveno",
       args: ["mcp", "--cli", "codex"],
+      default_tools_approval_mode: "approve",
     });
     const h = JSON.parse(hooks.after);
     expect(h.hooks.SessionStart[0].hooks[0]).toEqual({
@@ -204,10 +197,42 @@ model = "mini"
     const changes = await named.plan(moved);
     expect(changes).toHaveLength(2);
     expect(changes[0]?.viaCommand).toBeUndefined();
+    expect(asToml(changes[0]?.after ?? "").mcp_servers.conveno.default_tools_approval_mode).toBe(
+      "approve",
+    );
     expect(asToml(changes[0]?.after ?? "").mcp_servers.conveno.command).toBe("/new/conveno");
     const h = JSON.parse(changes[1]?.after ?? "");
     expect(h.hooks.SessionStart).toHaveLength(1);
     expect(h.hooks.SessionStart[0].hooks[0].command).toBe("/new/conveno hook codex SessionStart");
+  });
+});
+
+describe("tool approval", () => {
+  it("adds the approval mode to an install that lacks it", async () => {
+    await write(
+      cfg(),
+      `[mcp_servers.conveno]\ncommand = "conveno"\nargs = ["mcp", "--cli", "codex"]\n`,
+    );
+    const changes = await named.plan(env());
+    const mcp = changes.find((c) => c.path === cfg());
+    expect(asToml(mcp?.after ?? "").mcp_servers.conveno.default_tools_approval_mode).toBe(
+      "approve",
+    );
+    expect(mcp?.description).toMatch(/^Update/);
+  });
+  it("keeps a mode the user set on the conveno server", async () => {
+    await write(
+      cfg(),
+      `[mcp_servers.conveno]\ncommand = "conveno"\nargs = ["mcp", "--cli", "codex"]\ndefault_tools_approval_mode = "prompt"\n`,
+    );
+    expect((await named.plan(env())).map((c) => c.path)).toEqual([hooksFile()]);
+  });
+  it("does not touch other servers", async () => {
+    await write(cfg(), `[mcp_servers.docs]\ncommand = "d"\n`);
+    const mcp = (await named.plan(env())).find((c) => c.path === cfg());
+    const doc = asToml(mcp?.after ?? "");
+    expect(doc.mcp_servers.docs).toEqual({ command: "d" });
+    expect(mcp?.after.match(/default_tools_approval_mode/g)).toHaveLength(1);
   });
 });
 

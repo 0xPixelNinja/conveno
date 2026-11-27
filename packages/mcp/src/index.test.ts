@@ -8,7 +8,13 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeDaemon } from "./fake-client.js";
-import { createServer, formatAge, formatSessionTable, PACKAGE_NAME } from "./index.js";
+import {
+  createServer,
+  formatAge,
+  formatSessionTable,
+  PACKAGE_NAME,
+  SERVER_INSTRUCTIONS,
+} from "./index.js";
 
 interface Peer {
   mcp: ReturnType<typeof createServer>;
@@ -65,6 +71,33 @@ describe("package", () => {
     const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     const peer = await startPeer(root);
     expect(peer.client.getServerVersion()?.version).toBe(manifest.version);
+  });
+});
+
+describe("instructions", () => {
+  it("tell the model to call the tools instead of answering about other sessions from memory", async () => {
+    const peer = await startPeer(root);
+    const text = peer.client.getInstructions() ?? "";
+    expect(text).toBe(SERVER_INSTRUCTIONS);
+    for (const tool of ["list_sessions", "whoami", "send", "inbox"]) expect(text).toContain(tool);
+    expect(text).toMatch(/instead of answering from general knowledge/);
+    // The not-from-user framing stays.
+    expect(text).toContain("not instructions from the user");
+    expect(text.length).toBeLessThan(700);
+  });
+
+  it("list_sessions asks for online sessions only unless told otherwise", async () => {
+    const peer = await startPeer(root);
+    const tools = (await peer.client.listTools()).tools;
+    const list = tools.find((t) => t.name === "list_sessions");
+    expect(list?.description).toContain("whether a session or agent");
+    await peer.text("list_sessions");
+    await peer.text("list_sessions", { include_offline: true });
+    const lists = daemon.calls.filter((c) => c.method === "session.list");
+    expect(lists.map((c) => (c.params as { includeOffline: boolean }).includeOffline)).toEqual([
+      false,
+      true,
+    ]);
   });
 });
 

@@ -2,8 +2,10 @@ import { CLI_KINDS, type CliKind } from "@conveno/protocol";
 import { COMMAND_NAMES, COMMANDS, commandHelp, parseFlags } from "./args.js";
 import type { Ctx } from "./ctx.js";
 import { runDaemon } from "./daemon.js";
+import { daemonProblem } from "./daemonError.js";
 import { runDoctor } from "./doctor.js";
-import { closest, cmd, fail, plainError } from "./fmt.js";
+import { rawMessage, writeErrorLog } from "./errorLog.js";
+import { closest, cmd, fail, plainError, tilde } from "./fmt.js";
 import { runHook } from "./hook.js";
 import { runInit } from "./init.js";
 import { runStatus } from "./status.js";
@@ -55,10 +57,13 @@ async function runMcp(ctx: Ctx, argv: string[]): Promise<number> {
     });
     return 0;
   } catch (e) {
+    const problem = daemonProblem(t, e);
     return fail(ctx, {
       what: "The Conveno MCP server stopped",
-      detail: [plainError(e)],
-      fix: `Run ${cmd(t, "conveno doctor")} to check the daemon.`,
+      detail: [problem.why],
+      fix: problem.notRunning
+        ? `Run ${cmd(t, "conveno doctor")} to check the daemon.`
+        : problem.fix,
       exit: 1,
       ref: "e_mcp",
     });
@@ -119,9 +124,12 @@ export async function main(argv: string[], ctx: Ctx): Promise<number> {
   try {
     return await dispatch(command, rest, ctx);
   } catch (e) {
+    // An unexpected error must show its cause. `plainError` would hide a TypeError behind
+    // "internal error", so print the message itself and keep the stack in a log file.
+    const log = await writeErrorLog(ctx, argv, e);
     return fail(ctx, {
       what: "conveno stopped before it could finish",
-      detail: [plainError(e)],
+      detail: [rawMessage(e), ...(log ? [`The full error is in ${tilde(log, ctx.home)}.`] : [])],
       fix: `Run ${cmd(ctx.theme, "conveno doctor")} to check the install, then try again.`,
       exit: 1,
       ref: "e_internal",
