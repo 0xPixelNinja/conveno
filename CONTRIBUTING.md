@@ -33,7 +33,9 @@ node packages/cli/dist/bin.js init
 | `pnpm build` | `tsdown` in every package, through turbo |
 | `pnpm test` | `vitest run` in every package, through turbo |
 
-CI runs install, lint, typecheck, build and test on Ubuntu, macOS and Windows with Node 24 and 26.
+CI runs lint and typecheck once, then build and test on Ubuntu (Node 24 and 26) and Windows (Node
+24), plus an install check from packed tarballs. macOS joins on pushes to main and on request
+(`gh workflow run ci.yml --ref <branch> -f full=true`).
 Run them locally in that order before you push. Code must work on all three operating systems, so
 use `node:path` and avoid shell-specific commands.
 
@@ -66,7 +68,7 @@ docs(repo): explain delivery tiers
 4. Make sure lint, typecheck, build and test pass.
 5. Open the pull request. Its title follows the same Conventional Commits format as a commit, because
    it becomes the squash commit message. Fill in the template.
-6. Respond to review. We squash merge once CI is green on all six jobs.
+6. Respond to review. We squash merge once every CI job is green.
 
 ## Adding a CLI adapter
 
