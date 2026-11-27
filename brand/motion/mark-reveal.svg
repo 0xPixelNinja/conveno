@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="128" height="128" role="img" aria-label="Conveno">
+<style>
+:root{--k:#111B28;--e:#2346D9;--q:#566474;--r:#C7D0DA;--st:#9A5700;--ok:#1E7B3A;--er:#B3202A}
+@media (prefers-color-scheme:dark){:root{--k:#E4EAF1;--e:#8CA6FF;--q:#93A1B3;--r:#2A384A;--st:#FFB547;--ok:#7BD88F;--er:#F2777A}}
+.k{fill:var(--k)}.e{fill:var(--e)}
+.s,.a,.b,.p{transform-box:fill-box;animation:.32s cubic-bezier(.65,0,.25,1) both}
+.s{transform-origin:50% 0;animation-name:y}
+.a,.b{transform-origin:0 50%;animation-name:x}
+.a{animation-delay:.24s}.b{animation-delay:.32s}
+.p{transform-origin:50% 50%;animation:p .2s cubic-bezier(.2,.7,.1,1) .64s both}
+@keyframes y{from{transform:scaleY(0)}}@keyframes x{from{transform:scaleX(0)}}@keyframes p{from{opacity:0;transform:scale(.6)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<rect class="k s" x="8" y="12" width="12" height="40"/>
+<rect class="k a" x="20" y="12" width="24" height="8"/>
+<rect class="k b" x="20" y="44" width="24" height="8"/>
+<circle class="e p" cx="52" cy="32" r="8"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E4EAF1" stroke-width="1.875" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Handoff in progress.">
+<title>handoff-solid</title>
+<path fill="#E4EAF1" stroke="none" d="M3 5H8V7.5H6V16.5H8V19H3Z"/>
+<path fill="#E4EAF1" stroke="none" d="M15.5 5H21V7.5H18V16.5H21V19H15.5Z"/>
+<path d="M6 12H12.5"/>
+<path d="M10 9.5L12.5 12L10 14.5"/>
+</svg>

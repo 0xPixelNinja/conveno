@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#E4EAF1" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Unread: a new entry with a point beside it.">
+<title>unread</title>
+<circle fill="#E4EAF1" stroke="none" cx="5.5" cy="8" r="2.25"/>
+<path d="M11 8H20M4 14H20M4 19H13"/>
+</svg>

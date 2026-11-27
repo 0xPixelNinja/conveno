@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#E4EAF1" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Timestamp: a rule with ticks, the point on now.">
+<title>timestamp</title>
+<path d="M3 17H21M5 17V13M11 17V13M17 17V13"/>
+<circle fill="#E4EAF1" stroke="none" cx="17" cy="8" r="2.25"/>
+</svg>

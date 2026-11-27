@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.875" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Inbox: held until the session next reads.">
+<title>tier-inbox</title>
+<style>.cv-pt{fill:var(--cv-point,currentColor);stroke:none}.cv-pt-entry{fill:var(--cv-point,var(--cv-entry,currentColor))}</style>
+<path d="M3 6V20H21V6"/>
+<path d="M8 17H16"/>
+<circle class="cv-pt" cx="12" cy="11" r="2.25"/>
+</svg>

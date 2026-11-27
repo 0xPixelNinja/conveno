@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="A desktop device, active.">
+<title>device-solid</title>
+<path fill="currentColor" stroke="none" d="M4 5H20V16H4Z"/>
+<path d="M9 20H15M12 16V20"/>
+</svg>

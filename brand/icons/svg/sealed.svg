@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="End-to-end encrypted: a sealed entry, closed around its point.">
+<title>sealed</title>
+<style>.cv-pt{fill:var(--cv-point,currentColor);stroke:none}.cv-pt-entry{fill:var(--cv-point,var(--cv-entry,currentColor))}</style>
+<path d="M4 5H20V19H4Z M8 12H11"/>
+<circle class="cv-pt" cx="15.5" cy="12" r="2"/>
+</svg>

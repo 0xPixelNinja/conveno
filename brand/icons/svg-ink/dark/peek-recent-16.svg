@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#E4EAF1" stroke-width="1.25" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Peek, recent: the tail of a session record.">
+<title>peek-recent</title>
+<path d="M2 5V14H5.5M10.5 14H14V5"/>
+<path d="M5 7H11M5 10.5H7.5"/>
+<circle fill="#E4EAF1" stroke="none" cx="10.5" cy="10.5" r="1.25"/>
+</svg>

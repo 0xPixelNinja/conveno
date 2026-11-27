@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#111B28" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="The background daemon: stacked records, one live.">
+<title>daemon</title>
+<path d="M17 4H5V10H17M17 14H5V20H17"/>
+<circle fill="#111B28" stroke="none" cx="19.5" cy="7" r="2.5"/>
+</svg>

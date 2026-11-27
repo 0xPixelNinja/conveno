@@ -1,0 +1,311 @@
+{
+  "name": "Conveno terminal theme",
+  "version": "1.0.0-lock",
+  "source": "../tokens.json (color.*, ansi.*, terminal.*, status.*)",
+  "note": "Roles are what the CLI code asks for. truecolor is exact; ansi256 is the nearest xterm-256 index that keeps AA contrast on the matching background; ansi16 uses the plain SGR codes so the user's own terminal theme decides the hue. 'dark' and 'light' name the terminal background. Detect with COLORFGBG or OSC 11 when available; otherwise default to dark.",
+  "background": {
+    "dark": "#0B121C",
+    "light": "#FBFCFD"
+  },
+  "attributes": {
+    "bold": "SGR 1. Used for names, ticket ids and the one key phrase of a line. Never the only signal.",
+    "dim": "Not used. 'quiet' is a colour, because SGR 2 is unreliable across terminals.",
+    "underline": "SGR 4. URLs only.",
+    "reset": "SGR 0 at the end of every coloured span and every line."
+  },
+  "roles": {
+    "entry": {
+      "use": "The accent, reserved for: orchestrator dot, live tier, links, and the spinner's point (the mark's point). Not commands and not the prompt.",
+      "truecolor": {
+        "dark": "#8CA6FF",
+        "light": "#2346D9"
+      },
+      "ansi256": {
+        "dark": 111,
+        "light": 26
+      },
+      "ansi16": {
+        "fg": 34,
+        "note": "blue; use 94 (bright blue) only when the user's 16-colour theme renders 34 too dark"
+      }
+    },
+    "stamp": {
+      "use": "Needs the owner: open tickets, waiting on a question. Not an error.",
+      "truecolor": {
+        "dark": "#FFB547",
+        "light": "#9A5700"
+      },
+      "ansi256": {
+        "dark": 215,
+        "light": 130
+      },
+      "ansi16": {
+        "fg": 33
+      }
+    },
+    "ok": {
+      "use": "Healthy, done, answered.",
+      "truecolor": {
+        "dark": "#7BD88F",
+        "light": "#1E7B3A"
+      },
+      "ansi256": {
+        "dark": 114,
+        "light": 28
+      },
+      "ansi16": {
+        "fg": 32
+      }
+    },
+    "warn": {
+      "use": "Works, but will bite later. Always with a fix line.",
+      "truecolor": {
+        "dark": "#FFB547",
+        "light": "#8A5200"
+      },
+      "ansi256": {
+        "dark": 215,
+        "light": 94
+      },
+      "ansi16": {
+        "fg": 33
+      }
+    },
+    "error": {
+      "use": "Failed or broken. Always with what happened and how to fix it.",
+      "truecolor": {
+        "dark": "#F2777A",
+        "light": "#B3202A"
+      },
+      "ansi256": {
+        "dark": 210,
+        "light": 124
+      },
+      "ansi16": {
+        "fg": 31
+      }
+    },
+    "info": {
+      "use": "Neutral facts worth a second look: versions, paths, counts.",
+      "truecolor": {
+        "dark": "#6FD3E8",
+        "light": "#0A6C82"
+      },
+      "ansi256": {
+        "dark": 117,
+        "light": 30
+      },
+      "ansi16": {
+        "fg": 36
+      }
+    },
+    "quiet": {
+      "use": "Timestamps, column heads, hints, separators, idle and offline.",
+      "truecolor": {
+        "dark": "#7F8EA1",
+        "light": "#5C6A7B"
+      },
+      "ansi256": {
+        "dark": 245,
+        "light": 242
+      },
+      "ansi16": {
+        "fg": 90,
+        "note": "bright black"
+      }
+    },
+    "ink": {
+      "use": "Primary text, the busy dot, and commands (bold). Left as the terminal's default foreground; never set explicitly except bold.",
+      "truecolor": {
+        "dark": "#D5DEE8",
+        "light": "#111B28"
+      },
+      "ansi256": {
+        "dark": 253,
+        "light": 234
+      },
+      "ansi16": {
+        "fg": 39,
+        "note": "default foreground"
+      }
+    }
+  },
+  "ansiPalette": {
+    "note": "The 16 slots Conveno ships in its own terminal theme and the colours mockups are drawn with.",
+    "dark": {
+      "background": "#0B121C",
+      "foreground": "#D5DEE8",
+      "black": "#1B2636",
+      "red": "#F2777A",
+      "green": "#7BD88F",
+      "yellow": "#FFB547",
+      "blue": "#8CA6FF",
+      "magenta": "#E394C0",
+      "cyan": "#6FD3E8",
+      "white": "#D5DEE8",
+      "brightBlack": "#7F8EA1",
+      "brightRed": "#FF9A9C",
+      "brightGreen": "#9BE8AC",
+      "brightYellow": "#FFCB78",
+      "brightBlue": "#B0C2FF",
+      "brightMagenta": "#F0B3D5",
+      "brightCyan": "#99E4F3",
+      "brightWhite": "#F3F6FA"
+    },
+    "light": {
+      "background": "#FBFCFD",
+      "foreground": "#111B28",
+      "black": "#111B28",
+      "red": "#B3202A",
+      "green": "#1E7B3A",
+      "yellow": "#8A5200",
+      "blue": "#2346D9",
+      "magenta": "#9B2F6B",
+      "cyan": "#0A6C82",
+      "white": "#5E6B7C",
+      "brightBlack": "#5C6A7B",
+      "brightRed": "#C92A35",
+      "brightGreen": "#1A7236",
+      "brightYellow": "#7E4A00",
+      "brightBlue": "#1F3FC4",
+      "brightMagenta": "#8A2660",
+      "brightCyan": "#08627A",
+      "brightWhite": "#3F4B5B"
+    }
+  },
+  "glyphs": {
+    "ok": {
+      "unicode": "✓",
+      "ascii": "+",
+      "role": "ok"
+    },
+    "warn": {
+      "unicode": "!",
+      "ascii": "!",
+      "role": "warn"
+    },
+    "error": {
+      "unicode": "x",
+      "ascii": "x",
+      "role": "error"
+    },
+    "info": {
+      "unicode": "i",
+      "ascii": "i",
+      "role": "info"
+    },
+    "prompt": {
+      "unicode": "›",
+      "ascii": ">",
+      "role": "quiet"
+    },
+    "bullet": {
+      "unicode": "·",
+      "ascii": ".",
+      "role": "quiet"
+    },
+    "orchestrator": {
+      "unicode": "●",
+      "ascii": "*",
+      "role": "entry"
+    },
+    "busy": {
+      "unicode": "●",
+      "ascii": "*",
+      "role": "ink"
+    },
+    "waiting": {
+      "unicode": "◉",
+      "ascii": "@",
+      "role": "stamp"
+    },
+    "idle": {
+      "unicode": "○",
+      "ascii": "o",
+      "role": "quiet"
+    },
+    "offline": {
+      "unicode": "-",
+      "ascii": "-",
+      "role": "quiet"
+    },
+    "arrow": {
+      "unicode": "→",
+      "ascii": "->",
+      "role": "quiet"
+    },
+    "rule": {
+      "unicode": "─",
+      "ascii": "-",
+      "role": "quiet"
+    }
+  },
+  "environment": {
+    "NO_COLOR": "Any non-empty value: no colour, no bold. Glyphs stay.",
+    "FORCE_COLOR": "0 = off, 1 = 16-colour, 2 = 256, 3 = truecolor. Empty or 'true' = at least 16-colour. Overrides TTY detection, never NO_COLOR.",
+    "COLORTERM": "'truecolor' or '24bit' selects truecolor.",
+    "TERM": "'dumb' or unset: no colour. '*-256color' selects 256. Otherwise 16.",
+    "CONVENO_ASCII": "1 forces the ASCII glyph column and the ASCII spinner.",
+    "precedence": [
+      "NO_COLOR",
+      "FORCE_COLOR",
+      "CLI flag --no-color / --color",
+      "stdout is a TTY",
+      "COLORTERM",
+      "TERM"
+    ],
+    "CONVENO_NO_MOTION": "1 disables the spinner and prints the static 'c─── ●' line. CI, a non-TTY stdout, or NO_COLOR with TERM=dumb do the same."
+  },
+  "status": {
+    "shapes": {
+      "busy": "filled dot (ink)",
+      "idle": "ring (quiet)",
+      "waiting": "filled dot (stamp) inside a ring (stamp)",
+      "offline": "short dash (quiet)",
+      "error": "x cross, two strokes (error)",
+      "orchestrator": "filled dot (entry), the only blue status"
+    },
+    "terminal": {
+      "busy": "●",
+      "idle": "○",
+      "waiting": "◉ or fallback '@'",
+      "offline": "-",
+      "error": "x",
+      "orchestrator": "●"
+    },
+    "note": "Orchestrator is the only blue status. Same five shapes as the status-* icons and the UI chips."
+  },
+  "spinner": {
+    "name": "entry-write",
+    "intervalMs": 120,
+    "frames": [
+      "c     ",
+      "c─    ",
+      "c──   ",
+      "c───  ",
+      "c─── ●",
+      "c─── ●"
+    ],
+    "asciiFrames": [
+      "c     ",
+      "c-    ",
+      "c--   ",
+      "c---  ",
+      "c--- *",
+      "c--- *"
+    ],
+    "showAfterMs": 400,
+    "color": {
+      "line": "quiet",
+      "point": "entry",
+      "note": "The c and the entry line are quiet; only the final point is entry (the mark's point)."
+    },
+    "staticLine": "c─── ●",
+    "noMotion": "Static 'c─── ●' line when CONVENO_NO_MOTION=1, CI is set, stdout is not a TTY, or NO_COLOR with TERM=dumb."
+  },
+  "redaction": {
+    "unicode": "[redacted]",
+    "ascii": "[redacted]",
+    "note": "Fixed text, inverse video when colour is on."
+  }
+}

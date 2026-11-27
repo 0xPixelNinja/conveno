@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#111B28" stroke-width="1.875" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Question to the owner.">
+<title>question</title>
+<path d="M8.5 9V5H15.5V10H12V13.5"/>
+<circle fill="#111B28" stroke="none" cx="12" cy="18.5" r="1.75"/>
+</svg>

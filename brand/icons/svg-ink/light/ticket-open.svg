@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#111B28" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Ticket, open: a question waiting on an answer.">
+<title>ticket-open</title>
+<path d="M3 6H21V10H19V14H21V18H3V14H5V10H3Z"/>
+<circle fill="#111B28" stroke="none" cx="12" cy="12" r="2.5"/>
+</svg>

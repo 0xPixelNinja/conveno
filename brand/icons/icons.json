@@ -1,0 +1,1190 @@
+{
+  "_usage": "Inline or sprite only. Files in svg/ and svg16/ use currentColor and --cv-point (points default to currentColor; orchestrator*, status-orchestrator and tier-live* default to --cv-entry), so opened as <img> they render black with a black point. For <img> contexts (READMEs, docs) use svg-ink/light or svg-ink/dark: same icons with ink #111B28 / #E4EAF1 and the point baked in (ink, except orchestrator*, status-orchestrator and tier-live*, which use the entry blue #2346D9 / #8CA6FF). svg-ink/<mode>/<name>.svg is 24 px, <name>-16.svg is the 16 px version. CLI chips are 20 px and up only.",
+  "session": {
+    "meaning": "One CLI session: the c, a spine with two entries (its record).",
+    "tags": [
+      "session",
+      "record",
+      "cli",
+      "agent"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/session.svg",
+    "file16": "svg16/session.svg",
+    "inkLight": "svg-ink/light/session.svg",
+    "inkDark": "svg-ink/dark/session.svg",
+    "tuned16": true
+  },
+  "session-solid": {
+    "meaning": "Session, active state.",
+    "tags": [
+      "session",
+      "active",
+      "filled"
+    ],
+    "category": "concept",
+    "solid": true,
+    "file": "svg/session-solid.svg",
+    "file16": "svg16/session-solid.svg",
+    "inkLight": "svg-ink/light/session-solid.svg",
+    "inkDark": "svg-ink/dark/session-solid.svg",
+    "tuned16": false
+  },
+  "orchestrator": {
+    "meaning": "The orchestrator: the mark itself (c with the point in its opening).",
+    "tags": [
+      "orchestrator",
+      "lead",
+      "mark",
+      "owner"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/orchestrator.svg",
+    "file16": "svg16/orchestrator.svg",
+    "inkLight": "svg-ink/light/orchestrator.svg",
+    "inkDark": "svg-ink/dark/orchestrator.svg",
+    "tuned16": true
+  },
+  "orchestrator-solid": {
+    "meaning": "Orchestrator held: this session holds the orchestrator role.",
+    "tags": [
+      "orchestrator",
+      "held",
+      "claimed",
+      "active",
+      "filled"
+    ],
+    "category": "concept",
+    "solid": true,
+    "file": "svg/orchestrator-solid.svg",
+    "file16": "svg16/orchestrator-solid.svg",
+    "inkLight": "svg-ink/light/orchestrator-solid.svg",
+    "inkDark": "svg-ink/dark/orchestrator-solid.svg",
+    "tuned16": false
+  },
+  "orchestrator-claim": {
+    "meaning": "Claim the orchestrator: an arrow into the open slot, no point yet.",
+    "tags": [
+      "orchestrator",
+      "claim",
+      "take",
+      "unheld"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/orchestrator-claim.svg",
+    "file16": "svg16/orchestrator-claim.svg",
+    "inkLight": "svg-ink/light/orchestrator-claim.svg",
+    "inkDark": "svg-ink/dark/orchestrator-claim.svg",
+    "tuned16": true
+  },
+  "peer": {
+    "meaning": "Peer: another session on equal footing, entries exchanged.",
+    "tags": [
+      "peer",
+      "session",
+      "other",
+      "pair"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/peer.svg",
+    "file16": "svg16/peer.svg",
+    "inkLight": "svg-ink/light/peer.svg",
+    "inkDark": "svg-ink/dark/peer.svg",
+    "tuned16": false
+  },
+  "spawn": {
+    "meaning": "Spawn a new session.",
+    "tags": [
+      "spawn",
+      "new",
+      "create",
+      "start",
+      "session"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/spawn.svg",
+    "file16": "svg16/spawn.svg",
+    "inkLight": "svg-ink/light/spawn.svg",
+    "inkDark": "svg-ink/dark/spawn.svg",
+    "tuned16": true
+  },
+  "handoff": {
+    "meaning": "Handoff: an entry moves from one session to another.",
+    "tags": [
+      "handoff",
+      "transfer",
+      "pass",
+      "move"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/handoff.svg",
+    "file16": "svg16/handoff.svg",
+    "inkLight": "svg-ink/light/handoff.svg",
+    "inkDark": "svg-ink/dark/handoff.svg",
+    "tuned16": true
+  },
+  "handoff-solid": {
+    "meaning": "Handoff in progress.",
+    "tags": [
+      "handoff",
+      "active",
+      "filled",
+      "transfer"
+    ],
+    "category": "concept",
+    "solid": true,
+    "file": "svg/handoff-solid.svg",
+    "file16": "svg16/handoff-solid.svg",
+    "inkLight": "svg-ink/light/handoff-solid.svg",
+    "inkDark": "svg-ink/dark/handoff-solid.svg",
+    "tuned16": false
+  },
+  "peek-recent": {
+    "meaning": "Peek, recent: the tail of a session record.",
+    "tags": [
+      "peek",
+      "recent",
+      "tail",
+      "latest",
+      "view"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/peek-recent.svg",
+    "file16": "svg16/peek-recent.svg",
+    "inkLight": "svg-ink/light/peek-recent.svg",
+    "inkDark": "svg-ink/dark/peek-recent.svg",
+    "tuned16": true
+  },
+  "peek-recent-solid": {
+    "meaning": "Peeking at the recent tail now.",
+    "tags": [
+      "peek",
+      "recent",
+      "active",
+      "filled"
+    ],
+    "category": "concept",
+    "solid": true,
+    "file": "svg/peek-recent-solid.svg",
+    "file16": "svg16/peek-recent-solid.svg",
+    "inkLight": "svg-ink/light/peek-recent-solid.svg",
+    "inkDark": "svg-ink/dark/peek-recent-solid.svg",
+    "tuned16": false
+  },
+  "peek-full": {
+    "meaning": "Peek, full: the whole session record.",
+    "tags": [
+      "peek",
+      "full",
+      "all",
+      "transcript",
+      "view"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/peek-full.svg",
+    "file16": "svg16/peek-full.svg",
+    "inkLight": "svg-ink/light/peek-full.svg",
+    "inkDark": "svg-ink/dark/peek-full.svg",
+    "tuned16": false
+  },
+  "peek-summary": {
+    "meaning": "Peek, summary: a short digest of a session.",
+    "tags": [
+      "peek",
+      "summary",
+      "digest",
+      "short",
+      "view"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/peek-summary.svg",
+    "file16": "svg16/peek-summary.svg",
+    "inkLight": "svg-ink/light/peek-summary.svg",
+    "inkDark": "svg-ink/dark/peek-summary.svg",
+    "tuned16": true
+  },
+  "message-send": {
+    "meaning": "Send a message: an entry leaves the record.",
+    "tags": [
+      "message",
+      "send",
+      "write",
+      "post",
+      "out"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/message-send.svg",
+    "file16": "svg16/message-send.svg",
+    "inkLight": "svg-ink/light/message-send.svg",
+    "inkDark": "svg-ink/dark/message-send.svg",
+    "tuned16": true
+  },
+  "inbox": {
+    "meaning": "Inbox: messages held for a session that is not listening.",
+    "tags": [
+      "inbox",
+      "tray",
+      "held",
+      "queue"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/inbox.svg",
+    "file16": "svg16/inbox.svg",
+    "inkLight": "svg-ink/light/inbox.svg",
+    "inkDark": "svg-ink/dark/inbox.svg",
+    "tuned16": true
+  },
+  "inbox-solid": {
+    "meaning": "Inbox with held messages.",
+    "tags": [
+      "inbox",
+      "active",
+      "filled",
+      "held"
+    ],
+    "category": "concept",
+    "solid": true,
+    "file": "svg/inbox-solid.svg",
+    "file16": "svg16/inbox-solid.svg",
+    "inkLight": "svg-ink/light/inbox-solid.svg",
+    "inkDark": "svg-ink/dark/inbox-solid.svg",
+    "tuned16": false
+  },
+  "unread": {
+    "meaning": "Unread: a new entry with a point beside it.",
+    "tags": [
+      "unread",
+      "new",
+      "unseen"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/unread.svg",
+    "file16": "svg16/unread.svg",
+    "inkLight": "svg-ink/light/unread.svg",
+    "inkDark": "svg-ink/dark/unread.svg",
+    "tuned16": false
+  },
+  "ack": {
+    "meaning": "Acknowledged: the entry was received.",
+    "tags": [
+      "ack",
+      "acknowledge",
+      "received",
+      "done",
+      "check"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/ack.svg",
+    "file16": "svg16/ack.svg",
+    "inkLight": "svg-ink/light/ack.svg",
+    "inkDark": "svg-ink/dark/ack.svg",
+    "tuned16": false
+  },
+  "ticket-open": {
+    "meaning": "Ticket, open: a question waiting on an answer.",
+    "tags": [
+      "ticket",
+      "open",
+      "pending",
+      "question"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/ticket-open.svg",
+    "file16": "svg16/ticket-open.svg",
+    "inkLight": "svg-ink/light/ticket-open.svg",
+    "inkDark": "svg-ink/dark/ticket-open.svg",
+    "tuned16": true
+  },
+  "ticket-open-solid": {
+    "meaning": "Ticket, open, active state.",
+    "tags": [
+      "ticket",
+      "open",
+      "filled",
+      "active"
+    ],
+    "category": "concept",
+    "solid": true,
+    "file": "svg/ticket-open-solid.svg",
+    "file16": "svg16/ticket-open-solid.svg",
+    "inkLight": "svg-ink/light/ticket-open-solid.svg",
+    "inkDark": "svg-ink/dark/ticket-open-solid.svg",
+    "tuned16": false
+  },
+  "ticket-answered": {
+    "meaning": "Ticket, answered.",
+    "tags": [
+      "ticket",
+      "answered",
+      "resolved",
+      "done"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/ticket-answered.svg",
+    "file16": "svg16/ticket-answered.svg",
+    "inkLight": "svg-ink/light/ticket-answered.svg",
+    "inkDark": "svg-ink/dark/ticket-answered.svg",
+    "tuned16": false
+  },
+  "ticket-cancelled": {
+    "meaning": "Ticket, cancelled.",
+    "tags": [
+      "ticket",
+      "cancelled",
+      "closed",
+      "dropped"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/ticket-cancelled.svg",
+    "file16": "svg16/ticket-cancelled.svg",
+    "inkLight": "svg-ink/light/ticket-cancelled.svg",
+    "inkDark": "svg-ink/dark/ticket-cancelled.svg",
+    "tuned16": false
+  },
+  "question": {
+    "meaning": "Question to the owner.",
+    "tags": [
+      "question",
+      "ask",
+      "owner",
+      "human",
+      "help"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/question.svg",
+    "file16": "svg16/question.svg",
+    "inkLight": "svg-ink/light/question.svg",
+    "inkDark": "svg-ink/dark/question.svg",
+    "tuned16": false
+  },
+  "decision": {
+    "meaning": "Decision: a path splits and one branch is chosen.",
+    "tags": [
+      "decision",
+      "choice",
+      "route",
+      "fork",
+      "choose"
+    ],
+    "category": "concept",
+    "solid": false,
+    "file": "svg/decision.svg",
+    "file16": "svg16/decision.svg",
+    "inkLight": "svg-ink/light/decision.svg",
+    "inkDark": "svg-ink/dark/decision.svg",
+    "tuned16": false
+  },
+  "tier-live": {
+    "meaning": "Live: delivered into the running turn now.",
+    "tags": [
+      "tier",
+      "delivery",
+      "live",
+      "now",
+      "immediate"
+    ],
+    "category": "tier",
+    "solid": false,
+    "file": "svg/tier-live.svg",
+    "file16": "svg16/tier-live.svg",
+    "inkLight": "svg-ink/light/tier-live.svg",
+    "inkDark": "svg-ink/dark/tier-live.svg",
+    "tuned16": false
+  },
+  "tier-live-solid": {
+    "meaning": "Live tier, active state.",
+    "tags": [
+      "tier",
+      "live",
+      "active",
+      "filled"
+    ],
+    "category": "tier",
+    "solid": true,
+    "file": "svg/tier-live-solid.svg",
+    "file16": "svg16/tier-live-solid.svg",
+    "inkLight": "svg-ink/light/tier-live-solid.svg",
+    "inkDark": "svg-ink/dark/tier-live-solid.svg",
+    "tuned16": false
+  },
+  "tier-next-turn": {
+    "meaning": "Next turn: delivered when the current turn ends.",
+    "tags": [
+      "tier",
+      "delivery",
+      "next",
+      "turn",
+      "queue"
+    ],
+    "category": "tier",
+    "solid": false,
+    "file": "svg/tier-next-turn.svg",
+    "file16": "svg16/tier-next-turn.svg",
+    "inkLight": "svg-ink/light/tier-next-turn.svg",
+    "inkDark": "svg-ink/dark/tier-next-turn.svg",
+    "tuned16": false
+  },
+  "tier-acp": {
+    "meaning": "ACP: delivered through the Agent Client Protocol.",
+    "tags": [
+      "tier",
+      "delivery",
+      "acp",
+      "protocol",
+      "channel"
+    ],
+    "category": "tier",
+    "solid": false,
+    "file": "svg/tier-acp.svg",
+    "file16": "svg16/tier-acp.svg",
+    "inkLight": "svg-ink/light/tier-acp.svg",
+    "inkDark": "svg-ink/dark/tier-acp.svg",
+    "tuned16": false
+  },
+  "tier-inbox": {
+    "meaning": "Inbox: held until the session next reads.",
+    "tags": [
+      "tier",
+      "delivery",
+      "inbox",
+      "held",
+      "offline"
+    ],
+    "category": "tier",
+    "solid": false,
+    "file": "svg/tier-inbox.svg",
+    "file16": "svg16/tier-inbox.svg",
+    "inkLight": "svg-ink/light/tier-inbox.svg",
+    "inkDark": "svg-ink/dark/tier-inbox.svg",
+    "tuned16": false
+  },
+  "status-idle": {
+    "meaning": "Idle: connected, nothing running. A ring.",
+    "tags": [
+      "status",
+      "idle",
+      "ready",
+      "ring"
+    ],
+    "category": "status",
+    "solid": false,
+    "file": "svg/status-idle.svg",
+    "file16": "svg16/status-idle.svg",
+    "inkLight": "svg-ink/light/status-idle.svg",
+    "inkDark": "svg-ink/dark/status-idle.svg",
+    "tuned16": true
+  },
+  "status-busy": {
+    "meaning": "Busy: working on a turn. A filled dot.",
+    "tags": [
+      "status",
+      "busy",
+      "working",
+      "active",
+      "dot"
+    ],
+    "category": "status",
+    "solid": false,
+    "file": "svg/status-busy.svg",
+    "file16": "svg16/status-busy.svg",
+    "inkLight": "svg-ink/light/status-busy.svg",
+    "inkDark": "svg-ink/dark/status-busy.svg",
+    "tuned16": true
+  },
+  "status-waiting": {
+    "meaning": "Waiting on a question to the owner. A dot inside a ring.",
+    "tags": [
+      "status",
+      "waiting",
+      "question",
+      "blocked"
+    ],
+    "category": "status",
+    "solid": false,
+    "file": "svg/status-waiting.svg",
+    "file16": "svg16/status-waiting.svg",
+    "inkLight": "svg-ink/light/status-waiting.svg",
+    "inkDark": "svg-ink/dark/status-waiting.svg",
+    "tuned16": true
+  },
+  "status-offline": {
+    "meaning": "Offline: not connected to the relay. A short dash.",
+    "tags": [
+      "status",
+      "offline",
+      "disconnected",
+      "dash"
+    ],
+    "category": "status",
+    "solid": false,
+    "file": "svg/status-offline.svg",
+    "file16": "svg16/status-offline.svg",
+    "inkLight": "svg-ink/light/status-offline.svg",
+    "inkDark": "svg-ink/dark/status-offline.svg",
+    "tuned16": true
+  },
+  "status-error": {
+    "meaning": "Error: the session needs attention. A cross of two strokes.",
+    "tags": [
+      "status",
+      "error",
+      "failed",
+      "problem",
+      "cross"
+    ],
+    "category": "status",
+    "solid": false,
+    "file": "svg/status-error.svg",
+    "file16": "svg16/status-error.svg",
+    "inkLight": "svg-ink/light/status-error.svg",
+    "inkDark": "svg-ink/dark/status-error.svg",
+    "tuned16": true
+  },
+  "status-orchestrator": {
+    "meaning": "Orchestrator: the one blue status. A small c with the point.",
+    "tags": [
+      "status",
+      "orchestrator",
+      "held",
+      "accent",
+      "dot"
+    ],
+    "category": "status",
+    "solid": false,
+    "file": "svg/status-orchestrator.svg",
+    "file16": "svg16/status-orchestrator.svg",
+    "inkLight": "svg-ink/light/status-orchestrator.svg",
+    "inkDark": "svg-ink/dark/status-orchestrator.svg",
+    "tuned16": true
+  },
+  "relay": {
+    "meaning": "Relay: the server entries pass through but cannot read.",
+    "tags": [
+      "relay",
+      "server",
+      "hub",
+      "route"
+    ],
+    "category": "trust",
+    "solid": false,
+    "file": "svg/relay.svg",
+    "file16": "svg16/relay.svg",
+    "inkLight": "svg-ink/light/relay.svg",
+    "inkDark": "svg-ink/dark/relay.svg",
+    "tuned16": false
+  },
+  "device": {
+    "meaning": "A desktop device.",
+    "tags": [
+      "device",
+      "computer",
+      "monitor",
+      "desktop",
+      "machine"
+    ],
+    "category": "trust",
+    "solid": false,
+    "file": "svg/device.svg",
+    "file16": "svg16/device.svg",
+    "inkLight": "svg-ink/light/device.svg",
+    "inkDark": "svg-ink/dark/device.svg",
+    "tuned16": false
+  },
+  "device-solid": {
+    "meaning": "A desktop device, active.",
+    "tags": [
+      "device",
+      "active",
+      "filled",
+      "monitor"
+    ],
+    "category": "trust",
+    "solid": true,
+    "file": "svg/device-solid.svg",
+    "file16": "svg16/device-solid.svg",
+    "inkLight": "svg-ink/light/device-solid.svg",
+    "inkDark": "svg-ink/dark/device-solid.svg",
+    "tuned16": false
+  },
+  "device-laptop": {
+    "meaning": "A laptop.",
+    "tags": [
+      "device",
+      "laptop",
+      "notebook"
+    ],
+    "category": "trust",
+    "solid": false,
+    "file": "svg/device-laptop.svg",
+    "file16": "svg16/device-laptop.svg",
+    "inkLight": "svg-ink/light/device-laptop.svg",
+    "inkDark": "svg-ink/dark/device-laptop.svg",
+    "tuned16": false
+  },
+  "device-phone": {
+    "meaning": "A phone.",
+    "tags": [
+      "device",
+      "phone",
+      "mobile"
+    ],
+    "category": "trust",
+    "solid": false,
+    "file": "svg/device-phone.svg",
+    "file16": "svg16/device-phone.svg",
+    "inkLight": "svg-ink/light/device-phone.svg",
+    "inkDark": "svg-ink/dark/device-phone.svg",
+    "tuned16": false
+  },
+  "device-pairing": {
+    "meaning": "Pair two devices.",
+    "tags": [
+      "pairing",
+      "pair",
+      "link",
+      "device",
+      "connect"
+    ],
+    "category": "trust",
+    "solid": false,
+    "file": "svg/device-pairing.svg",
+    "file16": "svg16/device-pairing.svg",
+    "inkLight": "svg-ink/light/device-pairing.svg",
+    "inkDark": "svg-ink/dark/device-pairing.svg",
+    "tuned16": false
+  },
+  "sealed": {
+    "meaning": "End-to-end encrypted: a sealed entry, closed around its point.",
+    "tags": [
+      "sealed",
+      "encrypted",
+      "e2e",
+      "closed",
+      "private"
+    ],
+    "category": "trust",
+    "solid": false,
+    "file": "svg/sealed.svg",
+    "file16": "svg16/sealed.svg",
+    "inkLight": "svg-ink/light/sealed.svg",
+    "inkDark": "svg-ink/dark/sealed.svg",
+    "tuned16": true
+  },
+  "key": {
+    "meaning": "A key.",
+    "tags": [
+      "key",
+      "secret",
+      "credential"
+    ],
+    "category": "trust",
+    "solid": false,
+    "file": "svg/key.svg",
+    "file16": "svg16/key.svg",
+    "inkLight": "svg-ink/light/key.svg",
+    "inkDark": "svg-ink/dark/key.svg",
+    "tuned16": false
+  },
+  "verified": {
+    "meaning": "Verified: a closed record, checked.",
+    "tags": [
+      "verified",
+      "trusted",
+      "checked"
+    ],
+    "category": "trust",
+    "solid": false,
+    "file": "svg/verified.svg",
+    "file16": "svg16/verified.svg",
+    "inkLight": "svg-ink/light/verified.svg",
+    "inkDark": "svg-ink/dark/verified.svg",
+    "tuned16": false
+  },
+  "revoked": {
+    "meaning": "Revoked: access withdrawn.",
+    "tags": [
+      "revoked",
+      "removed",
+      "denied"
+    ],
+    "category": "trust",
+    "solid": false,
+    "file": "svg/revoked.svg",
+    "file16": "svg16/revoked.svg",
+    "inkLight": "svg-ink/light/revoked.svg",
+    "inkDark": "svg-ink/dark/revoked.svg",
+    "tuned16": false
+  },
+  "daemon": {
+    "meaning": "The background daemon: stacked records, one live.",
+    "tags": [
+      "daemon",
+      "service",
+      "background",
+      "process"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/daemon.svg",
+    "file16": "svg16/daemon.svg",
+    "inkLight": "svg-ink/light/daemon.svg",
+    "inkDark": "svg-ink/dark/daemon.svg",
+    "tuned16": false
+  },
+  "mcp": {
+    "meaning": "MCP: a c plugged into a tool socket.",
+    "tags": [
+      "mcp",
+      "tools",
+      "plug",
+      "server"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/mcp.svg",
+    "file16": "svg16/mcp.svg",
+    "inkLight": "svg-ink/light/mcp.svg",
+    "inkDark": "svg-ink/dark/mcp.svg",
+    "tuned16": false
+  },
+  "hook": {
+    "meaning": "Hook: a tap into the record; an entry steps out to a point.",
+    "tags": [
+      "hook",
+      "integration",
+      "trigger",
+      "tap"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/hook.svg",
+    "file16": "svg16/hook.svg",
+    "inkLight": "svg-ink/light/hook.svg",
+    "inkDark": "svg-ink/dark/hook.svg",
+    "tuned16": false
+  },
+  "adapter": {
+    "meaning": "An adapter for one CLI: a small c meets a large one.",
+    "tags": [
+      "adapter",
+      "connector",
+      "driver",
+      "cli"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/adapter.svg",
+    "file16": "svg16/adapter.svg",
+    "inkLight": "svg-ink/light/adapter.svg",
+    "inkDark": "svg-ink/dark/adapter.svg",
+    "tuned16": false
+  },
+  "config": {
+    "meaning": "Config: a ticked frame, settings around an entry.",
+    "tags": [
+      "config",
+      "file",
+      "configuration"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/config.svg",
+    "file16": "svg16/config.svg",
+    "inkLight": "svg-ink/light/config.svg",
+    "inkDark": "svg-ink/dark/config.svg",
+    "tuned16": true
+  },
+  "doctor": {
+    "meaning": "Doctor: check health.",
+    "tags": [
+      "doctor",
+      "health",
+      "check",
+      "diagnose"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/doctor.svg",
+    "file16": "svg16/doctor.svg",
+    "inkLight": "svg-ink/light/doctor.svg",
+    "inkDark": "svg-ink/dark/doctor.svg",
+    "tuned16": false
+  },
+  "init": {
+    "meaning": "Init: the c begins; the second entry lands as a point.",
+    "tags": [
+      "init",
+      "initialize",
+      "start",
+      "setup",
+      "begin"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/init.svg",
+    "file16": "svg16/init.svg",
+    "inkLight": "svg-ink/light/init.svg",
+    "inkDark": "svg-ink/dark/init.svg",
+    "tuned16": false
+  },
+  "uninstall": {
+    "meaning": "Uninstall: a c with a cross, removed from the record.",
+    "tags": [
+      "uninstall",
+      "remove",
+      "delete"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/uninstall.svg",
+    "file16": "svg16/uninstall.svg",
+    "inkLight": "svg-ink/light/uninstall.svg",
+    "inkDark": "svg-ink/dark/uninstall.svg",
+    "tuned16": true
+  },
+  "telemetry-off": {
+    "meaning": "Telemetry off: the signal dies into a flat rule.",
+    "tags": [
+      "telemetry",
+      "off",
+      "disabled",
+      "analytics"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/telemetry-off.svg",
+    "file16": "svg16/telemetry-off.svg",
+    "inkLight": "svg-ink/light/telemetry-off.svg",
+    "inkDark": "svg-ink/dark/telemetry-off.svg",
+    "tuned16": true
+  },
+  "telemetry-on": {
+    "meaning": "Telemetry on: signal with a point.",
+    "tags": [
+      "telemetry",
+      "on",
+      "enabled",
+      "analytics"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/telemetry-on.svg",
+    "file16": "svg16/telemetry-on.svg",
+    "inkLight": "svg-ink/light/telemetry-on.svg",
+    "inkDark": "svg-ink/dark/telemetry-on.svg",
+    "tuned16": true
+  },
+  "log": {
+    "meaning": "Log: the record, one timestamped entry per line.",
+    "tags": [
+      "log",
+      "record",
+      "history",
+      "entries"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/log.svg",
+    "file16": "svg16/log.svg",
+    "inkLight": "svg-ink/light/log.svg",
+    "inkDark": "svg-ink/dark/log.svg",
+    "tuned16": false
+  },
+  "timestamp": {
+    "meaning": "Timestamp: a rule with ticks, the point on now.",
+    "tags": [
+      "timestamp",
+      "time",
+      "clock",
+      "stamp"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/timestamp.svg",
+    "file16": "svg16/timestamp.svg",
+    "inkLight": "svg-ink/light/timestamp.svg",
+    "inkDark": "svg-ink/dark/timestamp.svg",
+    "tuned16": false
+  },
+  "search": {
+    "meaning": "Search: a lens around the found entry, with a cut-end handle.",
+    "tags": [
+      "search",
+      "find",
+      "lookup"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/search.svg",
+    "file16": "svg16/search.svg",
+    "inkLight": "svg-ink/light/search.svg",
+    "inkDark": "svg-ink/dark/search.svg",
+    "tuned16": true
+  },
+  "filter": {
+    "meaning": "Filter: entries narrowing along a rule.",
+    "tags": [
+      "filter",
+      "narrow",
+      "funnel"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/filter.svg",
+    "file16": "svg16/filter.svg",
+    "inkLight": "svg-ink/light/filter.svg",
+    "inkDark": "svg-ink/dark/filter.svg",
+    "tuned16": false
+  },
+  "settings": {
+    "meaning": "Settings: rules with positioned ticks.",
+    "tags": [
+      "settings",
+      "preferences",
+      "sliders",
+      "options"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/settings.svg",
+    "file16": "svg16/settings.svg",
+    "inkLight": "svg-ink/light/settings.svg",
+    "inkDark": "svg-ink/dark/settings.svg",
+    "tuned16": false
+  },
+  "copy": {
+    "meaning": "Copy: a c and a second one behind it.",
+    "tags": [
+      "copy",
+      "duplicate",
+      "clipboard"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/copy.svg",
+    "file16": "svg16/copy.svg",
+    "inkLight": "svg-ink/light/copy.svg",
+    "inkDark": "svg-ink/dark/copy.svg",
+    "tuned16": false
+  },
+  "external-link": {
+    "meaning": "Open in a new place.",
+    "tags": [
+      "external",
+      "link",
+      "open",
+      "new",
+      "tab",
+      "out"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/external-link.svg",
+    "file16": "svg16/external-link.svg",
+    "inkLight": "svg-ink/light/external-link.svg",
+    "inkDark": "svg-ink/dark/external-link.svg",
+    "tuned16": false
+  },
+  "docs": {
+    "meaning": "Documentation: two c, back to back, sharing a spine.",
+    "tags": [
+      "docs",
+      "documentation",
+      "book",
+      "guide"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/docs.svg",
+    "file16": "svg16/docs.svg",
+    "inkLight": "svg-ink/light/docs.svg",
+    "inkDark": "svg-ink/dark/docs.svg",
+    "tuned16": false
+  },
+  "github": {
+    "meaning": "Source on GitHub (neutral remote-repo glyph, not the vendor logo).",
+    "tags": [
+      "github",
+      "remote",
+      "repository",
+      "source",
+      "host"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/github.svg",
+    "file16": "svg16/github.svg",
+    "inkLight": "svg-ink/light/github.svg",
+    "inkDark": "svg-ink/dark/github.svg",
+    "tuned16": false
+  },
+  "terminal": {
+    "meaning": "Terminal: a c holding a prompt.",
+    "tags": [
+      "terminal",
+      "shell",
+      "console",
+      "command",
+      "line"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/terminal.svg",
+    "file16": "svg16/terminal.svg",
+    "inkLight": "svg-ink/light/terminal.svg",
+    "inkDark": "svg-ink/dark/terminal.svg",
+    "tuned16": true
+  },
+  "repo": {
+    "meaning": "Repo or folder: a c with a tab.",
+    "tags": [
+      "repo",
+      "repository",
+      "folder",
+      "directory"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/repo.svg",
+    "file16": "svg16/repo.svg",
+    "inkLight": "svg-ink/light/repo.svg",
+    "inkDark": "svg-ink/dark/repo.svg",
+    "tuned16": true
+  },
+  "branch": {
+    "meaning": "Git branch.",
+    "tags": [
+      "branch",
+      "git",
+      "fork",
+      "version"
+    ],
+    "category": "product",
+    "solid": false,
+    "file": "svg/branch.svg",
+    "file16": "svg16/branch.svg",
+    "inkLight": "svg-ink/light/branch.svg",
+    "inkDark": "svg-ink/dark/branch.svg",
+    "tuned16": false
+  },
+  "cli-cl": {
+    "meaning": "Monogram chip: cl (Claude Code). 20 px and up.",
+    "tags": [
+      "cli",
+      "monogram",
+      "cl",
+      "claude",
+      "chip"
+    ],
+    "category": "cli",
+    "solid": false,
+    "file": "svg/cli-cl.svg",
+    "file16": "svg16/cli-cl.svg",
+    "inkLight": "svg-ink/light/cli-cl.svg",
+    "inkDark": "svg-ink/dark/cli-cl.svg",
+    "tuned16": false
+  },
+  "cli-cx": {
+    "meaning": "Monogram chip: cx (Codex). 20 px and up.",
+    "tags": [
+      "cli",
+      "monogram",
+      "cx",
+      "codex",
+      "chip"
+    ],
+    "category": "cli",
+    "solid": false,
+    "file": "svg/cli-cx.svg",
+    "file16": "svg16/cli-cx.svg",
+    "inkLight": "svg-ink/light/cli-cx.svg",
+    "inkDark": "svg-ink/dark/cli-cx.svg",
+    "tuned16": false
+  },
+  "cli-ag": {
+    "meaning": "Monogram chip: ag (Antigravity). 20 px and up.",
+    "tags": [
+      "cli",
+      "monogram",
+      "ag",
+      "antigravity",
+      "agy",
+      "chip"
+    ],
+    "category": "cli",
+    "solid": false,
+    "file": "svg/cli-ag.svg",
+    "file16": "svg16/cli-ag.svg",
+    "inkLight": "svg-ink/light/cli-ag.svg",
+    "inkDark": "svg-ink/dark/cli-ag.svg",
+    "tuned16": false
+  },
+  "cli-cu": {
+    "meaning": "Monogram chip: cu (Cursor). 20 px and up.",
+    "tags": [
+      "cli",
+      "monogram",
+      "cu",
+      "cursor",
+      "chip"
+    ],
+    "category": "cli",
+    "solid": false,
+    "file": "svg/cli-cu.svg",
+    "file16": "svg16/cli-cu.svg",
+    "inkLight": "svg-ink/light/cli-cu.svg",
+    "inkDark": "svg-ink/dark/cli-cu.svg",
+    "tuned16": false
+  },
+  "cli-cp": {
+    "meaning": "Monogram chip: cp (Copilot). 20 px and up.",
+    "tags": [
+      "cli",
+      "monogram",
+      "cp",
+      "copilot",
+      "chip"
+    ],
+    "category": "cli",
+    "solid": false,
+    "file": "svg/cli-cp.svg",
+    "file16": "svg16/cli-cp.svg",
+    "inkLight": "svg-ink/light/cli-cp.svg",
+    "inkDark": "svg-ink/dark/cli-cp.svg",
+    "tuned16": false
+  },
+  "cli-oc": {
+    "meaning": "Monogram chip: oc (OpenCode). 20 px and up.",
+    "tags": [
+      "cli",
+      "monogram",
+      "oc",
+      "opencode",
+      "chip"
+    ],
+    "category": "cli",
+    "solid": false,
+    "file": "svg/cli-oc.svg",
+    "file16": "svg16/cli-oc.svg",
+    "inkLight": "svg-ink/light/cli-oc.svg",
+    "inkDark": "svg-ink/dark/cli-oc.svg",
+    "tuned16": false
+  }
+}

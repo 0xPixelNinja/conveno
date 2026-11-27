@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 176 80" width="352" height="160" role="img" aria-label="An entry handed from one session record to another">
+<style>
+:root{--k:#111B28;--e:#2346D9;--q:#566474;--r:#C7D0DA;--st:#9A5700;--ok:#1E7B3A;--er:#B3202A}
+@media (prefers-color-scheme:dark){:root{--k:#E4EAF1;--e:#8CA6FF;--q:#93A1B3;--r:#2A384A;--st:#FFB547;--ok:#7BD88F;--er:#F2777A}}
+.k{fill:var(--k)}.e{fill:var(--e)}
+.t{animation:h .88s linear both}
+@keyframes h{0%{opacity:0;animation-timing-function:cubic-bezier(.2,.7,.1,1)}13.6%{opacity:1;transform:translateX(0);animation-timing-function:cubic-bezier(.65,0,.25,1)}77.3%{opacity:1;transform:translateX(96px)}100%{opacity:1;transform:translateX(96px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<rect class="k" x="8" y="8" width="4" height="64"/><rect class="k" x="104" y="8" width="4" height="64"/>
+<rect class="k" x="16" y="16" width="40" height="6"/>
+<rect class="k" x="16" y="32" width="28" height="6"/>
+<rect class="k" x="16" y="48" width="44" height="6"/>
+<rect class="k" x="16" y="64" width="32" height="6"/>
+<rect class="k" x="112" y="16" width="44" height="6"/>
+<rect class="k" x="112" y="32" width="28" height="6"/>
+<rect class="k" x="112" y="48" width="40" height="6"/>
+<rect class="k t" x="16" y="64" width="32" height="6"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="The orchestrator: the mark itself (c with the point in its opening).">
+<title>orchestrator</title>
+<style>.cv-pt{fill:var(--cv-point,currentColor);stroke:none}.cv-pt-entry{fill:var(--cv-point,var(--cv-entry,currentColor))}</style>
+<path d="M17 5H4V19H17"/>
+<circle class="cv-pt cv-pt-entry" cx="19.5" cy="12" r="2.5"/>
+</svg>

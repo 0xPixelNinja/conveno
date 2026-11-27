@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#E4EAF1" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Search: a lens around the found entry, with a cut-end handle.">
+<title>search</title>
+<path d="M4 4H15V15H4Z M15 15L20.5 20.5"/>
+<circle fill="#E4EAF1" stroke="none" cx="9.5" cy="9.5" r="1.75"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#E4EAF1" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Revoked: access withdrawn.">
+<title>revoked</title>
+<path d="M4 5H20V19H4Z"/>
+<path d="M9 9L15 15M15 9L9 15"/>
+</svg>

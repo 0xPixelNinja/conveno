@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.875" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Hook: a tap into the record; an entry steps out to a point.">
+<title>hook</title>
+<style>.cv-pt{fill:var(--cv-point,currentColor);stroke:none}.cv-pt-entry{fill:var(--cv-point,var(--cv-entry,currentColor))}</style>
+<path d="M5 4V20M5 16H12V8H15"/>
+<circle class="cv-pt" cx="19" cy="8" r="2.25"/>
+</svg>

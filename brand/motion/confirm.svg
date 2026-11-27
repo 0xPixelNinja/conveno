@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" width="400" height="112" role="img" aria-label="Success and error confirmations">
+<style>
+:root{--k:#111B28;--e:#2346D9;--q:#566474;--r:#C7D0DA;--st:#9A5700;--ok:#1E7B3A;--er:#B3202A}
+@media (prefers-color-scheme:dark){:root{--k:#E4EAF1;--e:#8CA6FF;--q:#93A1B3;--r:#2A384A;--st:#FFB547;--ok:#7BD88F;--er:#F2777A}}
+.k{fill:var(--k)}.e{fill:var(--e)}
+.b,.s{transform-box:fill-box}.b{transform-origin:50% 0;animation:y .32s cubic-bezier(.65,0,.25,1) both}
+.s{fill:none;stroke-width:1.5;stroke-dasharray:1;animation:d .32s cubic-bezier(.65,0,.25,1) .16s both}.s2{animation-delay:.32s}
+@keyframes y{from{transform:scaleY(0)}}@keyframes d{from{stroke-dashoffset:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<rect class="b" style="fill:var(--ok)" x="12" y="8" width="2" height="40"/><path class="s" pathLength="1" style="stroke:var(--ok)" d="M26 28 33.5 35.5 50 18"/>
+<rect class="b" style="fill:var(--er)" x="112" y="8" width="2" height="40"/><path class="s" pathLength="1" style="stroke:var(--er)" d="M128 16 152 40"/><path class="s s2" pathLength="1" style="stroke:var(--er)" d="M152 16 128 40"/>
+</svg>

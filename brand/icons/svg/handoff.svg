@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Handoff: an entry moves from one session to another.">
+<title>handoff</title>
+<path d="M8 5H3V19H8"/>
+<path d="M5.5 12H12.5"/>
+<path d="M10 9.5L12.5 12L10 14.5"/>
+<path d="M21 5H15.5V19H21"/>
+</svg>

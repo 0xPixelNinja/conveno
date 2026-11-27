@@ -1,0 +1,200 @@
+/* Conveno motion library, web. Tokens from tokens.json (motion).
+   Motion explains a change in the record: written, moved, sealed or answered. No bounce, no overshoot.
+   Only the "listening" idle loops, and it is stoppable.
+
+   API
+   - Tokens:      --cv-ease-enter|exit|record, --cv-dur-instant|quick|base|slow|reveal|stage|idle, --cv-stagger,
+                  --cv-offset-point-land. Colours --cv-ink, --cv-quiet, --cv-rule, --cv-entry, --cv-stamp, --cv-ok, --cv-error.
+   - Utilities:   .cv-play (run the animations once; remove and re-add to replay), .cv-listening (idle loop),
+                  .is-paused (freeze the idle), .cv-m-join / .cv-m-leave (session row in / out).
+   - Keyframes:   cv-draw-y, cv-draw-x, cv-land, cv-in, cv-out, cv-fill, cv-stroke (each only a "from"; the end state is the base style).
+   - Demo markup: every demo-only class is .cv-m-<name>, so nothing here collides with components.css.
+   Every element is drawn at its END state. Animations run only under .cv-play or .cv-listening, so reduced motion
+   (and no-CSS-animation) show the end state. Replay with motion.js replay(el). */
+
+:root {
+  --cv-ease-enter: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --cv-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --cv-ease-record: cubic-bezier(0.65, 0, 0.25, 1);
+  --cv-dur-instant: 120ms; --cv-dur-quick: 200ms; --cv-dur-base: 320ms; --cv-dur-slow: 560ms; --cv-dur-reveal: 900ms;
+  --cv-dur-stage: 880ms; --cv-dur-idle: 5600ms;
+  --cv-stagger: 80ms;
+  --cv-offset-point-land: 640ms;
+  --cv-ink: #111B28; --cv-quiet: #566474; --cv-rule: #C7D0DA; --cv-entry: #2346D9;
+  --cv-stamp: #9A5700; --cv-ok: #1E7B3A; --cv-error: #B3202A;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --cv-ink: #E4EAF1; --cv-quiet: #93A1B3; --cv-rule: #2A384A; --cv-entry: #8CA6FF;
+    --cv-stamp: #FFB547; --cv-ok: #7BD88F; --cv-error: #F2777A;
+  }
+}
+:root[data-theme="dark"] {
+  --cv-ink: #E4EAF1; --cv-quiet: #93A1B3; --cv-rule: #2A384A; --cv-entry: #8CA6FF;
+  --cv-stamp: #FFB547; --cv-ok: #7BD88F; --cv-error: #F2777A;
+}
+
+/* ---- shared keyframes (only a "from"; the "to" is the end state) ---- */
+@keyframes cv-draw-y { from { transform: scaleY(0); } }
+@keyframes cv-draw-x { from { transform: scaleX(0); } }
+@keyframes cv-land { from { opacity: 0; transform: scale(0.6); } }
+@keyframes cv-in { from { opacity: 0; transform: translateY(4px); } }
+@keyframes cv-out { from { opacity: 1; } }
+@keyframes cv-fill { from { background-color: transparent; } }
+@keyframes cv-stroke { from { stroke-dashoffset: 1; } }
+
+/* ---- 1. Logo reveal: spine draws down, arms write out, point lands ----
+   <svg class="cv-m-mark cv-m-reveal"> .cv-m-spine .cv-m-arm-t .cv-m-arm-b .cv-m-point (mark.svg geometry) */
+.cv-m-mark :is(.cv-m-spine, .cv-m-arm-t, .cv-m-arm-b, .cv-m-point) { transform-box: fill-box; }
+.cv-m-spine { transform-origin: 50% 0; }
+.cv-m-arm-t, .cv-m-arm-b { transform-origin: 0 50%; }
+.cv-m-point { transform-origin: 50% 50%; }
+.cv-m-reveal.cv-play .cv-m-spine { animation: cv-draw-y var(--cv-dur-base) var(--cv-ease-record) both; }
+.cv-m-reveal.cv-play .cv-m-arm-t { animation: cv-draw-x var(--cv-dur-base) var(--cv-ease-record) calc(var(--cv-stagger) * 3) both; }
+.cv-m-reveal.cv-play .cv-m-arm-b { animation: cv-draw-x var(--cv-dur-base) var(--cv-ease-record) calc(var(--cv-stagger) * 4) both; }
+.cv-m-reveal.cv-play .cv-m-point { animation: cv-land var(--cv-dur-quick) var(--cv-ease-enter) var(--cv-offset-point-land) both; }
+
+/* ---- 2. Listening idle: arms re-write slowly, point breathes faintly. Stoppable. ---- */
+@keyframes cv-rewrite {
+  0%, 30% { transform: scaleX(1); opacity: 1; }
+  60% { transform: scaleX(0.45); opacity: 0.55; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+@keyframes cv-breathe {
+  0%, 30% { transform: scale(1); opacity: 1; }
+  60% { transform: scale(0.94); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.cv-listening .cv-m-arm-t { animation: cv-rewrite var(--cv-dur-idle) var(--cv-ease-record) infinite; }
+.cv-listening .cv-m-arm-b { animation: cv-rewrite var(--cv-dur-idle) var(--cv-ease-record) var(--cv-stagger) infinite; }
+.cv-listening .cv-m-point { animation: cv-breathe var(--cv-dur-idle) var(--cv-ease-record) infinite; }
+.cv-listening.is-paused :is(.cv-m-arm-t, .cv-m-arm-b, .cv-m-point) { animation-play-state: paused; }
+
+/* ---- 3. Handoff: an entry travels from session A's rule to session B's and lands ----
+   <svg class="cv-m-handoff" style="--cv-hand-dx:96px"> with a .cv-m-hand-entry rect drawn at B's slot (end state);
+   --cv-hand-dx is the distance back to A's slot, where it starts. */
+@keyframes cv-hand {
+  0%    { opacity: 0; transform: translateX(calc(var(--cv-hand-dx, 96px) * -1)); animation-timing-function: var(--cv-ease-enter); }
+  13.6% { opacity: 1; transform: translateX(calc(var(--cv-hand-dx, 96px) * -1)); animation-timing-function: var(--cv-ease-record); }
+  77.3% { opacity: 1; transform: translateX(0); }
+  100%  { opacity: 1; transform: translateX(0) }
+}
+.cv-m-hand-entry { fill: var(--cv-ink); }
+.cv-m-handoff.cv-play .cv-m-hand-entry { animation: cv-hand calc(var(--cv-dur-instant) + var(--cv-dur-slow) + var(--cv-dur-quick)) linear both; }
+
+/* ---- 4. Message sealed: mono words resolve character by character into ciphertext, then a frame closes ----
+   .cv-m-seal > .cv-m-seal-text > .cv-m-ch[style="--cv-i:n"] > i.cv-m-pl (plain) + i.cv-m-ct (cipher); then b.cv-m-fr-t|r|b|l.
+   End state: ciphertext + frame. Characters step 40 ms apart (stagger / 2). */
+@keyframes cv-m-resolve { from { opacity: 0; transform: translateY(-3px); } }
+.cv-m-seal { position: relative; display: inline-block; padding: 14px 20px; }
+.cv-m-seal-text { white-space: pre; font-family: var(--cv-f-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); line-height: 1.6; }
+.cv-m-ch { display: inline-grid; width: 1ch; }
+.cv-m-ch > i { grid-area: 1 / 1; font-style: normal; text-align: center; }
+.cv-m-pl { opacity: 0; }
+.cv-m-seal :is(.cv-m-fr-t, .cv-m-fr-r, .cv-m-fr-b, .cv-m-fr-l) { position: absolute; background: var(--cv-ink); }
+.cv-m-fr-t, .cv-m-fr-b { left: 0; right: 0; height: 1px; }
+.cv-m-fr-t { top: 0; transform-origin: 0 50%; } .cv-m-fr-b { bottom: 0; transform-origin: 100% 50%; }
+.cv-m-fr-r, .cv-m-fr-l { top: 0; bottom: 0; width: 1px; }
+.cv-m-fr-r { right: 0; transform-origin: 50% 0; } .cv-m-fr-l { left: 0; transform-origin: 50% 100%; }
+.cv-m-seal.cv-play .cv-m-pl { animation: cv-out var(--cv-dur-quick) var(--cv-ease-exit) calc(var(--cv-stagger) * var(--cv-i, 0) / 2) both; }
+.cv-m-seal.cv-play .cv-m-ct { animation: cv-m-resolve var(--cv-dur-quick) var(--cv-ease-enter) calc(var(--cv-stagger) * var(--cv-i, 0) / 2 + var(--cv-dur-instant) / 2) both; }
+.cv-m-seal.cv-play .cv-m-fr-t { animation: cv-draw-x var(--cv-dur-base) var(--cv-ease-record) var(--cv-dur-stage) both; }
+.cv-m-seal.cv-play .cv-m-fr-r { animation: cv-draw-y var(--cv-dur-base) var(--cv-ease-record) calc(var(--cv-dur-stage) + var(--cv-stagger) * 3) both; }
+.cv-m-seal.cv-play .cv-m-fr-b { animation: cv-draw-x var(--cv-dur-base) var(--cv-ease-record) calc(var(--cv-dur-stage) + var(--cv-stagger) * 6) both; }
+.cv-m-seal.cv-play .cv-m-fr-l { animation: cv-draw-y var(--cv-dur-base) var(--cv-ease-record) calc(var(--cv-dur-stage) + var(--cv-stagger) * 9) both; }
+
+/* ---- 5. Ticket lifecycle: open, routed to orchestrator, answered, closed ----
+   .cv-m-ticket > .cv-m-tk-bar + ol.cv-m-tk-track > li > .cv-m-tk-node + .cv-m-tk-name. Step k starts at k x stage. */
+.cv-m-tk-bar { background: var(--cv-quiet); }
+.cv-m-tk-track { display: grid; grid-template-columns: repeat(4, 1fr); list-style: none; margin: 0; padding: 0; }
+.cv-m-tk-track li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; --cv-c: var(--cv-ink); }
+.cv-m-tk-track li:nth-child(1) { --cv-c: var(--cv-stamp); }
+.cv-m-tk-track li:nth-child(2) { --cv-c: var(--cv-entry); }
+.cv-m-tk-track li:nth-child(3) { --cv-c: var(--cv-ink); }
+.cv-m-tk-track li:nth-child(4) { --cv-c: var(--cv-quiet); }
+.cv-m-tk-node { width: 12px; height: 12px; background: var(--cv-c); border: 2px solid var(--cv-c); box-sizing: border-box; position: relative; z-index: 1; }
+.cv-m-tk-track li + li::before { content: ""; position: absolute; top: 5px; right: 50%; width: 100%; height: 2px; background: var(--cv-c); transform-origin: 0 50%; }
+.cv-m-tk-name { color: var(--cv-ink); }
+@keyframes cv-m-name { from { color: var(--cv-quiet); } }
+@keyframes cv-m-tk-bar {
+  0%, 31% { background-color: var(--cv-stamp); }
+  38%, 62% { background-color: var(--cv-entry); }
+  69%, 93% { background-color: var(--cv-ink); }
+  100% { background-color: var(--cv-quiet); }
+}
+.cv-m-ticket.cv-play .cv-m-tk-bar { animation: cv-m-tk-bar calc(var(--cv-dur-stage) * 3 + var(--cv-dur-quick)) var(--cv-ease-record) both; }
+.cv-m-ticket.cv-play .cv-m-tk-node { animation: cv-fill var(--cv-dur-quick) var(--cv-ease-enter) both; }
+.cv-m-ticket.cv-play .cv-m-tk-name { animation: cv-m-name var(--cv-dur-quick) var(--cv-ease-enter) both; }
+.cv-m-ticket.cv-play li + li::before { animation: cv-draw-x var(--cv-dur-slow) var(--cv-ease-record) both; }
+.cv-m-ticket.cv-play li:nth-child(2) .cv-m-tk-node, .cv-m-ticket.cv-play li:nth-child(2) .cv-m-tk-name { animation-delay: var(--cv-dur-stage); }
+.cv-m-ticket.cv-play li:nth-child(3) .cv-m-tk-node, .cv-m-ticket.cv-play li:nth-child(3) .cv-m-tk-name { animation-delay: calc(var(--cv-dur-stage) * 2); }
+.cv-m-ticket.cv-play li:nth-child(4) .cv-m-tk-node, .cv-m-ticket.cv-play li:nth-child(4) .cv-m-tk-name { animation-delay: calc(var(--cv-dur-stage) * 3); }
+.cv-m-ticket.cv-play li:nth-child(2)::before { animation-delay: var(--cv-dur-instant); }
+.cv-m-ticket.cv-play li:nth-child(3)::before { animation-delay: calc(var(--cv-dur-stage) + var(--cv-dur-instant)); }
+.cv-m-ticket.cv-play li:nth-child(4)::before { animation-delay: calc(var(--cv-dur-stage) * 2 + var(--cv-dur-instant)); }
+
+/* ---- 6. Orchestrator claim: the point moves to another session ----
+   .cv-m-claim (position:relative; --cv-row; --cv-claim-rows = rows travelled) > rows + .cv-m-claim-point.
+   The point rests in the NEW orchestrator's row. */
+.cv-m-claim { position: relative; --cv-row: 44px; --cv-claim-rows: 2; }
+.cv-m-claim-point { position: absolute; left: 12px; width: 14px; height: 14px; border-radius: 50%; background: var(--cv-entry);
+  top: calc(var(--cv-row) * var(--cv-claim-rows) + (var(--cv-row) - 14px) / 2); }
+.cv-m-role-from { opacity: 0; }
+@keyframes cv-m-claim-move { from { transform: translateY(calc(var(--cv-row) * var(--cv-claim-rows) * -1)); } }
+@keyframes cv-m-role-in { from { opacity: 0; } }
+.cv-m-claim.cv-play .cv-m-claim-point { animation: cv-m-claim-move var(--cv-dur-slow) var(--cv-ease-record) var(--cv-dur-instant) both; }
+.cv-m-claim.cv-play .cv-m-role-from { animation: cv-out var(--cv-dur-quick) var(--cv-ease-exit) both; }
+.cv-m-claim.cv-play .cv-m-role-to { animation: cv-m-role-in var(--cv-dur-quick) var(--cv-ease-enter) calc(var(--cv-dur-instant) + var(--cv-dur-slow)) both; }
+
+/* ---- 7. Working indicator: the entry line is written (the c--- idea) and the timestamp ticks ----
+   One calm pass per real heartbeat; call replay() on each tick of work, do not loop it.
+   .cv-m-working > .cv-m-ts > .cv-m-ts-sec > .cv-m-ts-col > 4x <i>;  .cv-m-work-line > b + .cv-m-work-head */
+.cv-m-ts-sec { display: inline-block; height: 1.6em; line-height: 1.6em; overflow: hidden; vertical-align: top; font-variant-numeric: tabular-nums; }
+.cv-m-ts-col { display: block; transform: translateY(-75%); }
+.cv-m-ts-col i { display: block; height: 1.6em; font-style: normal; }
+.cv-m-work-line { position: relative; display: block; height: 2px; margin-top: 4px; background: var(--cv-rule); }
+.cv-m-work-line b { display: block; height: 2px; background: var(--cv-ink); transform-origin: 0 50%; }
+.cv-m-work-head { position: absolute; top: -2px; left: 100%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--cv-ink); }
+@keyframes cv-m-tick { 0%, 12% { transform: translateY(0); } 24%, 45% { transform: translateY(-25%); } 57%, 78% { transform: translateY(-50%); } 90%, 100% { transform: translateY(-75%); } }
+@keyframes cv-m-work-line { 0%, 12% { transform: scaleX(0); } 24%, 45% { transform: scaleX(0.33); } 57%, 78% { transform: scaleX(0.66); } 90%, 100% { transform: scaleX(1); } }
+@keyframes cv-m-work-head { 0%, 12% { left: 0%; } 24%, 45% { left: 33%; } 57%, 78% { left: 66%; } 90%, 100% { left: 100%; } }
+.cv-m-working.cv-play .cv-m-ts-col { animation: cv-m-tick calc(var(--cv-dur-stage) * 3) var(--cv-ease-record) both; }
+.cv-m-working.cv-play .cv-m-work-line b { animation: cv-m-work-line calc(var(--cv-dur-stage) * 3) var(--cv-ease-record) both; }
+.cv-m-working.cv-play .cv-m-work-head { animation: cv-m-work-head calc(var(--cv-dur-stage) * 3) var(--cv-ease-record) both; }
+
+/* ---- 8. Session joins / leaves the record ----
+   .cv-m-session[style="--cv-row:44px"]; add .cv-m-join on entry, .cv-m-leave on exit (it ends hidden). */
+.cv-m-session { position: relative; display: flex; align-items: center; gap: 12px; height: var(--cv-row, 44px); padding-left: 16px; overflow: hidden; box-shadow: inset 0 -1px 0 var(--cv-rule); }
+.cv-m-session::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--cv-ink); transform-origin: 50% 0; }
+@keyframes cv-m-join-row { from { height: 0; opacity: 0; } }
+@keyframes cv-m-join-body { from { opacity: 0; transform: translateX(-8px); } }
+@keyframes cv-m-leave-row { 0% { height: var(--cv-row, 44px); opacity: 1; } 50% { height: var(--cv-row, 44px); opacity: 0; } 100% { height: 0; opacity: 0; } }
+.cv-m-session.cv-m-join { animation: cv-m-join-row var(--cv-dur-base) var(--cv-ease-enter) both; }
+.cv-m-session.cv-m-join::before { animation: cv-draw-y var(--cv-dur-base) var(--cv-ease-record) var(--cv-stagger) both; }
+.cv-m-session.cv-m-join > * { animation: cv-m-join-body var(--cv-dur-base) var(--cv-ease-enter) calc(var(--cv-stagger) * 2) both; }
+.cv-m-session.cv-m-leave { animation: cv-m-leave-row var(--cv-dur-base) var(--cv-ease-exit) both; }
+.cv-m-session.cv-m-leave::before { transform-origin: 50% 100%; animation: cv-draw-y var(--cv-dur-quick) var(--cv-ease-exit) reverse both; }
+
+/* ---- 9. Success / error: a rule and a 24px icon are written, then the line fades in ----
+   .cv-m-confirm.cv-m-ok|.cv-m-err > .cv-m-cf-bar + svg.cv-m-cf-icon (path.cv-m-s1 [+ path.cv-m-s2]) + .cv-m-cf-text */
+.cv-m-confirm { --cv-c: var(--cv-ink); display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 0; }
+.cv-m-confirm.cv-m-ok { --cv-c: var(--cv-ok); }
+.cv-m-confirm.cv-m-err { --cv-c: var(--cv-error); }
+.cv-m-cf-bar { align-self: stretch; width: 2px; background: var(--cv-c); transform-origin: 50% 0; flex: none; }
+.cv-m-cf-icon { width: 24px; height: 24px; min-width: 24px; flex: none; fill: none; stroke: var(--cv-c); stroke-width: 1.5; stroke-linecap: butt; stroke-linejoin: miter; stroke-miterlimit: 10; }
+.cv-m-cf-icon path { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.cv-m-confirm.cv-play .cv-m-cf-bar { animation: cv-draw-y var(--cv-dur-base) var(--cv-ease-record) both; }
+.cv-m-confirm.cv-play .cv-m-s1 { animation: cv-stroke var(--cv-dur-base) var(--cv-ease-record) calc(var(--cv-stagger) * 2) both; }
+.cv-m-confirm.cv-play .cv-m-s2 { animation: cv-stroke var(--cv-dur-base) var(--cv-ease-record) calc(var(--cv-stagger) * 4) both; }
+.cv-m-confirm.cv-play .cv-m-cf-text { animation: cv-in var(--cv-dur-quick) var(--cv-ease-enter) calc(var(--cv-stagger) * 6) both; }
+
+/* ---- Reduced motion: show the end state, no animation, no transition ---- */
+@media (prefers-reduced-motion: reduce) {
+  [class*="cv-"], [class*="cv-"] *, [class*="cv-"]::before, [class*="cv-"]::after, [class*="cv-"] *::before, [class*="cv-"] *::after { animation: none !important; transition: none !important; }
+  .cv-m-session.cv-m-leave { display: none; }
+}
+/* Same rules, forced by script or a toggle: <html data-cv-motion="reduce"> */
+:root[data-cv-motion="reduce"] [class*="cv-"], :root[data-cv-motion="reduce"] [class*="cv-"] *,
+:root[data-cv-motion="reduce"] [class*="cv-"]::before, :root[data-cv-motion="reduce"] [class*="cv-"]::after,
+:root[data-cv-motion="reduce"] [class*="cv-"] *::before, :root[data-cv-motion="reduce"] [class*="cv-"] *::after { animation: none !important; transition: none !important; }
+:root[data-cv-motion="reduce"] .cv-m-session.cv-m-leave { display: none; }

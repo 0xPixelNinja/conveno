@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 48" width="384" height="72" role="img" aria-label="A ticket moves from open to routed, answered and closed">
+<style>
+:root{--k:#111B28;--e:#2346D9;--q:#566474;--r:#C7D0DA;--st:#9A5700;--ok:#1E7B3A;--er:#B3202A}
+@media (prefers-color-scheme:dark){:root{--k:#E4EAF1;--e:#8CA6FF;--q:#93A1B3;--r:#2A384A;--st:#FFB547;--ok:#7BD88F;--er:#F2777A}}
+.k{fill:var(--k)}.e{fill:var(--e)}
+.n,.g{animation:.2s cubic-bezier(.2,.7,.1,1) both;animation-name:f}
+.g{animation:.56s cubic-bezier(.65,0,.25,1) both;animation-name:x;transform-box:fill-box;transform-origin:0 50%}
+.n2{animation-delay:.88s}.n3{animation-delay:1.76s}.n4{animation-delay:2.64s}
+.g1{animation-delay:.12s}.g2{animation-delay:1s}.g3{animation-delay:1.88s}
+@keyframes f{from{fill:transparent}}@keyframes x{from{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<rect class="g g1" style="fill:var(--st)" x="30" y="23" width="60" height="2"/>
+<rect class="g g2" style="fill:var(--e)" x="102" y="23" width="60" height="2"/>
+<rect class="g g3" style="fill:var(--k)" x="174" y="23" width="60" height="2"/>
+<rect class="n n1" style="fill:var(--st);stroke:var(--st);stroke-width:2" x="19" y="19" width="10" height="10" transform="translate(0,0)"/>
+<rect class="n n2" style="fill:var(--e);stroke:var(--e);stroke-width:2" x="91" y="19" width="10" height="10" transform="translate(0,0)"/>
+<rect class="n n3" style="fill:var(--k);stroke:var(--k);stroke-width:2" x="163" y="19" width="10" height="10" transform="translate(0,0)"/>
+<rect class="n n4" style="fill:var(--q);stroke:var(--q);stroke-width:2" x="235" y="19" width="10" height="10" transform="translate(0,0)"/>
+</svg>

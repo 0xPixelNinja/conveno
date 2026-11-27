@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Next turn: delivered when the current turn ends.">
+<title>tier-next-turn</title>
+<path d="M6 6L13 12L6 18"/>
+<path d="M18 5V19"/>
+</svg>

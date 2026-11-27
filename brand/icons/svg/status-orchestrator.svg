@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Orchestrator: the one blue status. A small c with the point.">
+<title>status-orchestrator</title>
+<style>.cv-pt{fill:var(--cv-point,currentColor);stroke:none}.cv-pt-entry{fill:var(--cv-point,var(--cv-entry,currentColor))}</style>
+<path d="M14 6H6V18H14"/>
+<circle class="cv-pt cv-pt-entry" cx="17" cy="12" r="3"/>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.875" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" role="img" aria-label="Decision: a path splits and one branch is chosen.">
+<title>decision</title>
+<style>.cv-pt{fill:var(--cv-point,currentColor);stroke:none}.cv-pt-entry{fill:var(--cv-point,var(--cv-entry,currentColor))}</style>
+<path d="M3 12H8M8 6V18M8 6H14.5M8 18H21"/>
+<circle class="cv-pt" cx="19.5" cy="6" r="2.25"/>
+</svg>

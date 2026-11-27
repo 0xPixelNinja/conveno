@@ -1,0 +1,22 @@
+{
+  "name": "entry-write",
+  "intervalMs": 120,
+  "frames": [
+    "c     ",
+    "c─    ",
+    "c──   ",
+    "c───  ",
+    "c─── ●",
+    "c─── ●"
+  ],
+  "asciiFrames": [
+    "c     ",
+    "c-    ",
+    "c--   ",
+    "c---  ",
+    "c--- *",
+    "c--- *"
+  ],
+  "showAfterMs": 400,
+  "noMotion": "Static 'c─── ●' line when CONVENO_NO_MOTION=1, CI is set, stdout is not a TTY, or NO_COLOR with TERM=dumb."
+}

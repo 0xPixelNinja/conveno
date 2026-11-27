@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 176 104" width="352" height="208" role="img" aria-label="A session joins the record">
+<style>
+:root{--k:#111B28;--e:#2346D9;--q:#566474;--r:#C7D0DA;--st:#9A5700;--ok:#1E7B3A;--er:#B3202A}
+@media (prefers-color-scheme:dark){:root{--k:#E4EAF1;--e:#8CA6FF;--q:#93A1B3;--r:#2A384A;--st:#FFB547;--ok:#7BD88F;--er:#F2777A}}
+.k{fill:var(--k)}.e{fill:var(--e)}
+.rl,.dt,.nm{transform-box:fill-box}.rl{transform-origin:50% 0;animation:y .32s cubic-bezier(.65,0,.25,1) .08s both}
+.dt{transform-origin:50% 50%;animation:p .2s cubic-bezier(.2,.7,.1,1) .24s both}.nm{transform-origin:0 50%;animation:x .32s cubic-bezier(.65,0,.25,1) .32s both}
+@keyframes y{from{transform:scaleY(0)}}@keyframes x{from{transform:scaleX(0)}}@keyframes p{from{opacity:0;transform:scale(.6)}}
+.l{fill:var(--r)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<rect class="k" x="8" y="8" width="2" height="24"/><circle class="k" cx="24" cy="20" r="4"/><rect class="k" x="36" y="17" width="56" height="6"/><rect class="l" x="8" y="39" width="160" height="1"/>
+<rect class="k" x="8" y="40" width="2" height="24"/><circle class="k" cx="24" cy="52" r="4"/><rect class="k" x="36" y="49" width="44" height="6"/><rect class="l" x="8" y="71" width="160" height="1"/>
+<rect class="k rl" x="8" y="72" width="2" height="24"/><circle class="k dt" cx="24" cy="84" r="4"/><rect class="k nm" x="36" y="81" width="64" height="6"/>
+</svg>
