@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { chmodSync, existsSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { homedir } from "node:os";
@@ -8,6 +7,8 @@ import {
   baseName,
   ConvenoError,
   claimOrchestrator,
+  clientProof,
+  daemonProof,
   dataPaths,
   detectRepo,
   effectiveHolder,
@@ -18,10 +19,15 @@ import {
   type MailboxEntry,
   markDelivered,
   type NamedSession,
+  newAuthNonce,
   pendingForInjection,
+  proofsMatch,
+  RESPONSE_BUDGET_BYTES,
   readInbox,
   resolveRecipient,
   statusAfterLiveness,
+  takeWithinBytes,
+  tooManyUnreadMessage,
   validateRename,
 } from "@0xpixelninja/conveno-core";
 import {
@@ -46,6 +52,7 @@ import {
   type RpcId,
   type Session,
   SessionId,
+  sanitizeLine,
 } from "@0xpixelninja/conveno-protocol";
 import {
   acquireLock,
@@ -60,6 +67,12 @@ import { type SessionRow, Store, toSession } from "./store.js";
 export const DAEMON_VERSION = "0.0.0";
 export const DEFAULT_IDLE_EXIT_MS = 10 * 60_000;
 export const SWEEP_INTERVAL_MS = 15_000;
+/** A connection that has not finished the handshake by then is closed. */
+export const AUTH_TIMEOUT_MS = 5_000;
+/** Unread messages one session may hold. */
+export const MAX_UNREAD_PER_SESSION = 1000;
+/** Offline sessions not seen for this long are deleted by the sweep. */
+export const PRUNE_OFFLINE_AFTER_MS = 7 * 24 * 3_600_000;
 
 /** Sender id on `system` messages made by the daemon itself (no session sent them). */
 export const DAEMON_SENDER_ID = SessionId.parse("0".repeat(26));
@@ -91,14 +104,14 @@ interface Subscription {
 
 interface Conn {
   socket: Socket;
+  /** Set once `hello` has succeeded: the challenge the client must sign in `auth`. */
+  challenge?: string;
   authed: boolean;
   sub?: Subscription;
   queue: Promise<void>;
 }
 
 const CLI_TIER: Record<string, DeliveryTier> = { claude: "next_turn", codex: "next_turn" };
-
-const digest = (s: string) => createHash("sha256").update(s).digest();
 
 class Daemon {
   readonly conns = new Set<Conn>();
@@ -126,13 +139,20 @@ class Daemon {
   attach(socket: Socket): void {
     const conn: Conn = { socket, authed: false, queue: Promise.resolve() };
     this.conns.add(conn);
+    const authTimer = setTimeout(() => {
+      if (!conn.authed) socket.destroy();
+    }, AUTH_TIMEOUT_MS);
+    authTimer.unref();
     const decoder = createLineDecoder();
     socket.on("data", (chunk) => {
       for (const frame of decoder.push(chunk)) {
         conn.queue = conn.queue.then(() => this.onFrame(conn, frame));
       }
     });
-    socket.on("close", () => this.conns.delete(conn));
+    socket.on("close", () => {
+      clearTimeout(authTimer);
+      this.conns.delete(conn);
+    });
     socket.on("error", () => socket.destroy());
   }
 
@@ -141,9 +161,16 @@ class Daemon {
     try {
       conn.socket.write(encodeFrame(obj));
     } catch {
-      conn.socket.write(
-        encodeFrame(makeError(null, RpcErrorCode.InternalError, "Response too large to send.")),
-      );
+      // The frame could not be encoded (too large). Answer the same request with an error so
+      // the caller is not left waiting; notifications have no id and are dropped.
+      const id = (obj as { id?: unknown } | null)?.id;
+      if (typeof id === "string" || typeof id === "number") {
+        conn.socket.write(
+          encodeFrame(
+            makeError(id, RpcErrorCode.InternalError, "The response was too large to send."),
+          ),
+        );
+      }
     }
   }
 
@@ -172,7 +199,7 @@ class Daemon {
     const parsed = parseIpcRequest(frame.value);
     if (!parsed.ok) {
       const method = (frame.value as { method?: unknown } | null)?.method;
-      const needsAuth = !conn.authed && method !== "hello";
+      const needsAuth = !conn.authed && method !== "hello" && method !== "auth";
       const code = parsed.error.code;
       if (
         needsAuth &&
@@ -185,7 +212,7 @@ class Daemon {
       return;
     }
     const req = parsed.request;
-    if (!conn.authed && req.method !== "hello") {
+    if (!conn.authed && req.method !== "hello" && req.method !== "auth") {
       this.send(conn, makeError(req.id, RpcErrorCode.Unauthorized, unauthorizedMessage));
       return;
     }
@@ -194,7 +221,7 @@ class Daemon {
       this.send(conn, makeResult(req.id, result));
     } catch (e) {
       this.sendError(conn, req.id, e);
-      if (req.method === "hello") conn.socket.end();
+      if (req.method === "hello" || req.method === "auth") conn.socket.end();
     }
   }
 
@@ -207,7 +234,7 @@ class Daemon {
         makeError(
           id,
           RpcErrorCode.InternalError,
-          'convenod hit an internal error. Check the daemon log and restart it with "conveno daemon stop".',
+          'The Conveno daemon hit an internal error. Check the daemon log, then run "conveno daemon stop" and try again.',
         ),
       );
     }
@@ -219,6 +246,8 @@ class Daemon {
     switch (req.method) {
       case "hello":
         return this.hello(conn, req.params);
+      case "auth":
+        return this.auth(conn, req.params);
       case "session.register":
         return this.registerAsync(req.params);
       case "session.heartbeat":
@@ -248,28 +277,45 @@ class Daemon {
       default:
         throw new ConvenoError(
           RpcErrorCode.MethodNotFound,
-          `Method not found: ${req.method}. It is not implemented in this version of convenod.`,
+          `Method not found: ${req.method}. This version of the Conveno daemon does not support it. Run "conveno daemon status" to see which version is running.`,
         );
     }
   }
 
   private hello(conn: Conn, p: IpcParams<"hello">) {
-    const ok = timingSafeEqual(digest(p.authToken), digest(this.token));
-    if (!ok) {
+    if (conn.challenge !== undefined) {
       throw new ConvenoError(
-        RpcErrorCode.Unauthorized,
-        "The auth token is wrong. Read it from daemon.token in the Conveno data directory.",
+        RpcErrorCode.Conflict,
+        "The handshake already started on this connection.",
       );
     }
     if (p.protocolVersion !== PROTOCOL_VERSION) {
-      const err = new ConvenoError(
+      throw new ConvenoError(
         RpcErrorCode.VersionMismatch,
         `Protocol version "${p.protocolVersion}" is not supported. This daemon speaks "${PROTOCOL_VERSION}". Update the client or the daemon so the versions match.`,
       );
-      throw err;
+    }
+    conn.challenge = newAuthNonce();
+    return {
+      protocolVersion: PROTOCOL_VERSION,
+      daemonVersion: DAEMON_VERSION,
+      proof: daemonProof(this.token, p.nonce),
+      challenge: conn.challenge,
+    };
+  }
+
+  private auth(conn: Conn, p: IpcParams<"auth">) {
+    if (conn.challenge === undefined) {
+      throw new ConvenoError(RpcErrorCode.Unauthorized, unauthorizedMessage);
+    }
+    if (!proofsMatch(p.proof, clientProof(this.token, conn.challenge))) {
+      throw new ConvenoError(
+        RpcErrorCode.Unauthorized,
+        "The auth proof is wrong. The client must use the token in daemon.token in the Conveno data directory.",
+      );
     }
     conn.authed = true;
-    return { protocolVersion: PROTOCOL_VERSION, daemonVersion: DAEMON_VERSION };
+    return { ok: true as const };
   }
 
   /* ---- helpers ---- */
@@ -433,7 +479,11 @@ class Daemon {
     }
     const fields: { status?: typeof row.status; statusText?: string | null } = {};
     if (p.status !== undefined) fields.status = p.status;
-    if (p.statusText !== undefined) fields.statusText = p.statusText;
+    if (p.statusText !== undefined) {
+      // One line of plain text: control characters and newlines would break the listing.
+      const clean = p.statusText === null ? "" : sanitizeLine(p.statusText);
+      fields.statusText = clean === "" ? null : clean;
+    }
     this.store.updateSession(p.sessionId, fields);
     this.emitSession(p.sessionId, "updated");
     return { session: this.view(this.requireSession(p.sessionId)) };
@@ -504,9 +554,27 @@ class Daemon {
         `Session "${sender.name}" is offline. Register the session again before sending.`,
       );
     }
+    if (p.kind === "system") {
+      throw new ConvenoError(
+        RpcErrorCode.InvalidParams,
+        'Messages of kind "system" are made by the Conveno daemon only. Send kind "text" instead.',
+      );
+    }
+    if (p.replyTo !== undefined && !this.store.hasMessage(p.replyTo)) {
+      throw new ConvenoError(
+        RpcErrorCode.NotFound,
+        `Message ${p.replyTo} does not exist, so it cannot be replied to. Check the message id.`,
+      );
+    }
     const rows = this.store.allSessions();
     const target = resolveRecipient(p.to, this.named(rows), this.store.holder());
     const targetRow = rows.find((r) => r.id === target.id) as SessionRow;
+    if (this.store.unreadCount(targetRow.id) >= MAX_UNREAD_PER_SESSION) {
+      throw new ConvenoError(
+        RpcErrorCode.LimitExceeded,
+        tooManyUnreadMessage(targetRow.name, MAX_UNREAD_PER_SESSION),
+      );
+    }
     const at = this.iso();
     const message = {
       id: newMessageId(),
@@ -533,11 +601,12 @@ class Daemon {
     this.requireSession(p.sessionId);
     const at = this.iso();
     return this.store.tx(() => {
-      const entries = this.store.entries(
-        p.sessionId,
-        p.unreadOnly ? { states: ["queued", "delivered"] } : {},
+      const entries = this.store.entries(p.sessionId, p.unreadOnly ? { states: ["queued"] } : {});
+      const res = readInbox(
+        entries,
+        { unreadOnly: p.unreadOnly, limit: p.limit, maxBytes: RESPONSE_BUDGET_BYTES },
+        at,
       );
-      const res = readInbox(entries, { unreadOnly: p.unreadOnly, limit: p.limit }, at);
       const changed = new Set(res.returned.map((e) => e.message.id));
       for (const e of res.entries)
         if (changed.has(e.message.id)) this.store.saveEntry(p.sessionId, e);
@@ -551,7 +620,7 @@ class Daemon {
     const at = this.iso();
     return this.store.tx(() => {
       const pending = pendingForInjection(this.store.entries(p.sessionId, { states: ["queued"] }));
-      const taken = pending.slice(0, p.limit);
+      const taken = takeWithinBytes(pending.slice(0, p.limit), RESPONSE_BUDGET_BYTES);
       const updated = markDelivered(
         taken,
         taken.map((e) => e.message.id),
@@ -588,7 +657,12 @@ class Daemon {
     const nowMs = this.now().getTime();
     let online = 0;
     for (const row of this.store.allSessions()) {
-      if (row.status === "offline") continue;
+      if (row.status === "offline") {
+        if (nowMs - Date.parse(row.lastSeenAt) >= PRUNE_OFFLINE_AFTER_MS) {
+          this.store.tx(() => this.store.deleteSession(row.id));
+        }
+        continue;
+      }
       // Sessions that outlived a daemon restart get one full window to heartbeat again.
       const lastSeenMs = Math.max(Date.parse(row.lastSeenAt), this.startedMs);
       const verdict = evaluateLiveness({ lastSeenMs, hostPid: row.hostPid }, nowMs, this.isAlive);
@@ -604,7 +678,7 @@ class Daemon {
 }
 
 const unauthorizedMessage =
-  "Call hello with the auth token first. The token is in daemon.token in the Conveno data directory.";
+  "Finish the handshake first: call hello, then auth. Both use the token in daemon.token in the Conveno data directory.";
 
 /** Start convenod: take the lock, open the database, listen on the socket. */
 export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {

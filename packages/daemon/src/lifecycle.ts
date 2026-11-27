@@ -10,10 +10,12 @@ import {
 } from "node:fs";
 import { connect } from "node:net";
 
-/** Thrown when another convenod already owns the lock file or answers on the socket. */
+/** Thrown when another Conveno daemon already owns the lock file or answers on the socket. */
 export class DaemonAlreadyRunningError extends Error {
   constructor(detail: string) {
-    super(`convenod is already running (${detail}). Use "conveno daemon status" to inspect it.`);
+    super(
+      `The Conveno daemon is already running (${detail}). Run "conveno daemon status" to see it.`,
+    );
     this.name = "DaemonAlreadyRunningError";
   }
 }
@@ -47,13 +49,19 @@ export function probeSocket(socketPath: string, timeoutMs = 500): Promise<boolea
 const LOCK_GRACE_MS = 5_000;
 
 /**
- * Create the lock file exclusively. An existing lock is stale unless its pid is alive and either
- * the socket answers or the lock is brand new. Returns a function that releases the lock.
+ * Create the lock file exclusively. The lock records the pid and the socket path of its owner.
+ * An existing lock is stale unless its pid is alive and either the socket recorded in the lock
+ * answers or the lock is brand new. The recorded socket is probed, not the new daemon's own, so
+ * a daemon started with a different socket path is still seen as running. Returns a function that
+ * releases the lock.
  */
 export async function acquireLock(lockPath: string, socketPath: string): Promise<() => void> {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      writeFileSync(lockPath, JSON.stringify({ pid: process.pid }), { flag: "wx", mode: 0o600 });
+      writeFileSync(lockPath, JSON.stringify({ pid: process.pid, socketPath }), {
+        flag: "wx",
+        mode: 0o600,
+      });
       return () => {
         try {
           unlinkSync(lockPath);
@@ -65,9 +73,17 @@ export async function acquireLock(lockPath: string, socketPath: string): Promise
       if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
     }
     let pid = 0;
+    let lockedSocket = socketPath;
     let ageMs = Number.POSITIVE_INFINITY;
     try {
-      pid = (JSON.parse(readFileSync(lockPath, "utf8")) as { pid?: number }).pid ?? 0;
+      const lock = JSON.parse(readFileSync(lockPath, "utf8")) as {
+        pid?: number;
+        socketPath?: string;
+      };
+      pid = lock.pid ?? 0;
+      if (typeof lock.socketPath === "string" && lock.socketPath !== "") {
+        lockedSocket = lock.socketPath;
+      }
       ageMs = Date.now() - statSync(lockPath).mtimeMs;
     } catch {
       // unreadable or corrupt lock: treat as stale
@@ -75,7 +91,7 @@ export async function acquireLock(lockPath: string, socketPath: string): Promise
     if (
       pid > 0 &&
       defaultIsAlive(pid) &&
-      (ageMs < LOCK_GRACE_MS || (await probeSocket(socketPath)))
+      (ageMs < LOCK_GRACE_MS || (await probeSocket(lockedSocket)))
     ) {
       throw new DaemonAlreadyRunningError(`pid ${pid}`);
     }
