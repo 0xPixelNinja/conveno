@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { ConvenoError } from "@0xpixelninja/conveno-core";
-import { type EventPayload, newSessionId, RpcErrorCode } from "@0xpixelninja/conveno-protocol";
+import { ConvenoError } from "@conveno/core";
+import { type EventPayload, newSessionId, RpcErrorCode } from "@conveno/protocol";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   type FakeServer,

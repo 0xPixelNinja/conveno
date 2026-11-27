@@ -1,4 +1,4 @@
-import { NO_ORCHESTRATOR_MESSAGE, NOT_FROM_USER_NOTICE } from "@0xpixelninja/conveno-core";
+import { NO_ORCHESTRATOR_MESSAGE, NOT_FROM_USER_NOTICE } from "@conveno/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   type DaemonProc,

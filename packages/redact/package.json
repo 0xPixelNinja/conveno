@@ -1,5 +1,5 @@
 {
-  "name": "@0xpixelninja/conveno-redact",
+  "name": "@conveno/redact",
   "version": "0.0.0",
   "private": true,
   "description": "Secret redaction for cross-session transcript reads",

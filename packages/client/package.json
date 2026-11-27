@@ -1,18 +1,23 @@
 {
-  "name": "@0xpixelninja/conveno-client",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Typed IPC client for the Conveno daemon: connect, hello, auto-start, reconnect",
+  "name": "@conveno/client",
+  "version": "0.1.0",
+  "description": "Client that connects to the local Conveno daemon over its IPC socket.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPixelNinja/conveno.git",
     "directory": "packages/client"
   },
-  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "homepage": "https://conveno.dev",
   "bugs": {
     "url": "https://github.com/0xPixelNinja/conveno/issues"
   },
+  "keywords": [
+    "conveno",
+    "client",
+    "ipc",
+    "daemon"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,18 +28,24 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@0xpixelninja/conveno-core": "workspace:*",
-    "@0xpixelninja/conveno-protocol": "workspace:*"
+    "@conveno/core": "workspace:*",
+    "@conveno/protocol": "workspace:*"
   }
 }

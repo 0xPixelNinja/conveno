@@ -1,4 +1,4 @@
-import type { SessionStatus } from "@0xpixelninja/conveno-protocol";
+import type { SessionStatus } from "@conveno/protocol";
 
 export const HEARTBEAT_INTERVAL_MS = 15_000;
 export const OFFLINE_AFTER_MS = 45_000;

@@ -1,19 +1,27 @@
 {
-  "name": "@0xpixelninja/conveno-daemon",
-  "version": "0.0.0",
-  "private": true,
-  "description": "convenod: local daemon (IPC server, SQLite, process management)",
+  "name": "@conveno/daemon",
+  "version": "0.1.0",
+  "description": "convenod, the local Conveno daemon: IPC server, SQLite store and process management.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPixelNinja/conveno.git",
     "directory": "packages/daemon"
   },
-  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "homepage": "https://conveno.dev",
   "bugs": {
     "url": "https://github.com/0xPixelNinja/conveno/issues"
   },
+  "keywords": [
+    "conveno",
+    "daemon",
+    "sqlite",
+    "ipc"
+  ],
   "type": "module",
+  "bin": {
+    "convenod": "./dist/bin.js"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -26,21 +34,24 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
-  },
-  "bin": {
-    "convenod": "./dist/bin.js"
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@0xpixelninja/conveno-core": "workspace:*",
-    "@0xpixelninja/conveno-protocol": "workspace:*"
+    "@conveno/core": "workspace:*",
+    "@conveno/protocol": "workspace:*"
   }
 }

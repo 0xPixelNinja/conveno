@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
 import { chmod, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import claudeAdapter from "@0xpixelninja/conveno-adapter-claude";
-import { connect } from "@0xpixelninja/conveno-client";
-import { dataPaths } from "@0xpixelninja/conveno-core";
+import claudeAdapter from "@conveno/adapter-claude";
+import { connect } from "@conveno/client";
+import { dataPaths } from "@conveno/core";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { type PlannedChange, usesCommand } from "./apply.js";
 import { levenshtein } from "./fmt.js";

@@ -1,4 +1,4 @@
-import type { Message, MessageId } from "@0xpixelninja/conveno-protocol";
+import type { Message, MessageId } from "@conveno/protocol";
 
 export const MAILBOX_STATES = ["queued", "delivered", "read", "acked"] as const;
 export type MailboxState = (typeof MAILBOX_STATES)[number];

@@ -1,4 +1,4 @@
-# @0xpixelninja/conveno-core
+# @conveno/core
 
 Shared logic for Conveno: session naming, recipient resolution, orchestrator claims, liveness,
 mailbox state and message framing. The daemon, client, MCP server and CLI import it.

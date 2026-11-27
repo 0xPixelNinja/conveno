@@ -8,7 +8,7 @@ import {
   formatHookContext,
   type HookContext,
   type HookOutput,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   addServer,
   ConfigParseError,
@@ -19,7 +19,7 @@ import {
   serverOf,
 } from "./toml.js";
 
-export const PACKAGE_NAME = "@0xpixelninja/conveno-adapter-codex";
+export const PACKAGE_NAME = "@conveno/adapter-codex";
 
 const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit"] as const;
 type HookEvent = (typeof HOOK_EVENTS)[number];

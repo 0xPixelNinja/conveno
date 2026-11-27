@@ -4,7 +4,7 @@ import {
   SESSION_NAME_PATTERN,
   type SessionId,
   SessionName,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 import { ConvenoError } from "./errors.js";
 import { isOnline } from "./liveness.js";
 

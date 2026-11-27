@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { PROTOCOL_VERSION } from "@0xpixelninja/conveno-protocol";
+import { PROTOCOL_VERSION } from "@conveno/protocol";
 
 /** 32 random bytes as lowercase hex, for nonces and challenges. */
 export const newAuthNonce = (): string => randomBytes(32).toString("hex");

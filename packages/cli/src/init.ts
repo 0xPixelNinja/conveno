@@ -1,5 +1,5 @@
-import { type Adapter, type Detection, dataPaths } from "@0xpixelninja/conveno-core";
-import { CLI_KINDS, type CliKind } from "@0xpixelninja/conveno-protocol";
+import { type Adapter, type Detection, dataPaths } from "@conveno/core";
+import { CLI_KINDS, type CliKind } from "@conveno/protocol";
 import {
   type Applied,
   ApplyError,

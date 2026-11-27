@@ -1,18 +1,23 @@
 {
-  "name": "@0xpixelninja/conveno-mcp",
-  "version": "0.0.0",
-  "private": true,
-  "description": "conveno-mcp: stdio MCP server that forwards tool calls to the daemon",
+  "name": "@conveno/mcp",
+  "version": "0.1.0",
+  "description": "MCP server that gives an AI coding CLI session the Conveno tools.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPixelNinja/conveno.git",
     "directory": "packages/mcp"
   },
-  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "homepage": "https://conveno.dev",
   "bugs": {
     "url": "https://github.com/0xPixelNinja/conveno/issues"
   },
+  "keywords": [
+    "conveno",
+    "mcp",
+    "model-context-protocol",
+    "agents"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,20 +28,26 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@0xpixelninja/conveno-client": "workspace:*",
-    "@0xpixelninja/conveno-core": "workspace:*",
-    "@0xpixelninja/conveno-protocol": "workspace:*",
+    "@conveno/client": "workspace:*",
+    "@conveno/core": "workspace:*",
+    "@conveno/protocol": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.2",
     "zod": "4.6.7"
   }

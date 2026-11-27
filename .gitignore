@@ -16,3 +16,6 @@ coverage/
 .venv/
 __pycache__/
 .claude/worktrees/
+
+# Copied from the root by the prepack script
+packages/**/LICENSE

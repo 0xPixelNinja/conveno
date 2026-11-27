@@ -16,7 +16,7 @@
   description: "convenod: registry, mailbox, routing, spawn"
 - name: "area: mcp"
   color: "0A6C82"
-  description: "conveno-mcp, the per-session MCP server"
+  description: "@conveno/mcp, the per-session MCP server"
 - name: "area: cli"
   color: "0A6C82"
   description: "The conveno command"

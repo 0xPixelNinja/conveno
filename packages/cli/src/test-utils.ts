@@ -2,11 +2,11 @@ import { randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import claudeAdapter from "@0xpixelninja/conveno-adapter-claude";
-import { createTheme } from "@0xpixelninja/conveno-brand";
-import { connect } from "@0xpixelninja/conveno-client";
-import type { Adapter } from "@0xpixelninja/conveno-core";
-import { type DaemonHandle, startDaemon } from "@0xpixelninja/conveno-daemon";
+import claudeAdapter from "@conveno/adapter-claude";
+import { createTheme } from "@conveno/brand";
+import { connect } from "@conveno/client";
+import type { Adapter } from "@conveno/core";
+import { type DaemonHandle, startDaemon } from "@conveno/daemon";
 import type { Ctx } from "./ctx.js";
 
 export const FIXED_NOW = new Date("2026-11-27T14:02:11.000Z");

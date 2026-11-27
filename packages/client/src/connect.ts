@@ -14,7 +14,7 @@ import {
   dataPaths,
   newAuthNonce,
   proofsMatch,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   type ClientKind,
   createLineDecoder,
@@ -28,7 +28,7 @@ import {
   RpcErrorCode,
   RpcResponse,
   socketPathTooLongMessage,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 
 export interface ConnectOptions {
   kind: ClientKind;
@@ -38,7 +38,7 @@ export interface ConnectOptions {
   socketPath?: string;
   /** Spawn the daemon when nothing is listening, at first connect and when reconnecting. Default true. */
   autoStart?: boolean;
-  /** Path to the daemon's entry script. Default: resolve `@0xpixelninja/conveno-daemon/bin`. */
+  /** Path to the daemon's entry script. Default: resolve `@conveno/daemon/bin`. */
   daemonEntry?: string;
   /** Per-request timeout in milliseconds. Default 5000. */
   requestTimeoutMs?: number;
@@ -341,7 +341,7 @@ async function handshake(
 function resolveDaemonEntry(explicit?: string): string {
   if (explicit) return explicit;
   try {
-    return fileURLToPath(import.meta.resolve("@0xpixelninja/conveno-daemon/bin"));
+    return fileURLToPath(import.meta.resolve("@conveno/daemon/bin"));
   } catch {
     throw new ClientError(
       'Cannot find the Conveno daemon program. Pass daemonEntry to connect(), or run "conveno daemon start" yourself.',

@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { createServer, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clientProof, daemonProof, newAuthNonce, proofsMatch } from "@0xpixelninja/conveno-core";
+import { clientProof, daemonProof, newAuthNonce, proofsMatch } from "@conveno/core";
 import {
   createLineDecoder,
   encodeFrame,
@@ -13,7 +13,7 @@ import {
   newSessionId,
   PROTOCOL_VERSION,
   RpcErrorCode,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 
 export const TOKEN = "test-token-123";
 const NOW = "2026-11-27T09:30:00.000Z";

@@ -1,3 +1,3 @@
-# @0xpixelninja/conveno-adapter-copilot
+# @conveno/adapter-copilot
 
 Conveno adapter for copilot. Stub: not implemented yet.

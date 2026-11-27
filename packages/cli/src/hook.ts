@@ -1,4 +1,4 @@
-import type { ConvenoClient } from "@0xpixelninja/conveno-core";
+import type { ConvenoClient } from "@conveno/core";
 import { type Ctx, connectOpts } from "./ctx.js";
 
 /** How many processes above the hook to try: the shell, the CLI, and a few wrappers. */

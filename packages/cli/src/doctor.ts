@@ -1,4 +1,4 @@
-import type { Adapter, Detection } from "@0xpixelninja/conveno-core";
+import type { Adapter, Detection } from "@conveno/core";
 import { COMMANDS, parseFlags } from "./args.js";
 import { adapterEnv, type Ctx, connectOpts } from "./ctx.js";
 import { cmd, columns, errorBlock, plainError, plural, warnBlock } from "./fmt.js";

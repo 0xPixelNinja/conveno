@@ -1,6 +1,6 @@
-# @0xpixelninja/conveno-adapter-codex
+# @conveno/adapter-codex
 
-Conveno adapter for the OpenAI Codex CLI. Exports `codexAdapter` (also the default export), an `Adapter` from `@0xpixelninja/conveno-core`. Delivery tier: `next_turn`.
+Conveno adapter for the OpenAI Codex CLI. Exports `codexAdapter` (also the default export), an `Adapter` from `@conveno/core`. Delivery tier: `next_turn`.
 
 ## What it configures
 
@@ -39,4 +39,4 @@ Codex asks the user to review and trust new or changed hooks (`/hooks`) before t
 
 ## Hook command quoting on Windows
 
-The Codex hooks page (https://learn.chatgpt.com/docs/hooks) does not say which shell runs a hook command. The source does: `codex-rs/hooks/src/engine/command_runner.rs` (`build_command`, `default_shell_program`) runs `%COMSPEC% /C "<command line>"`, falling back to `cmd.exe`, on Windows, and `$SHELL -lc` elsewhere. So on Windows the command is written for cmd.exe: words with spaces in double quotes, and forward slashes in paths, for example `"C:/Program Files/nodejs/node.exe" "C:/Users/x/AppData/Roaming/npm/node_modules/conveno/dist/bin.js" hook codex SessionStart`. cmd.exe runs a quoted program path with forward slashes, and the outer quotes that Codex adds around the whole line are stripped by `/C`. Paths without spaces are left unquoted. The docs also list a `commandWindows` override, which is not needed. Read from the docs and source only, not run on Windows.
+The Codex hooks page (https://learn.chatgpt.com/docs/hooks) does not say which shell runs a hook command. The source does: `codex-rs/hooks/src/engine/command_runner.rs` (`build_command`, `default_shell_program`) runs `%COMSPEC% /C "<command line>"`, falling back to `cmd.exe`, on Windows, and `$SHELL -lc` elsewhere. When `conveno` on PATH is this install, the command is plain `conveno hook codex SessionStart` and none of the quoting below applies. Otherwise, on Windows the command is written for cmd.exe: words with spaces in double quotes, and forward slashes in paths, for example `"C:/Program Files/nodejs/node.exe" "C:/Users/x/AppData/Roaming/npm/node_modules/@conveno/cli/dist/bin.js" hook codex SessionStart`. cmd.exe runs a quoted program path with forward slashes, and the outer quotes that Codex adds around the whole line are stripped by `/C`. Paths without spaces are left unquoted. The docs also list a `commandWindows` override, which is not needed. Read from the docs and source only, not run on Windows.

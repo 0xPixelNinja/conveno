@@ -1,7 +1,7 @@
-import type { Theme } from "@0xpixelninja/conveno-brand";
-import type { connect } from "@0xpixelninja/conveno-client";
-import type { Adapter, AdapterEnv } from "@0xpixelninja/conveno-core";
-import type { CliKind } from "@0xpixelninja/conveno-protocol";
+import type { Theme } from "@conveno/brand";
+import type { connect } from "@conveno/client";
+import type { Adapter, AdapterEnv } from "@conveno/core";
+import type { CliKind } from "@conveno/protocol";
 
 /** Everything a command touches outside its own arguments. Tests build one with fakes. */
 export interface Ctx {

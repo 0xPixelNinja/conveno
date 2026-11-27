@@ -1,18 +1,23 @@
 {
-  "name": "@0xpixelninja/conveno-core",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Session model, routing and mailbox logic",
+  "name": "@conveno/core",
+  "version": "0.1.0",
+  "description": "Core library for Conveno: client interface, mailbox, naming, framing and data paths.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPixelNinja/conveno.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "homepage": "https://conveno.dev",
   "bugs": {
     "url": "https://github.com/0xPixelNinja/conveno/issues"
   },
+  "keywords": [
+    "conveno",
+    "core",
+    "mailbox",
+    "agents"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,18 +28,24 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@0xpixelninja/conveno-protocol": "workspace:*",
+    "@conveno/protocol": "workspace:*",
     "zod": "4.6.7"
   }
 }

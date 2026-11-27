@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { homedir } from "node:os";
-import { dataDir } from "@0xpixelninja/conveno-core";
+import { dataDir } from "@conveno/core";
 import { DaemonAlreadyRunningError } from "./lifecycle.js";
 import { startDaemon } from "./server.js";
 

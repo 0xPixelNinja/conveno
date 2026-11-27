@@ -12,8 +12,8 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { type ConfigChange, dataPaths } from "@0xpixelninja/conveno-core";
-import type { CliKind } from "@0xpixelninja/conveno-protocol";
+import { type ConfigChange, dataPaths } from "@conveno/core";
+import type { CliKind } from "@conveno/protocol";
 import type { Ctx } from "./ctx.js";
 import { paintDiff, unifiedDiff } from "./diff.js";
 import { tilde } from "./fmt.js";

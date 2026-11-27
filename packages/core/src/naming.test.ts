@@ -1,9 +1,4 @@
-import {
-  newSessionId,
-  RpcErrorCode,
-  SESSION_NAME_PATTERN,
-  SessionName,
-} from "@0xpixelninja/conveno-protocol";
+import { newSessionId, RpcErrorCode, SESSION_NAME_PATTERN, SessionName } from "@conveno/protocol";
 import { describe, expect, it } from "vitest";
 import { ConvenoError } from "./errors.js";
 import { generateSessionName, sanitizeNamePart, validateRename } from "./naming.js";

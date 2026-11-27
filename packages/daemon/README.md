@@ -1,8 +1,8 @@
-# @0xpixelninja/conveno-daemon
+# @conveno/daemon
 
 `convenod`: the local daemon. It serves the Conveno IPC protocol (JSON-RPC 2.0 over NDJSON) on a
 Unix socket or Windows named pipe, stores sessions and messages in SQLite, and tracks which sessions
-are alive. All rules (naming, liveness, orchestrator, mailbox) come from `@0xpixelninja/conveno-core`.
+are alive. All rules (naming, liveness, orchestrator, mailbox) come from `@conveno/core`.
 
 ## API
 

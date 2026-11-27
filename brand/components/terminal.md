@@ -28,7 +28,7 @@ Rules:
 - `stamp` and `warn` share a hue on purpose. Context separates them: `stamp` is for tickets and waiting, `warn` is always paired with `!` and a fix line.
 - `entry` is for the orchestrator, the live tier, links, and the spinner's point (the mark's point) only; it is never used for decoration, headings, commands or the prompt. Commands are bold ink; the prompt `›` is `quiet`. Section titles are plain bold or quiet.
 - Colour is never the only carrier of meaning. Every colour sits beside a glyph or a word (`!`, `x`, `waiting`, `orchestrator`).
-- The version is shown in `info` (`conveno 0.0.0` in `--help`). `conveno --version` alone prints the bare version, no colour.
+- The version is shown in `info` (`conveno 0.1.0` in `--help`). `conveno --version` alone prints the bare version, no colour.
 - Reset (SGR 0) at the end of every coloured span and every line, so a crash never leaves the terminal tinted.
 - Background colours are never set.
 

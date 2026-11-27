@@ -1,5 +1,5 @@
 import { readFile, rm } from "node:fs/promises";
-import { dataPaths } from "@0xpixelninja/conveno-core";
+import { dataPaths } from "@conveno/core";
 import { type Ctx, connectOpts } from "./ctx.js";
 import { closest, cmd, fail, plainError } from "./fmt.js";
 

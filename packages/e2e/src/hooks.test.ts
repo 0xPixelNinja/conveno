@@ -1,6 +1,6 @@
-import { claudeAdapter } from "@0xpixelninja/conveno-adapter-claude";
-import { codexAdapter } from "@0xpixelninja/conveno-adapter-codex";
-import { type ConvenoClient, NOT_FROM_USER_NOTICE } from "@0xpixelninja/conveno-core";
+import { claudeAdapter } from "@conveno/adapter-claude";
+import { codexAdapter } from "@conveno/adapter-codex";
+import { type ConvenoClient, NOT_FROM_USER_NOTICE } from "@conveno/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   cliClient,

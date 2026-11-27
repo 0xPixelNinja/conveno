@@ -29,7 +29,7 @@ import {
   takeWithinBytes,
   tooManyUnreadMessage,
   validateRename,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   createLineDecoder,
   type DeliveryTier,
@@ -55,7 +55,7 @@ import {
   SessionId,
   sanitizeLine,
   socketPathTooLongMessage,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 import {
   acquireLock,
   clearStaleSocket,
@@ -66,7 +66,7 @@ import {
 } from "./lifecycle.js";
 import { type SessionRow, Store, toSession } from "./store.js";
 
-export const DAEMON_VERSION = "0.0.0";
+export const DAEMON_VERSION = "0.1.0";
 export const DEFAULT_IDLE_EXIT_MS = 10 * 60_000;
 export const SWEEP_INTERVAL_MS = 15_000;
 /** A connection that has not finished the handshake by then is closed. */

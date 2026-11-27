@@ -1,8 +1,8 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type AdapterEnv, type ConfigChange, type ConvenoClient } from "@0xpixelninja/conveno-core";
-import { type Message, newMessageId, newSessionId } from "@0xpixelninja/conveno-protocol";
+import { type AdapterEnv, type ConfigChange, type ConvenoClient } from "@conveno/core";
+import { type Message, newMessageId, newSessionId } from "@conveno/protocol";
 import { parse } from "@decimalturn/toml-patch";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import codexAdapter, { codexAdapter as named } from "./index.js";

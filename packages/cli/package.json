@@ -1,18 +1,27 @@
 {
-  "name": "conveno",
-  "version": "0.0.0",
-  "private": true,
-  "description": "The `conveno` command: init, uninstall, status, doctor, daemon, mcp, hook",
+  "name": "@conveno/cli",
+  "version": "0.1.0",
+  "description": "The conveno command: connect AI coding CLI sessions so they can message each other.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPixelNinja/conveno.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "homepage": "https://conveno.dev",
   "bugs": {
     "url": "https://github.com/0xPixelNinja/conveno/issues"
   },
+  "keywords": [
+    "conveno",
+    "cli",
+    "ai",
+    "coding-agents",
+    "mcp",
+    "claude-code",
+    "codex",
+    "opencode"
+  ],
   "type": "module",
   "bin": {
     "conveno": "./dist/bin.js"
@@ -26,25 +35,31 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@0xpixelninja/conveno-adapter-claude": "workspace:*",
-    "@0xpixelninja/conveno-adapter-codex": "workspace:*",
-    "@0xpixelninja/conveno-adapter-opencode": "workspace:*",
-    "@0xpixelninja/conveno-brand": "workspace:*",
-    "@0xpixelninja/conveno-client": "workspace:*",
-    "@0xpixelninja/conveno-core": "workspace:*",
-    "@0xpixelninja/conveno-daemon": "workspace:*",
-    "@0xpixelninja/conveno-mcp": "workspace:*",
-    "@0xpixelninja/conveno-protocol": "workspace:*"
+    "@conveno/adapter-claude": "workspace:*",
+    "@conveno/adapter-codex": "workspace:*",
+    "@conveno/adapter-opencode": "workspace:*",
+    "@conveno/brand": "workspace:*",
+    "@conveno/client": "workspace:*",
+    "@conveno/core": "workspace:*",
+    "@conveno/daemon": "workspace:*",
+    "@conveno/mcp": "workspace:*",
+    "@conveno/protocol": "workspace:*"
   }
 }

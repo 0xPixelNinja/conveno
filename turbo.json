@@ -13,7 +13,7 @@
       "dependsOn": [],
       "outputs": []
     },
-    "@0xpixelninja/conveno-e2e#build": {
+    "@conveno/e2e#build": {
       "dependsOn": ["^build"],
       "outputs": []
     }

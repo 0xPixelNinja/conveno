@@ -1,4 +1,4 @@
-import type { ConvenoClient } from "@0xpixelninja/conveno-core";
+import type { ConvenoClient } from "@conveno/core";
 import {
   ackEntries,
   ConvenoError,
@@ -9,7 +9,7 @@ import {
   readInbox,
   resolveRecipient,
   validateRename,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   type DeviceId,
   type Message,
@@ -19,7 +19,7 @@ import {
   RpcErrorCode,
   type Session,
   type SessionId,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 
 /** In-memory ConvenoClient for tests: daemon behaviour built from core's rules. One instance can serve several sessions. */
 export class FakeDaemon {

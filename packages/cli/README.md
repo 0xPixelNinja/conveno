@@ -1,6 +1,6 @@
-# conveno
+# @conveno/cli
 
-The `conveno` command. `conveno --help` lists the commands and `conveno <command> --help` the options of one. Unknown commands and flags exit 2 and suggest the closest name. `conveno --version` prints the version and nothing else.
+The `conveno` command. Install it with `npm i -g @conveno/cli`, then run `conveno init`. `conveno --help` lists the commands and `conveno <command> --help` the options of one. Unknown commands and flags exit 2 and suggest the closest name. `conveno --version` prints the version and nothing else.
 
 | Command | What it does |
 |---|---|
@@ -21,7 +21,7 @@ The `conveno` command. `conveno --help` lists the commands and `conveno <command
 - Writing is all or nothing. If any file fails, the files already written in that run are restored from their backups, the backup folder is removed, and the error says nothing was left changed (or names the files it could not restore). On Windows files are written in place, because `fs.rename` (`MoveFileExW`) cannot replace a file another process holds open without share-delete access, which is what failed with EPERM before. Elsewhere they are written through a temp file and renamed.
 - The hook finds its session by walking up from its parent process (up to 6 levels), because `/bin/sh -c "conveno hook ..."` under dash does not exec and the parent is the shell. Linux reads `/proc/<pid>/stat`, macOS runs `ps -o ppid= -p <pid>`, Windows asks CIM once for the process table. Best effort: any failure means nothing is delivered.
 
-The command written into CLI configs is `[node, <this install's bin.js>]`, so configs work without a global install. It is `conveno` instead when the first `conveno` on `PATH` links to this same install.
-The daemon entry is resolved from this package's own dependency (`import.meta.resolve("@0xpixelninja/conveno-daemon/bin")`) and passed to every connection.
+The command written into CLI configs is `[node, <this install's bin.js>]`, so configs work without a global install. It is plain `conveno` instead when the first `conveno` on `PATH` starts this same install. On POSIX that is a symlink check. On Windows the shim is found with the PATH and PATHEXT resolver (`conveno.cmd`, then `conveno.ps1`) and read: npm (cmd-shim) and pnpm shims both name the script they start, and that path is compared with this install's `bin.js` (`src/shim.ts`). That keeps hook commands as plain `conveno hook claude UserPromptSubmit` in Git Bash, cmd.exe and PowerShell.
+The daemon entry is resolved from this package's own dependency (`import.meta.resolve("@conveno/daemon/bin")`) and passed to every connection.
 
 Tests build a context with temp HOME and data directories, fake or real adapters, and a real in-process daemon. Rendered output is snapshotted with `NO_COLOR` set. They import the built daemon, so run `pnpm build` first.

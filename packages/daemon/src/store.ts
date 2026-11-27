@@ -1,5 +1,5 @@
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import type { MailboxEntry, MailboxState } from "@0xpixelninja/conveno-core";
+import type { MailboxEntry, MailboxState } from "@conveno/core";
 import {
   type CliKind,
   type DeliveryTier,
@@ -11,7 +11,7 @@ import {
   type Session,
   type SessionId,
   type SessionStatus,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 
 /** One row of the `sessions` table, in the shape the daemon works with. */
 export interface SessionRow {

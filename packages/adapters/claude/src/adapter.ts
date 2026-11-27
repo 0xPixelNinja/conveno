@@ -7,7 +7,7 @@ import {
   formatHookContext,
   type HookContext,
   type HookOutput,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import { editJson, isObject, type JsonEdit, type JsonObject, loadJson } from "./json-file.js";
 
 export const SERVER_NAME = "conveno";

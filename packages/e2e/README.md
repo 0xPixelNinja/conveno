@@ -1,4 +1,4 @@
-# @0xpixelninja/conveno-e2e
+# @conveno/e2e
 
 Cross-platform end-to-end tests for Conveno. Private, never published.
 
@@ -11,6 +11,6 @@ Each test file starts the real `convenod` (`packages/daemon/dist/bin.js`) in a t
 | `liveness.test.ts` | Crashes a host and its MCP server; the 15 s sweep marks it offline, vacates the orchestrator, and sends fail |
 | `persistence.test.ts` | Sessions, orchestrator and queued messages survive a daemon restart |
 
-Run `pnpm build` at the repo root first (the tests use `dist/`), then `pnpm --filter @0xpixelninja/conveno-e2e test`. The liveness test takes about 16 s.
+Run `pnpm build` at the repo root first (the tests use `dist/`), then `pnpm --filter @conveno/e2e test`. The liveness test takes about 16 s.
 
 `real-cli/` has a script for the owner's machine that uses the real CLIs: see `real-cli/README.md`.

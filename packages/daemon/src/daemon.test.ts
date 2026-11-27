@@ -10,8 +10,8 @@ import {
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clientProof, daemonProof, newAuthNonce } from "@0xpixelninja/conveno-core";
-import { PROTOCOL_VERSION, RpcErrorCode } from "@0xpixelninja/conveno-protocol";
+import { clientProof, daemonProof, newAuthNonce } from "@conveno/core";
+import { PROTOCOL_VERSION, RpcErrorCode } from "@conveno/protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DaemonAlreadyRunningError } from "./lifecycle.js";
 import { startDaemon } from "./server.js";
@@ -42,7 +42,7 @@ describe("handshake and auth", () => {
     const nonce = newAuthNonce();
     const r = await hello(c, nonce);
     expect(r.result?.protocolVersion).toBe(PROTOCOL_VERSION);
-    expect(r.result?.daemonVersion).toBe("0.0.0");
+    expect(r.result?.daemonVersion).toBe("0.1.0");
     expect(r.result?.proof).toBe(daemonProof(h.token(), nonce));
     expect(r.result?.challenge).toMatch(/^[0-9a-f]{64}$/);
     const other = await hello(await h.client());

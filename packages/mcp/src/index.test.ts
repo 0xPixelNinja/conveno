@@ -1,12 +1,9 @@
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  ConvenoError,
-  HEARTBEAT_INTERVAL_MS,
-  NOT_FROM_USER_NOTICE,
-} from "@0xpixelninja/conveno-core";
-import { RpcErrorCode } from "@0xpixelninja/conveno-protocol";
+import { ConvenoError, HEARTBEAT_INTERVAL_MS, NOT_FROM_USER_NOTICE } from "@conveno/core";
+import { RpcErrorCode } from "@conveno/protocol";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -56,7 +53,13 @@ afterEach(async () => {
 
 describe("package", () => {
   it("exports its package name", () => {
-    expect(PACKAGE_NAME).toBe("@0xpixelninja/conveno-mcp");
+    expect(PACKAGE_NAME).toBe("@conveno/mcp");
+  });
+
+  it("reports the version in package.json", async () => {
+    const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+    const peer = await startPeer(root);
+    expect(peer.client.getServerVersion()?.version).toBe(manifest.version);
   });
 });
 

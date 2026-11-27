@@ -1,10 +1,10 @@
-# @0xpixelninja/conveno-client
+# @conveno/client
 
 Typed IPC client for the Conveno daemon. The `mcp`, `cli` and hook code use it.
 
 The package exports one function, `connect(options)`. It opens the daemon socket and returns a
 `ConvenoClient` with one typed method per IPC call, such as `session.list`, `message.send` and
-`orchestrator.claim`. The method names are defined in `@0xpixelninja/conveno-protocol`.
+`orchestrator.claim`. The method names are defined in `@conveno/protocol`.
 
 ## Options
 

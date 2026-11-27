@@ -1,5 +1,5 @@
 import { access } from "node:fs/promises";
-import { connect } from "@0xpixelninja/conveno-client";
+import { connect } from "@conveno/client";
 import {
   baseName,
   type ConvenoClient,
@@ -9,7 +9,7 @@ import {
   HEARTBEAT_INTERVAL_MS,
   NOT_FROM_USER_NOTICE,
   validateRename,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   type CliKind,
   INBOX_MAX_LIMIT,
@@ -18,13 +18,13 @@ import {
   type Session,
   type SessionName,
   STATUS_TEXT_MAX,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-export const PACKAGE_NAME = "@0xpixelninja/conveno-mcp";
-const SERVER_VERSION = "0.0.0";
+export const PACKAGE_NAME = "@conveno/mcp";
+const SERVER_VERSION = "0.1.0";
 
 export interface CreateServerOptions {
   cli: CliKind;

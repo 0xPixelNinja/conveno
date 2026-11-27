@@ -3,13 +3,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { connect, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clientProof, daemonProof, newAuthNonce, proofsMatch } from "@0xpixelninja/conveno-core";
+import { clientProof, daemonProof, newAuthNonce, proofsMatch } from "@conveno/core";
 import {
   createLineDecoder,
   type EventPayload,
   encodeFrame,
   PROTOCOL_VERSION,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 import { type DaemonHandle, type DaemonOptions, startDaemon } from "./server.js";
 
 export interface RpcReply {

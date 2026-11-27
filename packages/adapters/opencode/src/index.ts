@@ -1,12 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
-import type {
-  Adapter,
-  AdapterEnv,
-  ConfigChange,
-  Detection,
-  HookOutput,
-} from "@0xpixelninja/conveno-core";
+import type { Adapter, AdapterEnv, ConfigChange, Detection, HookOutput } from "@conveno/core";
 import { applyEdits, modify, type ParseError, parse, printParseErrorCode } from "jsonc-parser";
 
 const SERVER_NAME = "conveno";

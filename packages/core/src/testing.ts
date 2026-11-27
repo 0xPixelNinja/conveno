@@ -5,7 +5,7 @@ import {
   newMessageId,
   newSessionId,
   type SessionId,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 import type { NamedSession } from "./naming.js";
 
 export const sess = (
