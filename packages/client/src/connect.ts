@@ -8,8 +8,12 @@ import {
   type ClientMethodName,
   type ConvenoClient,
   ConvenoError,
+  clientProof,
+  daemonProof,
   dataDir,
   dataPaths,
+  newAuthNonce,
+  proofsMatch,
 } from "@0xpixelninja/conveno-core";
 import {
   type ClientKind,
@@ -19,9 +23,11 @@ import {
   EventPayload,
   encodeFrame,
   ipcMethods,
+  isSocketPathTooLong,
   PROTOCOL_VERSION,
   RpcErrorCode,
   RpcResponse,
+  socketPathTooLongMessage,
 } from "@0xpixelninja/conveno-protocol";
 
 export interface ConnectOptions {
@@ -30,7 +36,7 @@ export interface ConnectOptions {
   dataDir?: string;
   /** Daemon endpoint. Default: protocol's `defaultSocketPath` for this platform. */
   socketPath?: string;
-  /** Spawn the daemon when nothing is listening. Default true. */
+  /** Spawn the daemon when nothing is listening, at first connect and when reconnecting. Default true. */
   autoStart?: boolean;
   /** Path to the daemon's entry script. Default: resolve `@0xpixelninja/conveno-daemon/bin`. */
   daemonEntry?: string;
@@ -60,9 +66,73 @@ const CLIENT_METHODS = [
   "events.subscribe",
 ] as const satisfies readonly ClientMethodName[];
 
+/**
+ * Methods that must not be sent twice. If the connection drops after one of these went out, the
+ * daemon may have acted on it, so the caller gets an error instead of a silent retry.
+ */
+const NOT_REPLAYABLE = new Set<string>(["message.send", "session.register"]);
+
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const errCode = (e: unknown) => (e as NodeJS.ErrnoException | undefined)?.code;
 const isMissingDaemon = (e: unknown) => errCode(e) === "ENOENT" || errCode(e) === "ECONNREFUSED";
+
+/** An error whose message is already written for the user. Never remapped. */
+class ClientError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "ConvenoClientError";
+  }
+}
+
+/** The socket broke or closed. `sent` tells whether the request may have reached the daemon. */
+class ConnectionLost extends Error {
+  constructor(
+    message: string,
+    readonly sent: boolean,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = "ConnectionLost";
+  }
+}
+
+const noDaemonMessage = (socketPath: string) =>
+  `No Conveno daemon is listening at ${socketPath}. Run "conveno daemon start", or enable autoStart.`;
+
+/** Turn a Node socket error into a message that says what happened and what to do. */
+function plainError(e: unknown, socketPath: string): Error {
+  if (e instanceof ClientError || e instanceof ConvenoError) return e;
+  const code = errCode(e) ?? errCode((e as Error | undefined)?.cause);
+  switch (code) {
+    case "ECONNREFUSED":
+    case "ENOENT":
+      return new ClientError(noDaemonMessage(socketPath), { cause: e });
+    case "EACCES":
+    case "EPERM":
+      return new ClientError(
+        `Permission denied on the Conveno daemon socket at ${socketPath}. It may belong to another user. Check who owns it, or remove it and run "conveno daemon start".`,
+        { cause: e },
+      );
+    case "EPIPE":
+    case "ECONNRESET":
+      return new ClientError(
+        `The connection to the Conveno daemon at ${socketPath} broke. Run "conveno daemon status", then try again.`,
+        { cause: e },
+      );
+    case "ENAMETOOLONG":
+      return new ClientError(socketPathTooLongMessage(socketPath, process.platform), {
+        cause: e,
+      });
+    default:
+      if (code !== undefined) {
+        return new ClientError(
+          `Could not talk to the Conveno daemon at ${socketPath} (${code}). Run "conveno daemon status", then try again.`,
+          { cause: e },
+        );
+      }
+      return e instanceof Error ? e : new Error(String(e));
+  }
+}
 
 function rpcErrorCode(code: number): RpcErrorCode {
   const known: number[] = Object.values(RpcErrorCode);
@@ -88,8 +158,8 @@ async function readToken(tokenPath: string): Promise<string> {
   } catch (e) {
     if (errCode(e) === "ENOENT") {
       throw Object.assign(
-        new Error(
-          `Daemon token file not found at ${tokenPath}. Start the daemon with convenod, then retry.`,
+        new ClientError(
+          `The Conveno daemon token file is missing at ${tokenPath}. Run "conveno daemon start", then try again.`,
         ),
         { code: "ENOENT" },
       );
@@ -97,7 +167,11 @@ async function readToken(tokenPath: string): Promise<string> {
     throw e;
   }
   const token = text.trim();
-  if (!token) throw new Error(`Daemon token file ${tokenPath} is empty. Restart the daemon.`);
+  if (!token) {
+    throw new ClientError(
+      `The Conveno daemon token file ${tokenPath} is empty. Run "conveno daemon stop", then "conveno daemon start".`,
+    );
+  }
   return token;
 }
 
@@ -110,32 +184,31 @@ interface Pending {
 class Connection {
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
-  private readonly handlers = new Set<(e: EventPayload) => void>();
   private readonly decoder = createLineDecoder();
   private closed = false;
 
   constructor(
     private readonly socket: Socket,
     private readonly timeoutMs: number,
+    private readonly onEvent: (e: EventPayload) => void = () => {},
   ) {
     socket.on("data", (chunk) => {
       for (const r of this.decoder.push(chunk)) if (r.ok) this.onMessage(r.value);
     });
-    socket.on("error", (e) => this.failAll(e));
-    socket.on("close", () => this.failAll(new Error("Connection to the Conveno daemon closed.")));
+    socket.on("error", (e) => this.failAll(new ConnectionLost(e.message, true, { cause: e })));
+    socket.on("close", () =>
+      this.failAll(new ConnectionLost("Connection to the Conveno daemon closed.", true)),
+    );
+  }
+
+  get isClosed(): boolean {
+    return this.closed;
   }
 
   private onMessage(value: unknown): void {
     if ((value as { method?: unknown } | null)?.method === EVENT_NOTIFICATION_METHOD) {
       const parsed = EventPayload.safeParse((value as { params?: unknown }).params);
-      if (!parsed.success) return;
-      for (const h of [...this.handlers]) {
-        try {
-          h(parsed.data);
-        } catch {
-          // A throwing listener must not break the connection.
-        }
-      }
+      if (parsed.success) this.onEvent(parsed.data);
       return;
     }
     const res = RpcResponse.safeParse(value);
@@ -162,15 +235,17 @@ class Connection {
 
   call(method: string, params: Record<string, unknown>): Promise<unknown> {
     if (this.closed) {
-      return Promise.reject(new Error("Connection to the Conveno daemon is closed. Reconnect."));
+      return Promise.reject(
+        new ConnectionLost("Connection to the Conveno daemon is closed.", false),
+      );
     }
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(
-          new Error(
-            `Request ${method} timed out after ${this.timeoutMs} ms. Check that the daemon is running.`,
+          new ClientError(
+            `Request ${method} timed out after ${this.timeoutMs} ms. Check that the daemon is running with "conveno daemon status".`,
           ),
         );
       }, this.timeoutMs);
@@ -185,15 +260,8 @@ class Connection {
     });
   }
 
-  onEvent(handler: (e: EventPayload) => void): () => void {
-    this.handlers.add(handler);
-    return () => {
-      this.handlers.delete(handler);
-    };
-  }
-
   close(): Promise<void> {
-    this.failAll(new Error("Client closed."));
+    this.failAll(new ClientError("The Conveno client is closed."));
     return new Promise((resolve) => {
       if (this.socket.destroyed) return resolve();
       this.socket.once("close", () => resolve());
@@ -202,7 +270,7 @@ class Connection {
   }
 }
 
-async function typedCall(conn: Connection, method: string, params: unknown): Promise<unknown> {
+function validate(method: string, params: unknown): Record<string, unknown> {
   const schemas = ipcMethods[method as keyof typeof ipcMethods];
   const parsed = schemas.params.safeParse(params ?? {});
   if (!parsed.success) {
@@ -215,7 +283,11 @@ async function typedCall(conn: Connection, method: string, params: unknown): Pro
       : "Invalid request: ";
     throw new ConvenoError(RpcErrorCode.InvalidParams, `${lead}${detail}.`);
   }
-  const result = await conn.call(method, parsed.data as Record<string, unknown>);
+  return parsed.data as Record<string, unknown>;
+}
+
+function checkResult(method: string, result: unknown): unknown {
+  const schemas = ipcMethods[method as keyof typeof ipcMethods];
   const r = schemas.result.safeParse(result);
   if (!r.success) {
     throw new ConvenoError(
@@ -226,17 +298,39 @@ async function typedCall(conn: Connection, method: string, params: unknown): Pro
   return r.data;
 }
 
+/** One typed call on one connection. Used for the handshake and by `Link`. */
+async function typedCall(conn: Connection, method: string, params: unknown): Promise<unknown> {
+  const wire = validate(method, params);
+  return checkResult(method, await conn.call(method, wire));
+}
+
+/**
+ * Open a socket and run the mutual handshake. The token never crosses the wire: the daemon must
+ * prove it knows it before the client proves the same back.
+ */
 async function handshake(
   socketPath: string,
   tokenPath: string,
   kind: ClientKind,
   timeoutMs: number,
+  onEvent: (e: EventPayload) => void,
 ): Promise<Connection> {
   const socket = await openSocket(socketPath);
-  const conn = new Connection(socket, timeoutMs);
+  const conn = new Connection(socket, timeoutMs, onEvent);
   try {
-    const authToken = await readToken(tokenPath);
-    await typedCall(conn, "hello", { protocolVersion: PROTOCOL_VERSION, client: kind, authToken });
+    const token = await readToken(tokenPath);
+    const nonce = newAuthNonce();
+    const hello = (await typedCall(conn, "hello", {
+      protocolVersion: PROTOCOL_VERSION,
+      client: kind,
+      nonce,
+    })) as { proof: string; challenge: string };
+    if (!proofsMatch(hello.proof, daemonProof(token, nonce))) {
+      throw new ClientError(
+        `The process on ${socketPath} is not the Conveno daemon. Stop it, or remove the socket, and try again.`,
+      );
+    }
+    await typedCall(conn, "auth", { proof: clientProof(token, hello.challenge) });
     return conn;
   } catch (e) {
     await conn.close();
@@ -249,8 +343,8 @@ function resolveDaemonEntry(explicit?: string): string {
   try {
     return fileURLToPath(import.meta.resolve("@0xpixelninja/conveno-daemon/bin"));
   } catch {
-    throw new Error(
-      "Cannot find the daemon entry (@0xpixelninja/conveno-daemon/bin). Pass daemonEntry to connect(), or start convenod yourself.",
+    throw new ClientError(
+      'Cannot find the Conveno daemon program. Pass daemonEntry to connect(), or run "conveno daemon start" yourself.',
     );
   }
 }
@@ -317,50 +411,151 @@ async function startAndConnect(
   } finally {
     await release?.();
   }
-  throw new Error(
-    `The Conveno daemon did not start within ${startTimeout} ms (socket ${socketPath}). Run convenod in a terminal to see why.`,
+  throw new ClientError(
+    `The Conveno daemon did not start within ${startTimeout} ms (socket ${socketPath}). Run "conveno daemon status" to check it.`,
     { cause: last },
   );
 }
 
 /**
- * Connect to the daemon, complete `hello`, and return a typed client. When nothing is listening
- * and `autoStart` is not false, spawns the daemon detached and retries with backoff.
+ * The client's one logical connection. When the socket breaks, for instance because the daemon
+ * restarted, the next call reconnects, redoes the handshake (starting the daemon when allowed),
+ * re-subscribes to events, and retries once.
+ */
+class Link {
+  conn!: Connection;
+  private reconnecting?: Promise<void>;
+  private closed = false;
+  private subscription?: Record<string, unknown>;
+  private readonly handlers = new Set<(e: EventPayload) => void>();
+
+  constructor(
+    private readonly dial: (onEvent: (e: EventPayload) => void) => Promise<Connection>,
+    private readonly socketPath: string,
+  ) {}
+
+  readonly dispatch = (e: EventPayload): void => {
+    for (const h of [...this.handlers]) {
+      try {
+        h(e);
+      } catch {
+        // A throwing listener must not break the connection.
+      }
+    }
+  };
+
+  async open(): Promise<void> {
+    this.conn = await this.dial(this.dispatch);
+  }
+
+  onEvent(handler: (e: EventPayload) => void): () => void {
+    this.handlers.add(handler);
+    return () => {
+      this.handlers.delete(handler);
+    };
+  }
+
+  async call(method: string, params: unknown): Promise<unknown> {
+    const wire = validate(method, params);
+    if (this.closed) throw new ClientError("The Conveno client is closed.");
+    const used = this.conn;
+    let result: unknown;
+    try {
+      result = await used.call(method, wire);
+    } catch (e) {
+      if (!(e instanceof ConnectionLost) || this.closed) throw plainError(e, this.socketPath);
+      if (e.sent && NOT_REPLAYABLE.has(method)) {
+        // The daemon may have handled it. Bring the link back for the next call, but do not resend.
+        await this.reconnect(used).catch(() => {});
+        throw new ClientError(
+          `The connection to the Conveno daemon was lost while sending ${method}. It may or may not have gone through. Check, then try again.`,
+          { cause: e },
+        );
+      }
+      await this.reconnect(used);
+      try {
+        result = await this.conn.call(method, wire);
+      } catch (e2) {
+        throw plainError(e2, this.socketPath);
+      }
+    }
+    if (method === "events.subscribe") this.subscription = wire;
+    return checkResult(method, result);
+  }
+
+  private reconnect(failed: Connection): Promise<void> {
+    if (this.conn !== failed) return Promise.resolve(); // Another call already replaced it.
+    this.reconnecting ??= (async () => {
+      try {
+        const next = await this.dial(this.dispatch);
+        if (this.closed) {
+          await next.close();
+          return;
+        }
+        this.conn = next;
+        if (this.subscription) {
+          // Subscriptions belong to a connection. Best effort: a failure here is not fatal.
+          await typedCall(next, "events.subscribe", this.subscription).catch(() => {});
+        }
+      } finally {
+        this.reconnecting = undefined;
+      }
+    })();
+    return this.reconnecting;
+  }
+
+  async close(): Promise<void> {
+    this.closed = true;
+    await this.conn.close();
+  }
+}
+
+/**
+ * Connect to the daemon, complete the mutual handshake, and return a typed client. When nothing is
+ * listening and `autoStart` is not false, spawns the daemon detached and retries with backoff. A
+ * later call that finds the connection broken reconnects the same way and retries once.
  */
 export async function connect(opts: ConnectOptions): Promise<ConvenoClient> {
   const platform = process.platform;
   const dir = opts.dataDir ?? dataDir(platform, process.env, homedir());
   const socketPath = opts.socketPath ?? defaultSocketPath(platform, process.env, homedir());
+  if (isSocketPathTooLong(socketPath, platform)) {
+    throw new ClientError(socketPathTooLongMessage(socketPath, platform));
+  }
   const tokenPath = dataPaths(platform, dir).token;
   const timeout = opts.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const attempt = () => handshake(socketPath, tokenPath, opts.kind, timeout);
 
-  let conn: Connection;
-  try {
-    conn = await attempt();
-  } catch (e) {
-    if (!isMissingDaemon(e)) throw e;
-    if (opts.autoStart === false) {
-      throw new Error(
-        `No Conveno daemon is listening at ${socketPath}. Start convenod or enable autoStart.`,
-        { cause: e },
-      );
+  const dial = async (onEvent: (e: EventPayload) => void): Promise<Connection> => {
+    const attempt = () => handshake(socketPath, tokenPath, opts.kind, timeout, onEvent);
+    try {
+      try {
+        return await attempt();
+      } catch (e) {
+        if (!isMissingDaemon(e)) throw e;
+        if (opts.autoStart === false)
+          throw new ClientError(noDaemonMessage(socketPath), { cause: e });
+        return await startAndConnect(
+          resolveDaemonEntry(opts.daemonEntry),
+          dir,
+          attempt,
+          socketPath,
+          opts.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS,
+        );
+      }
+    } catch (e) {
+      throw plainError(e, socketPath);
     }
-    conn = await startAndConnect(
-      resolveDaemonEntry(opts.daemonEntry),
-      dir,
-      attempt,
-      socketPath,
-      opts.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS,
-    );
-  }
+  };
+
+  const link = new Link(dial, socketPath);
+  await link.open();
 
   const client: Record<string, unknown> = {
-    onEvent: (handler: (e: EventPayload) => void) => conn.onEvent(handler),
-    close: () => conn.close(),
+    onEvent: (handler: (e: EventPayload) => void) => link.onEvent(handler),
+    close: () => link.close(),
   };
   for (const method of CLIENT_METHODS) {
-    client[method] = (params: unknown) => typedCall(conn, method, params);
+    client[method] = (params: unknown) => link.call(method, params);
   }
   return client as unknown as ConvenoClient;
 }

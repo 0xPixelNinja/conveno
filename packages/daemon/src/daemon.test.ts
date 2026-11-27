@@ -1,9 +1,18 @@
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { clientProof, daemonProof, newAuthNonce } from "@0xpixelninja/conveno-core";
 import { PROTOCOL_VERSION, RpcErrorCode } from "@0xpixelninja/conveno-protocol";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DaemonAlreadyRunningError } from "./lifecycle.js";
 import { startDaemon } from "./server.js";
 import { type Harness, RawClient, register, startHarness } from "./test-utils.js";
@@ -25,39 +34,88 @@ const text = (to: string, sessionId: string, body = "hi", extra: Record<string, 
 });
 
 describe("handshake and auth", () => {
-  it("accepts hello with the right token and version", async () => {
+  const hello = (c: RawClient, nonce = newAuthNonce(), over: Record<string, unknown> = {}) =>
+    c.rpc("hello", { protocolVersion: PROTOCOL_VERSION, client: "mcp", nonce, ...over });
+
+  it("answers hello with a proof of the token and a fresh challenge", async () => {
     const c = await h.client();
-    const r = await c.rpc("hello", {
-      protocolVersion: PROTOCOL_VERSION,
-      client: "mcp",
-      authToken: h.token(),
-    });
-    expect(r.result).toEqual({ protocolVersion: PROTOCOL_VERSION, daemonVersion: "0.0.0" });
+    const nonce = newAuthNonce();
+    const r = await hello(c, nonce);
+    expect(r.result?.protocolVersion).toBe(PROTOCOL_VERSION);
+    expect(r.result?.daemonVersion).toBe("0.0.0");
+    expect(r.result?.proof).toBe(daemonProof(h.token(), nonce));
+    expect(r.result?.challenge).toMatch(/^[0-9a-f]{64}$/);
+    const other = await hello(await h.client());
+    expect(other.result?.challenge).not.toBe(r.result?.challenge);
   });
 
-  it("rejects a wrong token with Unauthorized and closes the connection", async () => {
+  it("never sees or reveals the token on the wire", async () => {
     const c = await h.client();
-    const r = await c.rpc("hello", {
-      protocolVersion: PROTOCOL_VERSION,
-      client: "cli",
-      authToken: "nope",
-    });
+    const r = await hello(c);
+    expect(JSON.stringify(r)).not.toContain(h.token());
+  });
+
+  it("lets a client with the right proof in, and only then", async () => {
+    const c = await h.client();
+    const r = await hello(c);
+    expect((await c.rpc("session.list", {})).error?.code).toBe(RpcErrorCode.Unauthorized);
+    const ok = await c.rpc("auth", { proof: clientProof(h.token(), r.result?.challenge) });
+    expect(ok.result).toEqual({ ok: true });
+    expect((await c.call("session.list", {})).sessions).toEqual([]);
+  });
+
+  it("rejects a wrong proof with Unauthorized and closes the connection", async () => {
+    const c = await h.client();
+    await hello(c);
+    const r = await c.rpc("auth", { proof: clientProof("not the token", "ab".repeat(32)) });
     expect(r.error?.code).toBe(RpcErrorCode.Unauthorized);
     await c.waitClosed();
   });
 
+  it("rejects a proof for another challenge", async () => {
+    const c = await h.client();
+    await hello(c);
+    const r = await c.rpc("auth", { proof: clientProof(h.token(), "cd".repeat(32)) });
+    expect(r.error?.code).toBe(RpcErrorCode.Unauthorized);
+  });
+
+  it("rejects auth before hello", async () => {
+    const c = await h.client();
+    const r = await c.rpc("auth", { proof: "ab".repeat(32) });
+    expect(r.error?.code).toBe(RpcErrorCode.Unauthorized);
+  });
+
   it("rejects an unsupported protocol version with VersionMismatch", async () => {
     const c = await h.client();
-    const r = await c.rpc("hello", {
-      protocolVersion: "conveno/99",
-      client: "cli",
-      authToken: h.token(),
-    });
+    const r = await hello(c, newAuthNonce(), { protocolVersion: "conveno/99" });
     expect(r.error?.code).toBe(RpcErrorCode.VersionMismatch);
     expect(r.error?.message).toContain("conveno/1");
   });
 
-  it("answers every method but hello with Unauthorized before hello", async () => {
+  it("closes a connection that does not finish the handshake within 5 s", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const c = await h.client();
+      await vi.advanceTimersByTimeAsync(5_001);
+      await c.waitClosed();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a connection that finished the handshake open past 5 s", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const c = await h.authed();
+      await vi.advanceTimersByTimeAsync(6_000);
+      expect(c.closed).toBe(false);
+      expect((await c.call("session.list", {})).sessions).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("answers every method but hello and auth with Unauthorized before the handshake", async () => {
     const c = await h.client();
     for (const [method, params] of [
       ["session.list", {}],
@@ -241,6 +299,37 @@ describe("sessions", () => {
     const none = await c.rpc("session.setStatus", { sessionId: session.id });
     expect(none.error?.code).toBe(RpcErrorCode.InvalidParams);
   });
+
+  it("strips control characters and extra whitespace from status text", async () => {
+    const c = await h.authed();
+    const { session } = await register(c);
+    const r = await c.call("session.setStatus", {
+      sessionId: session.id,
+      statusText: "  fixing\nbug\u0000  \u001b[31mred\r\n\tdone  ",
+    });
+    expect(r.session.statusText).toBe("fixing bug [31mred done");
+    const blank = await c.call("session.setStatus", { sessionId: session.id, statusText: " \n " });
+    expect(blank.session.statusText).toBeUndefined();
+    const long = await c.rpc("session.setStatus", {
+      sessionId: session.id,
+      statusText: "x".repeat(201),
+    });
+    expect(long.error?.code).toBe(RpcErrorCode.InvalidParams);
+  });
+
+  it.each(["conveno", "orchestrator", "system", "user"])(
+    "refuses the reserved name %s on register and rename with a plain message",
+    async (name) => {
+      const c = await h.authed();
+      const reg = await c.rpc("session.register", { cli: "claude", cwd: "/x", name });
+      expect(reg.error?.code).toBe(RpcErrorCode.InvalidParams);
+      expect(reg.error?.message).toContain("reserved");
+      const { session } = await register(c);
+      const ren = await c.rpc("session.rename", { sessionId: session.id, name });
+      expect(ren.error?.code).toBe(RpcErrorCode.InvalidParams);
+      expect(ren.error?.message).toContain("reserved");
+    },
+  );
 
   it("lists with repo, cli and includeOffline filters", async () => {
     const c = await h.authed();
@@ -426,13 +515,39 @@ describe("messages", () => {
       replyTo: t.message.id,
     });
     expect(handoff.message.replyTo).toBe(t.message.id);
-    const sys = await c.call("message.send", {
+  });
+
+  it("refuses client-sent system messages", async () => {
+    const c = await h.authed();
+    const a = (await register(c)).session;
+    const b = (await register(c)).session;
+    const r = await c.rpc("message.send", {
       sessionId: a.id,
       to: b.name,
       kind: "system",
       body: { event: "x" },
     });
-    expect(sys.message.kind).toBe("system");
+    expect(r.error?.code).toBe(RpcErrorCode.InvalidParams);
+    expect(r.error?.message).toContain("Conveno daemon");
+    expect((await c.call("message.inbox", { sessionId: b.id })).messages).toEqual([]);
+  });
+
+  it("checks that replyTo exists", async () => {
+    const c = await h.authed();
+    const a = (await register(c)).session;
+    const b = (await register(c)).session;
+    const first = await c.call("message.send", text(b.name, a.id));
+    const ok = await c.call(
+      "message.send",
+      text(b.name, a.id, "again", { replyTo: first.message.id }),
+    );
+    expect(ok.message.replyTo).toBe(first.message.id);
+    const bad = await c.rpc(
+      "message.send",
+      text(b.name, a.id, "x", { replyTo: "01HZZZZZZZZZZZZZZZZZZZZZZZ" }),
+    );
+    expect(bad.error?.code).toBe(RpcErrorCode.NotFound);
+    expect(bad.error?.message).toContain("01HZZZZZZZZZZZZZZZZZZZZZZZ");
   });
 
   it("gives unknown, offline and missing recipients the documented errors", async () => {
@@ -511,13 +626,66 @@ describe("messages", () => {
       expect((await c.call("message.deliver", { sessionId: b })).messages).toEqual([]);
     });
 
-    it("delivered messages stay unread: inbox still returns them and marks them read", async () => {
+    it("delivered messages are not unread: unreadOnly skips them, the full list still has them", async () => {
       await c.call("message.send", text(b, a, "one"));
       await c.call("message.deliver", { sessionId: b });
       const inbox = await c.call("message.inbox", { sessionId: b });
-      expect(inbox.messages.map((m: any) => m.body.text)).toEqual(["one"]);
+      expect(inbox.messages).toEqual([]);
       expect(inbox.unreadCount).toBe(0);
+      const all = await c.call("message.inbox", { sessionId: b, unreadOnly: false });
+      expect(all.messages.map((m: any) => m.body.text)).toEqual(["one"]);
     });
+
+    it("returns every message of an oversize backlog over several calls, losing none", async () => {
+      const total = 20;
+      for (let i = 0; i < total; i++) {
+        await c.call("message.send", text(b, a, `${i}`.padEnd(60_000, "x")));
+      }
+      const seen: string[] = [];
+      let calls = 0;
+      for (;;) {
+        const r = await c.rpc("message.inbox", { sessionId: b, limit: 200 });
+        expect(r.error).toBeUndefined();
+        const batch = r.result.messages as any[];
+        if (batch.length === 0) break;
+        calls++;
+        for (const m of batch) seen.push(m.body.text.slice(0, 2).trim());
+        expect(r.result.unreadCount).toBe(total - seen.length);
+      }
+      expect(calls).toBeGreaterThan(1);
+      expect(seen).toHaveLength(total);
+      expect(new Set(seen).size).toBe(total);
+    });
+
+    it("deliver caps its response by size and reports what remains", async () => {
+      const total = 20;
+      for (let i = 0; i < total; i++) {
+        await c.call("message.send", text(b, a, `${i}`.padEnd(60_000, "x")));
+      }
+      let got = 0;
+      let calls = 0;
+      for (;;) {
+        const r = await c.rpc("message.deliver", { sessionId: b, limit: 200 });
+        expect(r.error).toBeUndefined();
+        if (r.result.messages.length === 0) break;
+        calls++;
+        got += r.result.messages.length;
+        expect(r.result.remaining).toBe(total - got);
+      }
+      expect(calls).toBeGreaterThan(1);
+      expect(got).toBe(total);
+    });
+
+    it("refuses a send when the recipient has 1000 unread messages", async () => {
+      for (let i = 0; i < 1000; i++) await c.call("message.send", text(b, a, "x"));
+      const r = await c.rpc("message.send", text(b, a, "one too many"));
+      expect(r.error?.code).toBe(RpcErrorCode.LimitExceeded);
+      expect(r.error?.message).toContain("too many unread messages");
+      expect(r.error?.message).toContain((await c.call("session.list", {})).sessions[1].name);
+      // Reading frees room.
+      await c.call("message.inbox", { sessionId: b, limit: 200 });
+      await c.call("message.send", text(b, a, "fits now"));
+    }, 30_000);
 
     it("messages read through inbox are not delivered again", async () => {
       await c.call("message.send", text(b, a, "one"));
@@ -745,6 +913,35 @@ describe("liveness", () => {
     );
   });
 
+  it("deletes sessions offline for 7 days, with their messages, and keeps newer ones", async () => {
+    const c = await h.authed();
+    const a = (await register(c)).session;
+    const b = (await register(c, { name: "keeper" })).session;
+    const d = (await register(c, { name: "gone" })).session;
+    await c.call("message.send", text("gone", a.id, "to gone"));
+    await c.call("message.send", text("keeper", a.id, "to keeper"));
+    await c.call("session.unregister", { sessionId: d.id });
+    h.clock.ms += 6 * 24 * 3_600_000;
+    h.daemon.sweep();
+    expect(
+      (await c.call("session.list", { includeOffline: true })).sessions.map((s: any) => s.name),
+    ).toContain("gone");
+    h.clock.ms += 25 * 3_600_000;
+    await c.call("session.heartbeat", { sessionId: a.id });
+    await c.call("session.heartbeat", { sessionId: b.id });
+    h.daemon.sweep();
+    const names = (await c.call("session.list", { includeOffline: true })).sessions.map(
+      (s: any) => s.name,
+    );
+    expect(names).not.toContain("gone");
+    expect(names).toContain("keeper");
+    const mine = await c.call("message.inbox", { sessionId: b.id });
+    expect(mine.messages.map((m: any) => m.body.text)).toEqual(["to keeper"]);
+    expect((await c.rpc("session.heartbeat", { sessionId: d.id })).error?.code).toBe(
+      RpcErrorCode.NotFound,
+    );
+  });
+
   it("the real sweep timer runs on its interval", async () => {
     await h.stop();
     h = await startHarness({ sweepIntervalMs: 20 });
@@ -816,11 +1013,8 @@ describe("persistence", () => {
     ]);
     expect(sessions[0].deviceId).toBe(deviceId);
     const rest = await d.call("message.inbox", { sessionId: b.id });
-    expect(rest.messages.map((m: any) => m.body.text)).toEqual([
-      "read me",
-      "inject me",
-      "leave me",
-    ]);
+    // "read me" was delivered by the hook, so it is no longer unread.
+    expect(rest.messages.map((m: any) => m.body.text)).toEqual(["inject me", "leave me"]);
     const all = await d.call("message.inbox", { sessionId: b.id, unreadOnly: false });
     expect(all.messages).toHaveLength(4);
     // Messages still route to the persisted holder, and new messages queue after a restart.
@@ -873,6 +1067,40 @@ describe("single instance and stale files", () => {
     });
     const c = await h.authed();
     expect((await c.call("session.list", {})).sessions).toEqual([]);
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "probes the socket recorded in the lock, not the new daemon's own",
+    async () => {
+      // The running daemon wrote its socket path into the lock.
+      const lock = join(h.dir, "daemon.lock");
+      expect(JSON.parse(readFileSync(lock, "utf8"))).toEqual({
+        pid: process.pid,
+        socketPath: h.socketPath,
+      });
+      // Make the lock old enough that only the socket probe can keep it alive.
+      const old = new Date(Date.now() - 60_000);
+      utimesSync(lock, old, old);
+      await expect(
+        startDaemon({
+          dataDir: h.dir,
+          socketPath: join(h.dir, "other.sock"),
+          sweepIntervalMs: 3_600_000,
+        }),
+      ).rejects.toBeInstanceOf(DaemonAlreadyRunningError);
+      const c = await h.authed();
+      expect((await c.call("session.list", {})).sessions).toEqual([]);
+    },
+  );
+
+  it.skipIf(process.platform === "win32")("refuses a socket path that is too long", async () => {
+    await expect(
+      startDaemon({
+        dataDir: h.dir,
+        socketPath: join(h.dir, `${"x".repeat(120)}.sock`),
+        sweepIntervalMs: 3_600_000,
+      }),
+    ).rejects.toThrow(/too long.*XDG_RUNTIME_DIR/);
   });
 
   it("removes the lock file on close", async () => {

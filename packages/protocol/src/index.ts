@@ -9,4 +9,5 @@ export * from "./relay.js";
 export * from "./rpc.js";
 export * from "./session.js";
 export * from "./ticket.js";
+export { sanitizeLine, utf8ByteLength } from "./util.js";
 export * from "./version.js";

@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { connect, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { clientProof, daemonProof, newAuthNonce, proofsMatch } from "@0xpixelninja/conveno-core";
 import {
   createLineDecoder,
   type EventPayload,
@@ -102,6 +103,15 @@ export class RawClient {
   }
 }
 
+/** Run the full mutual handshake on a raw client, verifying the daemon's proof. */
+export async function handshake(c: RawClient, token: string): Promise<void> {
+  const nonce = newAuthNonce();
+  const hello = await c.call("hello", { protocolVersion: PROTOCOL_VERSION, client: "cli", nonce });
+  if (!proofsMatch(hello.proof, daemonProof(token, nonce)))
+    throw new Error("daemon proof is wrong");
+  await c.call("auth", { proof: clientProof(token, hello.challenge) });
+}
+
 export interface Harness {
   dir: string;
   socketPath: string;
@@ -157,11 +167,7 @@ export async function startHarness(over: Partial<DaemonOptions> = {}): Promise<H
     },
     async authed() {
       const c = await h.client();
-      await c.call("hello", {
-        protocolVersion: PROTOCOL_VERSION,
-        client: "cli",
-        authToken: h.token(),
-      });
+      await handshake(c, h.token());
       return c;
     },
     async restart(next = {}) {

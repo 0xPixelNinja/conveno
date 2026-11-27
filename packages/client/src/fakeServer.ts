@@ -2,6 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { createServer, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { clientProof, daemonProof, newAuthNonce, proofsMatch } from "@0xpixelninja/conveno-core";
 import {
   createLineDecoder,
   encodeFrame,
@@ -36,6 +37,16 @@ export interface FakeServer {
   socketPath: string;
   dataDir: string;
   hellos: unknown[];
+  /** Everything every client sent, as raw lines, to check the token never appears. */
+  raw: string[];
+  /** Params of every events.subscribe received. */
+  subscribes: Record<string, unknown>[];
+  /** Answer hello with a proof made from the wrong token, like a squatter on the socket. */
+  impostor: boolean;
+  /** Stop listening and drop every connection; the socket path stays reusable. */
+  stop(): Promise<void>;
+  /** Listen again on the same socket path with the same token. */
+  start(): Promise<void>;
   /** Methods the server stays silent on, to exercise timeouts. */
   ignore: Set<string>;
   close(): Promise<void>;
@@ -53,46 +64,79 @@ export function tempSocketPath(dir: string, tag = "s"): string {
   return join(dir, `${tag}.sock`);
 }
 
-/** Minimal NDJSON daemon: hello, session.list, session.heartbeat, one event, a few error cases. */
+/** Minimal NDJSON daemon: mutual handshake, session.list, session.heartbeat, one event, a few error cases. */
 export async function startFakeServer(): Promise<FakeServer> {
   const dir = await tempDataDir();
   const socketPath = tempSocketPath(dir);
   await writeFile(join(dir, "daemon.token"), `${TOKEN}\n`);
   const sockets = new Set<Socket>();
+  let server: Server | undefined;
   const state: FakeServer = {
     socketPath,
     dataDir: dir,
     hellos: [],
+    raw: [],
+    subscribes: [],
+    impostor: false,
     ignore: new Set(),
-    close: () =>
+    stop: () =>
       new Promise((resolve) => {
         for (const s of sockets) s.destroy();
-        server.close(() => resolve());
+        if (!server) return resolve();
+        const s = server;
+        server = undefined;
+        s.close(() => resolve());
       }),
+    start: async () => {
+      const srv = createServer(onConnection);
+      server = srv;
+      await new Promise<void>((resolve, reject) => {
+        srv.once("error", reject);
+        srv.listen(socketPath, () => resolve());
+      });
+    },
+    close: () => state.stop(),
   };
 
-  const server: Server = createServer((socket) => {
+  function onConnection(socket: Socket): void {
     sockets.add(socket);
     socket.on("close", () => sockets.delete(socket));
     socket.on("error", () => {});
     const decoder = createLineDecoder();
+    const challenge = newAuthNonce();
+    let helloDone = false;
     let authed = false;
     const send = (o: unknown) => socket.write(encodeFrame(o));
     socket.on("data", (chunk) => {
+      state.raw.push(chunk.toString());
       for (const r of decoder.push(chunk)) {
         if (!r.ok) continue;
         const req = r.value as { id: number; method: string; params: Record<string, unknown> };
         if (state.ignore.has(req.method)) continue;
         if (req.method === "hello") {
           state.hellos.push(req.params);
-          if (req.params.authToken !== TOKEN) {
-            send(makeError(req.id, RpcErrorCode.Unauthorized, "Invalid token."));
-          } else {
+          helloDone = true;
+          const proof = daemonProof(
+            state.impostor ? "not the token" : TOKEN,
+            String(req.params.nonce),
+          );
+          send(
+            makeResult(req.id, {
+              protocolVersion: PROTOCOL_VERSION,
+              daemonVersion: "0.0.0",
+              proof,
+              challenge,
+            }),
+          );
+        } else if (req.method === "auth") {
+          if (helloDone && proofsMatch(String(req.params.proof), clientProof(TOKEN, challenge))) {
             authed = true;
-            send(makeResult(req.id, { protocolVersion: PROTOCOL_VERSION, daemonVersion: "0.0.0" }));
+            send(makeResult(req.id, { ok: true }));
+          } else {
+            send(makeError(req.id, RpcErrorCode.Unauthorized, "Invalid proof."));
           }
         } else if (!authed) {
-          send(makeError(req.id, RpcErrorCode.Unauthorized, "Call hello first."));
+          send(makeError(req.id, RpcErrorCode.Unauthorized, "Finish the handshake first."));
         } else if (req.method === "session.list") {
           send(makeResult(req.id, { sessions: [sessionFixture()] }));
         } else if (req.method === "session.heartbeat") {
@@ -102,6 +146,7 @@ export async function startFakeServer(): Promise<FakeServer> {
         } else if (req.method === "session.unregister") {
           send(makeResult(req.id, { ok: "not-true" }));
         } else if (req.method === "events.subscribe") {
+          state.subscribes.push(req.params);
           send(makeResult(req.id, { subscribed: ["session.updated"] }));
           send(
             makeEventNotification({
@@ -114,10 +159,8 @@ export async function startFakeServer(): Promise<FakeServer> {
         }
       }
     });
-  });
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(socketPath, () => resolve());
-  });
+  }
+
+  await state.start();
   return state;
 }

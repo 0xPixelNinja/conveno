@@ -21,6 +21,9 @@ describe("SessionName", () => {
     "ünï",
     "line\nbreak",
     "orchestrator",
+    "conveno",
+    "system",
+    "user",
   ])("rejects %j", (n) => {
     expect(SessionName.safeParse(n).success).toBe(false);
   });

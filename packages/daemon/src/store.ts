@@ -320,6 +320,26 @@ export class Store {
     );
   }
 
+  /** Messages queued for a session that no one has been shown yet. */
+  unreadCount(sessionId: SessionId): number {
+    const r = this.all(
+      "SELECT COUNT(*) AS n FROM mailbox WHERE session_id = ? AND state = 'queued'",
+      sessionId,
+    )[0];
+    return (num(r?.n) ?? 0) as number;
+  }
+
+  hasMessage(id: string): boolean {
+    return this.all("SELECT 1 AS x FROM messages WHERE id = ?", id).length > 0;
+  }
+
+  /** Remove a session, its mailbox, and any message no mailbox refers to any more. */
+  deleteSession(id: string): void {
+    this.run("DELETE FROM mailbox WHERE session_id = ?", id);
+    this.run("DELETE FROM messages WHERE id NOT IN (SELECT message_id FROM mailbox)");
+    this.run("DELETE FROM sessions WHERE id = ?", id);
+  }
+
   /** Mailbox entries of one session, optionally limited to the given states or message ids. */
   entries(
     sessionId: SessionId,

@@ -19,3 +19,6 @@ export const offlineRecipientMessage = (name: string): string =>
 
 export const NO_ORCHESTRATOR_MESSAGE =
   "No session holds the orchestrator role. Run orchestrate in the session you want to use.";
+
+export const tooManyUnreadMessage = (name: string, max: number): string =>
+  `Session "${name}" has too many unread messages (${max}). Wait for it to read some, or send to another session.`;
