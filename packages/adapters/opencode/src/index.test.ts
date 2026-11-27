@@ -141,3 +141,92 @@ describe("opencodeAdapter", () => {
     expect(out).toEqual({ stdout: "", exitCode: 0 });
   });
 });
+
+describe("opencodeAdapter V1 fallback", () => {
+  const V1_ENTRY = { ...ENTRY, enabled: true };
+  const v1Config = JSON.stringify({
+    mcp: { other: { type: "local", command: ["a"], enabled: true } },
+  });
+  const ver = (v: string | null): AdapterEnv =>
+    envFor(async () => {
+      if (v === null) throw new Error("ENOENT");
+      return { code: 0, stdout: `${v}\n` };
+    });
+
+  it("writes V1 for an old version when the config uses V1 keys", async () => {
+    await seed("opencode.json", v1Config);
+    const [c] = await opencodeAdapter.plan(ver("1.19.6"));
+    const after = parsed(c?.after);
+    expect(after.mcp.conveno).toEqual(V1_ENTRY);
+    expect(after.mcp.servers).toBeUndefined();
+    expect(after.mcp.other).toBeDefined();
+  });
+
+  it("writes V1 when the version is unknown and the config uses V1 keys", async () => {
+    await seed("opencode.json", v1Config);
+    const [c] = await opencodeAdapter.plan(ver(null));
+    expect(parsed(c?.after).mcp.conveno).toEqual(V1_ENTRY);
+  });
+
+  it("writes V2 for an old version when the config has no V1 keys", async () => {
+    await seed("opencode.json", "{}");
+    const [c] = await opencodeAdapter.plan(ver("1.19.6"));
+    expect(parsed(c?.after).mcp.servers.conveno).toEqual(ENTRY);
+  });
+
+  it("writes V2 for 2.2.0 and later even when the config has V1 keys", async () => {
+    await seed("opencode.json", v1Config);
+    for (const v of ["2.2.0", "2.4.2", "3.0.0"]) {
+      const [c] = await opencodeAdapter.plan(ver(v));
+      expect(parsed(c?.after).mcp.servers.conveno).toEqual(ENTRY);
+    }
+  });
+
+  it("treats 2.1.9 as V1", async () => {
+    await seed("opencode.json", v1Config);
+    const [c] = await opencodeAdapter.plan(ver("2.1.9"));
+    expect(parsed(c?.after).mcp.conveno).toEqual(V1_ENTRY);
+  });
+
+  it("is idempotent for an installed V1 entry on an old version", async () => {
+    await seed("opencode.json", JSON.stringify({ mcp: { conveno: V1_ENTRY } }));
+    expect(await opencodeAdapter.plan(ver("1.19.6"))).toEqual([]);
+  });
+
+  it("moves a V1 entry to V2 on a new version", async () => {
+    await seed("opencode.json", JSON.stringify({ mcp: { conveno: V1_ENTRY } }));
+    const [c] = await opencodeAdapter.plan(ver("2.4.2"));
+    const after = parsed(c?.after);
+    expect(after.mcp.conveno).toBeUndefined();
+    expect(after.mcp.servers.conveno).toEqual(ENTRY);
+  });
+
+  it("uninstall removes a V1 entry and keeps the rest", async () => {
+    await seed(
+      "opencode.jsonc",
+      `{ // c\n "mcp": { "other": { "type": "local", "command": ["a"] }, "conveno": ${JSON.stringify(V1_ENTRY)} } }`,
+    );
+    const [c] = await opencodeAdapter.uninstallPlan(envFor());
+    const after = parsed(c?.after);
+    expect(after.mcp.conveno).toBeUndefined();
+    expect(after.mcp.other).toBeDefined();
+    expect(c?.after).toContain("// c");
+  });
+
+  it("uninstall removes both shapes when both exist", async () => {
+    await seed(
+      "opencode.json",
+      JSON.stringify({
+        mcp: {
+          conveno: V1_ENTRY,
+          servers: { conveno: ENTRY, keep: { type: "local", command: ["k"] } },
+        },
+      }),
+    );
+    const [c] = await opencodeAdapter.uninstallPlan(envFor());
+    const after = parsed(c?.after);
+    expect(after.mcp.conveno).toBeUndefined();
+    expect(after.mcp.servers.conveno).toBeUndefined();
+    expect(after.mcp.servers.keep).toBeDefined();
+  });
+});

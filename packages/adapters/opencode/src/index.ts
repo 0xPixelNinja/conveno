@@ -21,7 +21,13 @@ interface ConfigFile {
 interface ServerEntry {
   type: "local";
   command: string[];
+  enabled?: true;
 }
+
+type Shape = "v1" | "v2";
+
+/** First OpenCode release that reads `mcp.servers`. There were no 2.0.x or 2.1.x releases. */
+const V2_MIN: readonly [number, number, number] = [2, 2, 0];
 
 function configDir(env: AdapterEnv): string {
   return join(env.home, ".config", "opencode");
@@ -60,16 +66,65 @@ function parseConfig(file: ConfigFile): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function serverEntry(env: AdapterEnv): ServerEntry {
-  return { type: "local", command: [...env.conveno.command, "mcp", "--cli", "opencode"] };
+function serverEntry(env: AdapterEnv, shape: Shape): ServerEntry {
+  const command = [...env.conveno.command, "mcp", "--cli", "opencode"];
+  return shape === "v1" ? { type: "local", command, enabled: true } : { type: "local", command };
+}
+
+function parseVersion(text: string): [number, number, number] | undefined {
+  const m = /(\d+)\.(\d+)\.(\d+)/.exec(text);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : undefined;
+}
+
+function isV2OrLater(v: [number, number, number]): boolean {
+  for (let i = 0; i < 3; i++) {
+    if ((v[i] as number) !== (V2_MIN[i] as number)) return (v[i] as number) > (V2_MIN[i] as number);
+  }
+  return true;
+}
+
+/** V1 keeps server definitions directly under `mcp`, next to no `servers` wrapper. */
+function usesV1Keys(config: Record<string, unknown>): boolean {
+  const mcp = config.mcp;
+  if (mcp === null || typeof mcp !== "object" || Array.isArray(mcp)) return false;
+  return Object.entries(mcp).some(
+    ([key, value]) =>
+      key !== "servers" &&
+      value !== null &&
+      typeof value === "object" &&
+      typeof (value as { type?: unknown }).type === "string",
+  );
+}
+
+async function chooseShape(env: AdapterEnv, config: Record<string, unknown>): Promise<Shape> {
+  let version: [number, number, number] | undefined;
+  try {
+    const res = await env.exec("opencode", ["--version"]);
+    if (res.code === 0) version = parseVersion(res.stdout);
+  } catch {
+    version = undefined;
+  }
+  if (version && isV2OrLater(version)) return "v2";
+  return usesV1Keys(config) ? "v1" : "v2";
+}
+
+function v1Entry(config: Record<string, unknown>): unknown {
+  const mcp = config.mcp;
+  if (mcp === null || typeof mcp !== "object" || Array.isArray(mcp)) return undefined;
+  return (mcp as Record<string, unknown>)[SERVER_NAME];
+}
+
+function pathFor(shape: Shape): string[] {
+  return shape === "v1" ? ["mcp", SERVER_NAME] : ["mcp", "servers", SERVER_NAME];
 }
 
 function sameEntry(found: unknown, want: ServerEntry): boolean {
   if (found === null || typeof found !== "object") return false;
-  const f = found as { type?: unknown; command?: unknown; disabled?: unknown };
+  const f = found as { type?: unknown; command?: unknown; disabled?: unknown; enabled?: unknown };
   return (
     f.type === want.type &&
     f.disabled !== true &&
+    (want.enabled === undefined || f.enabled === true) &&
     Array.isArray(f.command) &&
     f.command.length === want.command.length &&
     f.command.every((c, i) => c === want.command[i])
@@ -102,18 +157,29 @@ async function detect(env: AdapterEnv): Promise<Detection> {
 async function plan(env: AdapterEnv): Promise<ConfigChange[]> {
   const file = await locateConfig(env);
   const config = parseConfig(file);
-  const want = serverEntry(env);
-  if (sameEntry(servers(config)?.[SERVER_NAME], want)) return [];
-  const base = file.text === null || file.text.trim() === "" ? "{}\n" : file.text;
-  const edits = modify(base, ["mcp", "servers", SERVER_NAME], want, { formattingOptions: FORMAT });
-  let after = applyEdits(base, edits);
+  const shape = await chooseShape(env, config);
+  const want = serverEntry(env, shape);
+  const current = shape === "v1" ? v1Entry(config) : servers(config)?.[SERVER_NAME];
+  if (sameEntry(current, want)) return [];
+  let text = file.text === null || file.text.trim() === "" ? "{}\n" : file.text;
+  // Keep exactly one conveno entry: drop ours from the other shape.
+  const otherShape: Shape = shape === "v1" ? "v2" : "v1";
+  const other = otherShape === "v1" ? v1Entry(config) : servers(config)?.[SERVER_NAME];
+  if (other !== undefined) {
+    text = applyEdits(
+      text,
+      modify(text, pathFor(otherShape), undefined, { formattingOptions: FORMAT }),
+    );
+  }
+  let after = applyEdits(text, modify(text, pathFor(shape), want, { formattingOptions: FORMAT }));
   if (!after.endsWith("\n")) after += "\n";
+  const where = shape === "v1" ? `mcp.${SERVER_NAME}` : `mcp.servers.${SERVER_NAME}`;
   return [
     {
       path: file.path,
       before: file.text,
       after,
-      description: `Add the conveno MCP server (mcp.servers.${SERVER_NAME}) to the OpenCode global config`,
+      description: `Add the conveno MCP server (${where}) to the OpenCode global config`,
     },
   ];
 }
@@ -121,17 +187,24 @@ async function plan(env: AdapterEnv): Promise<ConfigChange[]> {
 async function uninstallPlan(env: AdapterEnv): Promise<ConfigChange[]> {
   const file = await locateConfig(env);
   if (file.text === null) return [];
-  const s = servers(parseConfig(file));
-  if (!s || !(SERVER_NAME in s)) return [];
-  const edits = modify(file.text, ["mcp", "servers", SERVER_NAME], undefined, {
-    formattingOptions: FORMAT,
-  });
+  const config = parseConfig(file);
+  let text = file.text;
+  const removed: string[] = [];
+  if (servers(config)?.[SERVER_NAME] !== undefined) {
+    text = applyEdits(text, modify(text, pathFor("v2"), undefined, { formattingOptions: FORMAT }));
+    removed.push(`mcp.servers.${SERVER_NAME}`);
+  }
+  if (v1Entry(config) !== undefined) {
+    text = applyEdits(text, modify(text, pathFor("v1"), undefined, { formattingOptions: FORMAT }));
+    removed.push(`mcp.${SERVER_NAME}`);
+  }
+  if (removed.length === 0) return [];
   return [
     {
       path: file.path,
       before: file.text,
-      after: applyEdits(file.text, edits),
-      description: `Remove the conveno MCP server (mcp.servers.${SERVER_NAME}) from the OpenCode global config`,
+      after: text,
+      description: `Remove the conveno MCP server (${removed.join(", ")}) from the OpenCode global config`,
     },
   ];
 }
