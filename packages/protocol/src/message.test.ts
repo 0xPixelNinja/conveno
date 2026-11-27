@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { messageFixture, ticketIdFixture } from "./fixtures.js";
 import { newMessageId, newSessionId } from "./ids.js";
 import { Message, Recipient, TEXT_MAX_BYTES } from "./message.js";
 import { parseMessage } from "./parse.js";
+import { messageFixture, ticketIdFixture } from "./test-utils.js";
 
 describe("Recipient", () => {
   it("accepts a session id, a name, and the orchestrator alias", () => {

@@ -1,6 +1,5 @@
 import { posix, win32 } from "node:path";
-
-export type DirEnv = Readonly<Record<string, string | undefined>>;
+import type { PathEnv } from "@conveno/protocol";
 
 const pathApi = (platform: string) => (platform === "win32" ? win32 : posix);
 
@@ -11,7 +10,7 @@ const pathApi = (platform: string) => (platform === "win32" ? win32 : posix);
  * - darwin: `~/Library/Application Support/conveno`
  * - win32: `%LOCALAPPDATA%\conveno`, else `<home>\AppData\Local\conveno`
  */
-export function dataDir(platform: string, env: DirEnv, homedir?: string): string {
+export function dataDir(platform: string, env: PathEnv, homedir?: string): string {
   const p = pathApi(platform);
   const home = platform === "win32" ? (env.USERPROFILE ?? homedir) : env.HOME || homedir;
   if (platform === "win32") {

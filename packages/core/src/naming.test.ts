@@ -2,7 +2,7 @@ import { newSessionId, RpcErrorCode, SESSION_NAME_PATTERN, SessionName } from "@
 import { describe, expect, it } from "vitest";
 import { ConvenoError } from "./errors.js";
 import { generateSessionName, sanitizeNamePart, validateRename } from "./naming.js";
-import { rng, sess } from "./testing.js";
+import { rng, sess } from "./test-utils.js";
 
 describe("generateSessionName", () => {
   it("starts at 1", () => {

@@ -11,7 +11,7 @@ import {
   readInbox,
   takeWithinBytes,
 } from "./mailbox.js";
-import { rng, textMessage } from "./testing.js";
+import { rng, textMessage } from "./test-utils.js";
 
 const T1 = "2026-11-27T10:00:00.000Z";
 const T2 = "2026-11-27T10:00:01.000Z";

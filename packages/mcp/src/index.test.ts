@@ -7,8 +7,8 @@ import { RpcErrorCode } from "@conveno/protocol";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FakeDaemon } from "./fake-client.js";
 import { createServer, formatAge, formatSessionTable, SERVER_INSTRUCTIONS } from "./index.js";
+import { FakeDaemon } from "./test-utils.js";
 
 interface Peer {
   mcp: ReturnType<typeof createServer>;
