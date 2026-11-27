@@ -390,6 +390,8 @@ describe("daemon", () => {
         }
       } finally {
         child.kill("SIGKILL");
+        // A win32 data path on a POSIX host is a relative file name; remove it.
+        await rm(dataPaths(c.platform, c.dataDir).lock, { force: true });
       }
     },
   );

@@ -1,9 +1,7 @@
 # Conveno brand licence
 
 Applies to everything in this `brand/` directory: the mark, the wordmark and lockups, icons,
-motion graphics, the asset pack, the brand book and the design documents. It does not apply to the
-generator scripts in `_src/` folders, which are Apache-2.0 like the rest of the code in this
-repository (see the root `LICENSE`).
+motion graphics, the asset pack and the design documents.
 
 ## Brand assets
 

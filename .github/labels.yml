@@ -76,7 +76,7 @@
   description: "Maintainer would welcome a contribution"
 - name: "compliance"
   color: "9A5700"
-  description: "Touches the compliance rules in PLAN.md section 10"
+  description: "Touches the compliance rules in CONTRIBUTING.md"
 - name: "security"
   color: "B3202A"
   description: "Security-related (report vulnerabilities privately, see SECURITY.md)"

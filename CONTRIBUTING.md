@@ -79,8 +79,7 @@ test fixtures for each supported version. Use only documented, official mechanis
 
 ## Compliance rules
 
-Every contribution must follow these rules from [PLAN.md, section 10](./PLAN.md). A pull request that
-breaks one will not be merged.
+Every contribution must follow these rules. A pull request that breaks one will not be merged.
 
 1. Never read, store or forward any provider login token or credential file. Adapters read only an
    allowlist of paths.

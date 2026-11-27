@@ -3,8 +3,6 @@
 The locked brand for Conveno: the mark, colour and type tokens, icons, motion, UI and terminal
 components, and the asset pack (lockups, favicons, README banners, social preview).
 
-Open [`index.html`](./index.html) for the brand book. It links to a showcase page for each pack.
-
 ## What is here
 
 | Path | Contents |
@@ -13,12 +11,9 @@ Open [`index.html`](./index.html) for the brand book. It links to a showcase pag
 | `mark.svg` | The mark: a lowercase c (a spine and two arms) with an accent point in its opening |
 | `SPEC.md` | The deliverables spec the brand was built against |
 | `assets/` | Marks at 16, 24, 32 and 64 px, lockups, wordmarks, favicon, app icons, README hero and banners, social preview |
-| `icons/` | 73 icons: 24 px set, hand-tuned 16 px variants, ink-baked SVGs, `sprite.svg`, `icons.json` |
+| `icons/` | 73 icons: 24 px set, hand-tuned 16 px variants, `svg-ink/` (colours baked in, for `<img>` in READMEs and docs), `sprite.svg`, `icons.json` |
 | `motion/` | Standalone animated SVGs, `motion.css`, `motion.js`, terminal spinner |
 | `components/` | `components.css`, terminal theme and design notes (`terminal.md`, `terminal-theme.json`) |
-
-Each pack has a `_src/` folder with the scripts that generate it and a `README.md` on how to run them.
-`_src/` at this level holds checks that run across all packs.
 
 ## Source of truth
 
@@ -48,18 +43,8 @@ is missing, add it to `tokens.json` first.
 
 ## Regenerating
 
-Each pack documents its commands in its own `_src/README.md`:
-
-```sh
-node icons/_src/build.mjs                    # icons
-(cd motion/_src && node fonts.mjs && node svgs.mjs && node show.mjs)
-python3 components/_src/build.py             # components showcase and terminal.md
-(cd assets/_src && python3 fonts.py && python3 build3.py && python3 build4.py && python3 build5.py)
-python3 _src/check-colors.py                 # brand checks across packs
-```
-
-The asset and motion scripts download their fonts rather than storing them; see their READMEs for
-the Python and npm dependencies.
+The files here are generated. The generators, checks and showcase pages are kept outside this
+repository. To change an asset, change `tokens.json` or open an issue.
 
 ## Licence
 
