@@ -102,7 +102,7 @@ describe("plan on an empty home", () => {
     expect(h.hooks.SessionStart[0].hooks[0]).toEqual({
       type: "command",
       command: "conveno hook codex SessionStart",
-      timeout: 2,
+      timeout: 5,
     });
     expect(h.hooks.UserPromptSubmit[0].hooks[0].command).toBe(
       "conveno hook codex UserPromptSubmit",

@@ -23,8 +23,8 @@ export const PACKAGE_NAME = "@0xpixelninja/conveno-adapter-codex";
 
 const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit"] as const;
 type HookEvent = (typeof HOOK_EVENTS)[number];
-/** Hooks must never hold the CLI up (spec: 2 s). Codex counts this in seconds. */
-const HOOK_TIMEOUT_SECONDS = 2;
+/** Seconds. The hook gives up after 2 s on its own; this leaves room for Node startup. Same as Claude. */
+const HOOK_TIMEOUT_SECONDS = 5;
 
 type Json = Record<string, unknown>;
 

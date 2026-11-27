@@ -7,7 +7,7 @@ Conveno adapter for the OpenAI Codex CLI. Exports `codexAdapter` (also the defau
 | Piece | Where | Content |
 | --- | --- | --- |
 | MCP server | `~/.codex/config.toml` | `[mcp_servers.conveno]` with `command = "<conveno command>"` and `args = [..., "mcp", "--cli", "codex"]` |
-| Hooks | `~/.codex/hooks.json` | `SessionStart` and `UserPromptSubmit` command hooks running `<conveno command> hook codex <event>`, `timeout = 2` (seconds) |
+| Hooks | `~/.codex/hooks.json` | `SessionStart` and `UserPromptSubmit` command hooks running `<conveno command> hook codex <event>`, `timeout = 5` (seconds) |
 
 - The MCP change carries `viaCommand` (`codex mcp add conveno -- <command> mcp --cli codex`) alongside the equivalent file diff. It is omitted when a `conveno` entry already exists with other values, because `codex mcp add` is documented only for new servers; the file diff is used then. Uninstall has no command: the docs do not describe `codex mcp remove`, so uninstall edits the file.
 - `plan` returns an empty list when everything is already installed. If the conveno command path changed, the existing entries are replaced, not duplicated.
