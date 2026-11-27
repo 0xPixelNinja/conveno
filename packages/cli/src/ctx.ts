@@ -30,8 +30,8 @@ export interface Ctx {
   readStdin(): Promise<string>;
   connect: typeof connect;
   /**
-   * This process's ancestor chain, nearest first, read within `timeoutMs`. Never rejects: when the
-   * process table cannot be read it answers the direct parent with `complete: false`.
+   * This process's ancestors and its host CLI pid, read within `timeoutMs`. Never rejects: when
+   * the process table cannot be read it answers the direct parent with `complete: false`.
    */
   ancestry(timeoutMs: number): Promise<Ancestry>;
   /** Is a process with this pid running. */

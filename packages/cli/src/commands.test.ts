@@ -9,7 +9,15 @@ import { dataPaths } from "@conveno/core";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { main } from "./main.js";
 import { convenoCommand, resolveDaemonEntry } from "./runtime.js";
-import { fakeAdapter, seed, startTestDaemon, type TestCtx, testCtx } from "./test-utils.js";
+import {
+  ancestryOf,
+  type FakeProcs,
+  fakeAdapter,
+  seed,
+  startTestDaemon,
+  type TestCtx,
+  testCtx,
+} from "./test-utils.js";
 
 beforeAll(() => {
   process.env.TZ = "UTC";
@@ -278,7 +286,12 @@ describe("status", () => {
           repo: { root: "/work/api" },
           ...over,
         } as never);
-      const a = await reg({ cli: "claude", pid: process.pid, hostPids: [process.pid] });
+      const a = await reg({
+        cli: "claude",
+        pid: process.pid,
+        hostPid: process.pid,
+        hostPids: [process.pid],
+      });
       await reg({ cli: "codex" });
       await reg({ cli: "opencode", cwd: "/work/docs", repo: { root: "/work/docs" } });
       await client["orchestrator.claim"]({ sessionId: a.session.id });
@@ -317,7 +330,12 @@ describe("doctor", () => {
     const c = await make({
       platform: "win32",
       exec: execFor({ claude: "2.1.4" }),
-      ancestry: async () => ({ pids: [4242], complete: false }),
+      ancestry: async () => ({
+        entries: [{ pid: 4242 }],
+        pids: [4242],
+        hostPid: 4242,
+        complete: false,
+      }),
     });
     expect(await main(["doctor"], c)).toBe(0);
     expect(c.errText()).toContain("Process ancestry is unavailable.");
@@ -651,12 +669,52 @@ describe("mcp", () => {
 });
 
 describe("hook", () => {
-  /** A daemon with two registered sessions, one of them messaging the other. */
+  // A Windows tree. npm installs conveno as conveno.cmd, so each side runs through a cmd.exe shim.
+  //   powershell 200 > claude 300 (the CLI)
+  //     > cmd.exe 400 (shim) > node 500            the MCP server
+  //     > bash 405 -c "conveno hook" > cmd.exe 410 (shim) > node 510   a hook
+  //   powershell 200 > claude 301 (another CLI, no Conveno session) > bash 406 > cmd.exe 411 > node 511
+  const SHIM = String.raw`C:\Users\u\AppData\Roaming\npm\conveno.cmd`;
+  const winProcs: FakeProcs = {
+    200: [100, "powershell.exe"],
+    300: [200, String.raw`C:\Users\u\AppData\Roaming\npm\claude.exe`],
+    400: [300, String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""${SHIM}" mcp --cli claude"`],
+    500: [
+      400,
+      String.raw`"C:\Program Files\nodejs\node.exe" C:\Users\u\AppData\Roaming\npm\node_modules\@conveno\cli\dist\bin.js mcp --cli claude`,
+    ],
+    405: [300, `bash -c "conveno hook claude UserPromptSubmit"`],
+    410: [
+      405,
+      String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""${SHIM}" hook claude UserPromptSubmit"`,
+    ],
+    510: [
+      410,
+      String.raw`"C:\Program Files\nodejs\node.exe" C:\Users\u\AppData\Roaming\npm\node_modules\@conveno\cli\dist\bin.js hook claude UserPromptSubmit`,
+    ],
+    301: [200, String.raw`C:\Users\u\AppData\Roaming\npm\claude.exe`],
+    406: [301, `bash -c "conveno hook claude UserPromptSubmit"`],
+    411: [
+      406,
+      String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""${SHIM}" hook claude UserPromptSubmit"`,
+    ],
+    511: [
+      411,
+      String.raw`"C:\Program Files\nodejs\node.exe" C:\Users\u\AppData\Roaming\npm\node_modules\@conveno\cli\dist\bin.js hook claude UserPromptSubmit`,
+    ],
+  };
+  /** What the MCP server in `winProcs` registers: found by the same logic the hook uses. */
+  const mcpHost = async () => {
+    const a = await ancestryOf(winProcs, { pid: 500, ppid: 400 })(1_000);
+    return { hostPid: a.hostPid, hostPids: a.pids };
+  };
+
+  /** A daemon with two sessions, the other messaging the one registered with `mine`. */
   async function withPair(
     c: TestCtx,
-    mine: { hostPids?: number[] },
-    run: (ctx: { daemonUp: true }) => Promise<void>,
-    other: { hostPids?: number[] } = {},
+    mine: { hostPid?: number | undefined; hostPids?: number[] },
+    run: () => Promise<void>,
+    other: { hostPid?: number; hostPids?: number[] } = {},
   ) {
     const d = await startTestDaemon(c);
     const client = await connect({
@@ -665,34 +723,42 @@ describe("hook", () => {
       socketPath: c.socketPath as string,
       autoStart: false,
     });
+    const reg = (over: Record<string, unknown>) =>
+      client["session.register"]({ cwd: "/work/api", pid: process.pid, ...over } as never);
     try {
-      const me = await client["session.register"]({
-        cli: "claude",
-        cwd: "/work/api",
-        pid: process.pid,
-        ...mine,
-      });
-      const peer = await client["session.register"]({ cli: "codex", cwd: "/work/api", ...other });
+      const me = await reg({ cli: "claude", ...mine });
+      const peer = await reg({ cli: "codex", ...other });
       await client["message.send"]({
         sessionId: peer.session.id,
         to: me.session.name,
         kind: "text",
         body: { text: "rename the migration" },
       } as never);
-      await run({ daemonUp: true });
+      await run();
     } finally {
       await client.close();
       await d.stop();
     }
   }
 
-  it("delivers queued messages through the adapter, matching the hook's ancestors to the session", async () => {
+  const hookCtx = (over: Partial<Parameters<typeof testCtx>[0]> = {}) =>
+    make({ readStdin: async () => '{"hook_event_name":"UserPromptSubmit"}', ...over });
+
+  it("delivers queued messages through the adapter, matching the hook's host pid to the session", async () => {
     const asked: number[] = [];
     const c = await make({
-      ancestry: async (ms) => (asked.push(ms), { pids: [process.pid], complete: true }),
+      ancestry: async (ms) => (
+        asked.push(ms),
+        {
+          entries: [{ pid: process.pid }],
+          pids: [process.pid],
+          hostPid: process.pid,
+          complete: true,
+        }
+      ),
       readStdin: async () => '{"hook_event_name":"SessionStart"}',
     });
-    await withPair(c, { hostPids: [process.pid] }, async () => {
+    await withPair(c, { hostPid: process.pid, hostPids: [process.pid] }, async () => {
       expect(await main(["hook", "claude", "SessionStart"], c)).toBe(0);
       const printed = JSON.parse(c.outText());
       expect(printed.hookSpecificOutput.hookEventName).toBe("SessionStart");
@@ -703,54 +769,68 @@ describe("hook", () => {
     });
   });
 
-  it("finds the session through Windows cmd.exe shims: both sides meet at the CLI", async () => {
-    // MCP server chain: cmd.exe 400, CLI 300, shell 200. Hook chain: its cmd.exe 410, then the same CLI.
-    const c = await make({
+  it("finds the CLI through conveno.cmd shims and bash -c on Windows", async () => {
+    const mcp = await mcpHost();
+    // Registered as the CLI itself, not the cmd.exe shim in between.
+    expect(mcp).toEqual({ hostPid: 300, hostPids: [400, 300, 200, 100] });
+    const c = await hookCtx({
       platform: "win32",
-      ancestry: async () => ({ pids: [410, 300, 200], complete: true }),
-      readStdin: async () => '{"hook_event_name":"UserPromptSubmit"}',
+      ancestry: ancestryOf(winProcs, { pid: 510, ppid: 410 }),
     });
-    await withPair(c, { hostPids: [400, 300, 200] }, async () => {
+    await withPair(c, mcp, async () => {
       expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
       expect(c.outText()).toContain("rename the migration");
+      expect(c.errText()).toBe("");
     });
   });
 
-  it("delivers nothing when two sessions share the nearest ancestor, never guessing", async () => {
-    const c = await make({
-      ancestry: async () => ({ pids: [410, 300, 200], complete: true }),
-      readStdin: async () => '{"hook_event_name":"UserPromptSubmit"}',
+  it("matches nothing for an unregistered CLI that shares a shell and terminal with a registered one", async () => {
+    const c = await hookCtx({
+      platform: "win32",
+      ancestry: ancestryOf(winProcs, { pid: 511, ppid: 411 }),
+    });
+    await withPair(c, await mcpHost(), async () => {
+      expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
+      expect(c.outText()).toBe("");
+      expect(c.errText()).toBe("");
+    });
+  });
+
+  it("delivers nothing when two sessions sit under one CLI process, never guessing", async () => {
+    const mcp = await mcpHost();
+    const c = await hookCtx({
+      platform: "win32",
+      ancestry: ancestryOf(winProcs, { pid: 510, ppid: 410 }),
     });
     await withPair(
       c,
-      { hostPids: [400, 300, 200] },
+      mcp,
       async () => {
         expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
         expect(c.outText()).toBe("");
-        expect(c.errText()).toBe("");
       },
-      { hostPids: [401, 300, 200] },
+      mcp,
     );
   });
 
-  it("falls back to the direct parent when the process list is denied, and says nothing on stderr", async () => {
-    // WMI refuses a non-admin NETWORK logon: ancestry is just [ppid]. A CLI that is the direct parent still matches.
-    const c = await make({
-      ancestry: async () => ({ pids: [process.pid], complete: false }),
-      readStdin: async () => '{"hook_event_name":"UserPromptSubmit"}',
+  it("falls back to the direct parent when the process list is denied, without a word on stderr", async () => {
+    // WMI refuses a non-admin NETWORK logon. With no shim the direct parent is the CLI and still matches.
+    const direct: FakeProcs = { 300: [200, "claude.exe"], 510: [300, "node bin.js hook"] };
+    const c = await hookCtx({
+      ancestry: ancestryOf(direct, { pid: 510, ppid: 300 }, { denied: true }),
     });
-    await withPair(c, { hostPids: [process.pid] }, async () => {
+    await withPair(c, { hostPid: 300, hostPids: [300] }, async () => {
       expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
       expect(c.outText()).toContain("rename the migration");
       expect(c.errText()).toBe("");
     });
 
-    // Behind a cmd.exe shim the direct parent is not the registered process: nothing is delivered.
-    const shim = await make({
-      ancestry: async () => ({ pids: [410], complete: false }),
-      readStdin: async () => '{"hook_event_name":"UserPromptSubmit"}',
+    // Behind a shim the direct parent (410) is not the registered CLI (300): exact equality fails.
+    const shim = await hookCtx({
+      platform: "win32",
+      ancestry: ancestryOf(winProcs, { pid: 510, ppid: 410 }, { denied: true }),
     });
-    await withPair(shim, { hostPids: [400, 300, 200] }, async () => {
+    await withPair(shim, await mcpHost(), async () => {
       expect(await main(["hook", "claude", "UserPromptSubmit"], shim)).toBe(0);
       expect(shim.outText()).toBe("");
       expect(shim.errText()).toBe("");

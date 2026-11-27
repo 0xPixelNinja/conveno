@@ -220,7 +220,7 @@ const EMPTY: HookOutput = { stdout: "", exitCode: 0 };
 async function hook(event: string, _input: unknown, ctx: HookContext): Promise<HookOutput> {
   if (event !== "SessionStart" && event !== "UserPromptSubmit") return EMPTY;
   try {
-    const { session } = await ctx.client["session.byHost"]({ pids: ctx.pids });
+    const { session } = await ctx.client["session.byHost"]({ pid: ctx.hostPid });
     if (!session) return EMPTY;
     const { messages } = await ctx.client["message.deliver"]({ sessionId: session.id });
     const additionalContext = formatHookContext(messages);

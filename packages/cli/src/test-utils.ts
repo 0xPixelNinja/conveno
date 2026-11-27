@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import claudeAdapter from "@conveno/adapter-claude";
 import { createTheme } from "@conveno/brand";
 import { connect } from "@conveno/client";
-import type { Adapter } from "@conveno/core";
+import { type Adapter, type Ancestry, type ProcessIo, readAncestry } from "@conveno/core";
 import { type DaemonHandle, startDaemon } from "@conveno/daemon";
 import type { Ctx } from "./ctx.js";
 
@@ -65,7 +65,12 @@ export async function testCtx(over: Partial<Ctx> = {}): Promise<TestCtx> {
     now: () => FIXED_NOW,
     readStdin: async () => "",
     connect,
-    ancestry: async () => ({ pids: [process.pid], complete: true }),
+    ancestry: async () => ({
+      entries: [{ pid: process.pid }],
+      pids: [process.pid],
+      hostPid: process.pid,
+      complete: true,
+    }),
     isAlive: (pid) => {
       try {
         process.kill(pid, 0);
@@ -126,4 +131,42 @@ export function fakeAdapter(over: Partial<Adapter> & { cli?: Adapter["cli"] } = 
     hook: async () => ({ stdout: "", exitCode: 0 }),
     ...over,
   };
+}
+
+/** A fake process table: pid -> [ppid, command line]. */
+export type FakeProcs = Record<number, [ppid: number, command: string]>;
+
+/** OS access over a fake table, for Windows and macOS style queries (one spawn, whole table). */
+export function tableIo(platform: NodeJS.Platform, procs: FakeProcs, denied = false): ProcessIo {
+  return {
+    platform,
+    readFile: async () => {
+      throw new Error("ENOENT");
+    },
+    run: async () =>
+      denied
+        ? null
+        : Object.entries(procs)
+            .map(([pid, [ppid, command]]) => `${pid} ${ppid} ${command}`)
+            .join("\r\n"),
+  };
+}
+
+/**
+ * A context `ancestry` that reads the real launcher logic over a fake table, as the process
+ * `pid` whose direct parent is `ppid`.
+ */
+export function ancestryOf(
+  procs: FakeProcs,
+  self: { pid: number; ppid: number },
+  opts: { platform?: NodeJS.Platform; denied?: boolean; launcherPaths?: string[] } = {},
+): (timeoutMs: number) => Promise<Ancestry> {
+  return (timeoutMs) =>
+    readAncestry({
+      pid: self.pid,
+      ppid: self.ppid,
+      timeoutMs,
+      io: tableIo(opts.platform ?? "win32", procs, opts.denied),
+      ...(opts.launcherPaths ? { launcherPaths: opts.launcherPaths } : {}),
+    });
 }

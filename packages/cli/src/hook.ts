@@ -2,9 +2,9 @@ import type { ConvenoClient } from "@conveno/core";
 import { type Ctx, connectOpts } from "./ctx.js";
 
 /**
- * Time allowed for the one process-table query behind the ancestor chain. It runs beside reading
+ * Time allowed for the one process-table query behind the host pid. It runs beside reading
  * stdin and connecting, so it fits well inside the 2 s hook budget. When it fails or runs out, the
- * hook falls back to its direct parent.
+ * hook falls back to its direct parent as the host.
  */
 export const HOOK_ANCESTRY_TIMEOUT_MS = 1_200;
 
@@ -31,9 +31,9 @@ export async function runHook(ctx: Ctx, argv: string[]): Promise<number> {
       input = {};
     }
     client = await ctx.connect(connectOpts(ctx, false));
-    const { pids } = await ancestry;
-    if (pids.length === 0) return "";
-    const out = await adapter.hook(event, input, { client, pids });
+    const { hostPid } = await ancestry;
+    if (hostPid === undefined) return "";
+    const out = await adapter.hook(event, input, { client, hostPid });
     return out.stdout;
   })();
   const timeout = new Promise<string>((resolve) => {

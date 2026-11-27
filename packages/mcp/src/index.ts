@@ -28,14 +28,21 @@ import { z } from "zod";
 export const PACKAGE_NAME = "@conveno/mcp";
 const SERVER_VERSION = "0.1.0";
 
+export interface HostInfo {
+  /** The CLI process: the first ancestor that is not part of launching Conveno. */
+  hostPid?: number | undefined;
+  /** The raw ancestor chain, nearest first. */
+  hostPids: number[];
+}
+
 export interface CreateServerOptions {
   cli: CliKind;
   client: ConvenoClient;
   /**
-   * This server's ancestor chain, nearest first (see `readAncestry`). Hooks find the session
-   * through it. A promise lets the server start before the process table has been read.
+   * The CLI process hosting this server and the raw ancestor chain it was found in (see
+   * `readAncestry`). A promise lets the server start before the process table has been read.
    */
-  hostPids: number[] | Promise<number[]>;
+  host: HostInfo | Promise<HostInfo>;
   cwd: string;
 }
 
@@ -132,7 +139,7 @@ const DELIVERY_NOTE: Record<string, string> = {
  * tool call), heartbeats every 15 s, and unregisters when the server closes.
  */
 export function createServer(opts: CreateServerOptions): McpServer {
-  const { cli, client, hostPids, cwd } = opts;
+  const { cli, client, host, cwd } = opts;
   const mcp = new McpServer({ name: "conveno", version: SERVER_VERSION });
 
   let registering: Promise<Session> | undefined;
@@ -142,12 +149,13 @@ export function createServer(opts: CreateServerOptions): McpServer {
   const register = async (): Promise<Session> => {
     const repo = await detectRepo(cwd, { exists: pathExists });
     const cliVersion = process.env.CONVENO_CLI_VERSION?.trim().slice(0, 64);
-    const chain = await hostPids;
+    const { hostPid, hostPids } = await host;
     const res = await client["session.register"]({
       cli,
       cwd,
       pid: process.pid,
-      ...(chain.length > 0 ? { hostPids: chain.slice(0, HOST_PIDS_MAX) } : {}),
+      ...(hostPid !== undefined ? { hostPid } : {}),
+      ...(hostPids.length > 0 ? { hostPids: hostPids.slice(0, HOST_PIDS_MAX) } : {}),
       ...(cliVersion ? { cliVersion } : {}),
       ...(repo.root ? { repo: { root: repo.root } } : {}),
     });
@@ -411,7 +419,10 @@ export function createServer(opts: CreateServerOptions): McpServer {
 export async function runStdio(opts: { cli: CliKind; daemonEntry?: string }): Promise<void> {
   // Read once, with no time budget. Started first so it overlaps with starting the daemon;
   // nothing waits on it but this session's registration.
-  const hostPids = readAncestry({ timeoutMs: 30_000 }).then((a) => a.pids);
+  const host = readAncestry({
+    timeoutMs: 30_000,
+    launcherPaths: process.argv[1] ? [process.argv[1]] : [],
+  }).then((a): HostInfo => ({ hostPid: a.hostPid, hostPids: a.pids }));
   const client = await connect({
     kind: "mcp",
     autoStart: true,
@@ -420,7 +431,7 @@ export async function runStdio(opts: { cli: CliKind; daemonEntry?: string }): Pr
   const mcp = createServer({
     cli: opts.cli,
     client,
-    hostPids,
+    host,
     cwd: process.cwd(),
   });
 

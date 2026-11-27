@@ -37,10 +37,12 @@ export const Session = z.object({
   /** PID of the MCP server process. */
   pid: z.number().int().positive().optional(),
   /**
-   * The MCP server's ancestor chain, nearest first, at most `HOST_PIDS_MAX` entries. The first
-   * entry is the process that launched the MCP server; the rest are the launchers and the CLI
-   * above it. Hooks match a session through this list.
+   * The CLI process hosting the session: the first ancestor of the MCP server that is not part of
+   * launching Conveno (a `conveno.cmd` shim's cmd.exe, a shell running `conveno mcp`, node running
+   * our bin script). Hooks find their session by exact equality with it.
    */
+  hostPid: z.number().int().positive().optional(),
+  /** The MCP server's raw ancestor chain, nearest first, at most `HOST_PIDS_MAX`. Diagnostic. */
   hostPids: HostPids.optional(),
   status: SessionStatus,
   statusText: z.string().max(STATUS_TEXT_MAX).optional(),

@@ -64,7 +64,9 @@ const RegisterParams = z.object({
   cwd: z.string().min(1),
   repo: RepoInfo.optional(),
   pid: z.number().int().positive().optional(),
-  /** The MCP server's ancestor chain, nearest first (1 to 8 pids). See `Session.hostPids`. */
+  /** The CLI process hosting the session. See `Session.hostPid`. */
+  hostPid: z.number().int().positive().optional(),
+  /** The MCP server's raw ancestor chain, nearest first (1 to 8 pids). */
   hostPids: HostPids.optional(),
   /** Set by the daemon when it spawned this session itself. */
   spawnedBy: SessionId.optional(),
@@ -188,9 +190,9 @@ export const ipcMethods = {
   },
   "session.setStatus": { params: SetStatusParams, result: SessionResult },
   "session.byHost": {
-    // The hook's ancestor chain, nearest first. The daemon takes the first pid that appears in any
-    // online session's `hostPids`; one session holding it is the match, several give null.
-    params: z.object({ pids: HostPids }),
+    // The hook's own host pid. Matches by equality with an online session's `hostPid`; none or
+    // several give null.
+    params: z.object({ pid: z.number().int().positive() }),
     result: z.object({ session: Session.nullable() }),
   },
   "daemon.shutdown": { params: z.object({}), result: z.object({ ok: z.literal(true) }) },

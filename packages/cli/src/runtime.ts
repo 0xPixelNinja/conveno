@@ -144,7 +144,8 @@ export function createRuntimeCtx(): Ctx {
     now: () => new Date(),
     readStdin: readAllStdin,
     connect,
-    ancestry: (timeoutMs) => readAncestry({ timeoutMs }),
+    ancestry: (timeoutMs) =>
+      readAncestry({ timeoutMs, launcherPaths: process.argv[1] ? [process.argv[1]] : [] }),
     isAlive: defaultIsAlive,
     commandLineOf: (pid) => readCommandLine(pid),
     kill: (pid) => process.kill(pid),

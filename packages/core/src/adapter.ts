@@ -33,8 +33,8 @@ export interface AdapterEnv {
 
 export interface HookContext {
   client: ConvenoClient;
-  /** The hook process's ancestor chain, nearest first. Passed to `session.byHost`. */
-  pids: number[];
+  /** The CLI process above the hook, passed to `session.byHost`. */
+  hostPid: number;
 }
 
 export interface Adapter {

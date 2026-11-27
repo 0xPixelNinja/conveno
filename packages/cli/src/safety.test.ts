@@ -8,7 +8,15 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { type PlannedChange, usesCommand } from "./apply.js";
 import { levenshtein } from "./fmt.js";
 import { main } from "./main.js";
-import { fakeAdapter, seed, startTestDaemon, type TestCtx, testCtx } from "./test-utils.js";
+import {
+  ancestryOf,
+  type FakeProcs,
+  fakeAdapter,
+  seed,
+  startTestDaemon,
+  type TestCtx,
+  testCtx,
+} from "./test-utils.js";
 
 beforeAll(() => {
   process.env.TZ = "UTC";
@@ -181,11 +189,23 @@ describe("apply safety", () => {
 });
 
 describe("hook finds the CLI above a shell", () => {
-  it("matches a session through an ancestor the hook shares with it", async () => {
-    const shellPid = 424242;
+  // dash does not exec the last command when something follows it, so under `/bin/sh -c` the
+  // hook's parent is the shell. A symlinked bin shows up as `node /usr/local/bin/conveno`.
+  const procs: FakeProcs = {
+    100: [1, "-bash"],
+    300: [100, "/usr/local/bin/claude"],
+    310: [300, "/usr/bin/node /usr/local/bin/conveno mcp --cli claude"],
+    320: [300, "/bin/sh -c conveno hook claude UserPromptSubmit; true"],
+    330: [320, "/usr/bin/node /usr/local/bin/conveno hook claude UserPromptSubmit"],
+    301: [100, "/usr/local/bin/claude"],
+    321: [301, "/bin/sh -c conveno hook claude UserPromptSubmit; true"],
+    331: [321, "/usr/bin/node /usr/local/bin/conveno hook claude UserPromptSubmit"],
+  };
+
+  async function run(hook: { pid: number; ppid: number }, expected: string) {
     const c = await make({
-      // `sh -c "conveno hook ..."`: the shell is the direct parent, the CLI is next.
-      ancestry: async () => ({ pids: [shellPid, process.pid], complete: true }),
+      platform: "linux",
+      ancestry: ancestryOf(procs, hook, { platform: "darwin" }),
       readStdin: async () => "{}",
     });
     const d = await startTestDaemon(c);
@@ -196,11 +216,15 @@ describe("hook finds the CLI above a shell", () => {
       autoStart: false,
     });
     try {
+      // The MCP server (310) registers the CLI above it, 300.
+      const mcp = await ancestryOf(procs, { pid: 310, ppid: 300 }, { platform: "darwin" })(1_000);
+      expect(mcp.hostPid).toBe(300);
       const me = await client["session.register"]({
         cli: "claude",
         cwd: "/work/api",
-        hostPids: [process.pid],
-        pid: process.pid,
+        pid: 310,
+        hostPid: mcp.hostPid as number,
+        hostPids: mcp.pids,
       });
       const other = await client["session.register"]({ cli: "codex", cwd: "/work/api" });
       await client["message.send"]({
@@ -210,25 +234,33 @@ describe("hook finds the CLI above a shell", () => {
         body: { text: "found through the shell" },
       } as never);
       expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
-      expect(c.outText()).toContain("found through the shell");
+      expect(c.outText().includes("found through the shell")).toBe(expected === "delivered");
       expect(c.errText()).toBe("");
     } finally {
       await client.close();
       await d.stop();
     }
+  }
+
+  it("delivers through the CLI above the dash sh -c and a symlinked bin", async () => {
+    await run({ pid: 330, ppid: 320 }, "delivered");
   });
 
-  it("sends the whole chain to the daemon in one lookup", async () => {
+  it("delivers nothing to a CLI in the same terminal that has no session", async () => {
+    await run({ pid: 331, ppid: 321 }, "nothing");
+  });
+
+  it("sends one exact host pid to the daemon, not a chain", async () => {
     const lookups: unknown[] = [];
     const c = await make({
-      ancestry: async () => ({ pids: [11, 12, 13, 14, 15, 16, 17, 18], complete: true }),
+      ancestry: ancestryOf(procs, { pid: 330, ppid: 320 }, { platform: "darwin" }),
       connect: (async () => ({
         close: async () => undefined,
         "session.byHost": async (p: unknown) => (lookups.push(p), { session: null }),
       })) as never,
     });
     expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
-    expect(lookups).toEqual([{ pids: [11, 12, 13, 14, 15, 16, 17, 18] }]);
+    expect(lookups).toEqual([{ pid: 300 }]);
     expect(c.outText()).toBe("");
   });
 });

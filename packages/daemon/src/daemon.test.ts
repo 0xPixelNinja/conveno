@@ -238,6 +238,7 @@ describe("sessions", () => {
       cli: "opencode",
       cliVersion: "1.2.3",
       pid: 4001,
+      hostPid: 4000,
       hostPids: [4000, 3999],
     });
     expect(session).toMatchObject({
@@ -248,6 +249,7 @@ describe("sessions", () => {
       deliveryTier: "inbox",
       spawnDepth: 0,
       pid: 4001,
+      hostPid: 4000,
       hostPids: [4000, 3999],
       startedAt: "2026-11-27T09:00:00.000Z",
       lastSeenAt: "2026-11-27T09:00:00.000Z",
@@ -342,89 +344,87 @@ describe("sessions", () => {
   });
 
   describe("session.byHost", () => {
-    const byHost = async (c: RawClient, pids: number[]) =>
-      (await c.call("session.byHost", { pids })).session as { id: string } | null;
+    const byHost = async (c: RawClient, pid: number) =>
+      (await c.call("session.byHost", { pid })).session as { id: string } | null;
 
-    it("matches the first pid of the chain that any online session lists", async () => {
+    it("matches the online session whose host pid equals the hook's, and nothing else", async () => {
       const c = await h.authed();
-      expect(await byHost(c, [777])).toBeNull();
-      // Windows shape: the MCP server sits behind cmd.exe (900), the CLI is 800, its shell 700.
-      const claude = (await register(c, { hostPids: [900, 800, 700] })).session;
-      // The hook sits behind its own cmd.exe (901): the CLI (800) is the nearest shared ancestor.
-      expect((await byHost(c, [901, 800, 700]))?.id).toBe(claude.id);
-      expect((await byHost(c, [800]))?.id).toBe(claude.id);
-      expect(await byHost(c, [555, 666])).toBeNull();
+      expect(await byHost(c, 800)).toBeNull();
+      // MCP server behind cmd.exe (900): the CLI is 800, its shell 700.
+      const claude = (await register(c, { hostPid: 800, hostPids: [900, 800, 700] })).session;
+      expect((await byHost(c, 800))?.id).toBe(claude.id);
+      expect(await byHost(c, 555)).toBeNull();
     });
 
-    it("returns null when two sessions share the nearest matching pid", async () => {
+    it("never walks to ancestors: a pid that only appears in a raw chain does not match", async () => {
       const c = await h.authed();
-      await register(c, { hostPids: [900, 800, 700] });
-      await register(c, { hostPids: [910, 800, 700] });
-      expect(await byHost(c, [999, 800, 700])).toBeNull();
+      await register(c, { hostPid: 800, hostPids: [900, 800, 700] });
+      // 700 is the shared shell and 900 the launcher. An unregistered CLI must match neither.
+      expect(await byHost(c, 700)).toBeNull();
+      expect(await byHost(c, 900)).toBeNull();
     });
 
-    it("does not fall through to a farther pid after an ambiguous one", async () => {
+    it("keeps two CLIs in one terminal apart", async () => {
       const c = await h.authed();
-      await register(c, { hostPids: [900, 800, 100] });
-      await register(c, { hostPids: [910, 800, 200] });
-      const only = (await register(c, { hostPids: [920, 810, 700] })).session;
-      // 800 is shared by two sessions: ambiguous, so the unique 700 is not tried.
-      expect(await byHost(c, [800, 700])).toBeNull();
-      expect((await byHost(c, [810, 700]))?.id).toBe(only.id);
+      const a = (await register(c, { hostPid: 800, hostPids: [900, 800, 700] })).session;
+      const b = (await register(c, { hostPid: 810, hostPids: [910, 810, 700] })).session;
+      expect((await byHost(c, 800))?.id).toBe(a.id);
+      expect((await byHost(c, 810))?.id).toBe(b.id);
+      expect(await byHost(c, 820)).toBeNull();
     });
 
-    it("prefers a nearer unique match over a farther shared one", async () => {
+    it("returns null when two sessions share one host pid, never guessing", async () => {
       const c = await h.authed();
-      const a = (await register(c, { hostPids: [900, 800, 700] })).session;
-      await register(c, { hostPids: [910, 810, 700] });
-      expect((await byHost(c, [900, 700]))?.id).toBe(a.id);
-      expect(await byHost(c, [700])).toBeNull();
+      await register(c, { hostPid: 800 });
+      await register(c, { hostPid: 800 });
+      expect(await byHost(c, 800)).toBeNull();
     });
 
-    it("ignores offline sessions, so a stale shared pid does not make a match ambiguous", async () => {
+    it("ignores offline sessions, so a stale one does not make a match ambiguous", async () => {
       const c = await h.authed();
-      const old = (await register(c, { hostPids: [900, 800] })).session;
-      const live = (await register(c, { hostPids: [910, 800] })).session;
-      expect(await byHost(c, [800])).toBeNull();
+      const old = (await register(c, { hostPid: 800 })).session;
+      const live = (await register(c, { hostPid: 800 })).session;
+      expect(await byHost(c, 800)).toBeNull();
       await c.call("session.unregister", { sessionId: old.id });
-      expect((await byHost(c, [800]))?.id).toBe(live.id);
+      expect((await byHost(c, 800))?.id).toBe(live.id);
       await c.call("session.unregister", { sessionId: live.id });
-      expect(await byHost(c, [800])).toBeNull();
+      expect(await byHost(c, 800)).toBeNull();
     });
 
-    it("reports a session without host pids as unmatched, and keeps hostPids in order", async () => {
+    it("stores hostPid and the raw chain, and lists them", async () => {
       const c = await h.authed();
       const none = (await register(c)).session;
+      expect(none.hostPid).toBeUndefined();
       expect(none.hostPids).toBeUndefined();
-      const chained = (await register(c, { hostPids: [30, 20, 10] })).session;
-      expect(chained.hostPids).toEqual([30, 20, 10]);
-      expect(
-        (await c.call("session.list", {})).sessions.find((s: any) => s.id === chained.id)?.hostPids,
-      ).toEqual([30, 20, 10]);
+      const chained = (await register(c, { hostPid: 20, hostPids: [30, 20, 10] })).session;
+      expect(chained).toMatchObject({ hostPid: 20, hostPids: [30, 20, 10] });
+      const listed = (await c.call("session.list", {})).sessions.find(
+        (s: any) => s.id === chained.id,
+      );
+      expect(listed).toMatchObject({ hostPid: 20, hostPids: [30, 20, 10] });
     });
 
-    it("rejects an empty or too long chain", async () => {
+    it("rejects a missing, non-positive or chain-shaped pid, and a bad register chain", async () => {
       const c = await h.authed();
-      expect((await c.rpc("session.byHost", { pids: [] })).error?.code).toBe(
-        RpcErrorCode.InvalidParams,
-      );
-      expect(
-        (await c.rpc("session.byHost", { pids: [1, 2, 3, 4, 5, 6, 7, 8, 9] })).error?.code,
-      ).toBe(RpcErrorCode.InvalidParams);
+      for (const params of [{}, { pid: 0 }, { pids: [1] }, { pid: "1" }]) {
+        expect((await c.rpc("session.byHost", params)).error?.code).toBe(
+          RpcErrorCode.InvalidParams,
+        );
+      }
       expect(
         (await c.rpc("session.register", { cli: "claude", cwd: "/x", hostPids: [] })).error?.code,
       ).toBe(RpcErrorCode.InvalidParams);
     });
   });
 
-  it("only the nearest host pid decides liveness; farther ancestors may outlive the CLI", async () => {
+  it("liveness follows hostPid only; the raw chain's other pids may die or outlive the CLI", async () => {
     const c = await h.authed();
-    const a = (await register(c, { hostPids: [5101, 5102, 5103] })).session;
-    h.dead.add(5102);
+    const a = (await register(c, { hostPid: 5102, hostPids: [5101, 5102, 5103] })).session;
+    h.dead.add(5101);
     h.dead.add(5103);
     h.daemon.sweep();
     expect((await c.call("session.list", {})).sessions.map((s: any) => s.id)).toEqual([a.id]);
-    h.dead.add(5101);
+    h.dead.add(5102);
     h.daemon.sweep();
     expect((await c.call("session.list", {})).sessions).toEqual([]);
   });
@@ -917,10 +917,10 @@ describe("liveness", () => {
     expect((await c.call("session.list", {})).sessions).toHaveLength(1);
   });
 
-  it("marks a session offline as soon as its nearest host pid dies", async () => {
+  it("marks a session offline as soon as its host pid dies", async () => {
     const c = await h.authed();
-    await register(c, { hostPids: [5001] });
-    const other = await register(c, { hostPids: [5002] });
+    await register(c, { hostPid: 5001 });
+    const other = await register(c, { hostPid: 5002 });
     h.dead.add(5001);
     h.clock.ms += 1_000;
     h.daemon.sweep();
@@ -930,14 +930,14 @@ describe("liveness", () => {
 
   it("frees the name of an offline session and vacates the orchestrator role", async () => {
     const c = await h.authed();
-    const a = (await register(c, { hostPids: [5001] })).session;
+    const a = (await register(c, { hostPid: 5001 })).session;
     const b = (await register(c)).session;
     await c.call("orchestrator.claim", { sessionId: a.id });
     h.dead.add(5001);
     h.daemon.sweep();
     const err = await c.rpc("message.send", text("orchestrator", b.id));
     expect(err.error?.message).toContain("No session holds the orchestrator role");
-    const again = await register(c, { hostPids: [5003] });
+    const again = await register(c, { hostPid: 5003 });
     expect(again.session.name).toBe(a.name);
     const offline = await c.rpc("message.send", text(a.id, b.id));
     expect(offline.error?.code).toBe(RpcErrorCode.NotFound);
@@ -948,7 +948,7 @@ describe("liveness", () => {
     const ws = (await register(w)).session;
     await w.call("events.subscribe", { sessionId: ws.id });
     const c = await h.authed();
-    const a = (await register(c, { hostPids: [5001] })).session;
+    const a = (await register(c, { hostPid: 5001 })).session;
     await c.call("orchestrator.claim", { sessionId: a.id });
     // Events for w travel on its own socket, so the claim's events can still be in flight here
     // (seen on Windows). A reply on w arrives after every event written to it before the reply.
@@ -965,7 +965,7 @@ describe("liveness", () => {
 
   it("brings an offline session back on heartbeat when its host lives and its name is free", async () => {
     const c = await h.authed();
-    const a = (await register(c, { hostPids: [5001] })).session;
+    const a = (await register(c, { hostPid: 5001 })).session;
     h.clock.ms += 60_000;
     h.daemon.sweep();
     expect((await c.call("session.list", {})).sessions).toHaveLength(0);
@@ -975,7 +975,7 @@ describe("liveness", () => {
 
   it("refuses to revive a session whose name was taken or whose host died", async () => {
     const c = await h.authed();
-    const a = (await register(c, { name: "alpha", hostPids: [5001] })).session;
+    const a = (await register(c, { name: "alpha", hostPid: 5001 })).session;
     h.clock.ms += 60_000;
     h.daemon.sweep();
     await register(c, { name: "alpha" });
@@ -1017,7 +1017,7 @@ describe("liveness", () => {
     await h.stop();
     h = await startHarness({ sweepIntervalMs: 20 });
     const c = await h.authed();
-    await register(c, { hostPids: [6001] });
+    await register(c, { hostPid: 6001 });
     h.dead.add(6001);
     await new Promise((r) => setTimeout(r, 120));
     expect((await c.call("session.list", {})).sessions).toHaveLength(0);
@@ -1287,7 +1287,7 @@ describe("daemon.shutdown", () => {
 });
 
 describe("store migrations", () => {
-  it("turns a stored host_pid into a one-entry hostPids chain", () => {
+  it("keeps host_pid and adds a one-entry hostPids chain from it", () => {
     const dir = mkdtempSync(join(tmpdir(), "convenod-mig-"));
     const path = join(dir, "conveno.db");
     try {
@@ -1306,7 +1306,7 @@ describe("store migrations", () => {
 
       const store = new Store(path);
       const rows = store.allSessions();
-      expect(rows.find((r) => r.name === "old")?.hostPids).toEqual([4321]);
+      expect(rows.find((r) => r.name === "old")).toMatchObject({ hostPid: 4321, hostPids: [4321] });
       expect(rows.find((r) => r.name === "none")?.hostPids).toBeUndefined();
       store.close();
     } finally {

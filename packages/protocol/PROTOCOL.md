@@ -38,7 +38,8 @@ Session {
   deviceId: DeviceId       cwd: string
   repo?: { root: string, remoteUrlHash?: Sha256Hex }
   pid?: int > 0          (the MCP server process)
-  hostPids?: int > 0 [1..8]  (the MCP server's ancestor chain, nearest first)
+  hostPid?: int > 0      (the CLI process hosting the session)
+  hostPids?: int > 0 [1..8]  (the MCP server's raw ancestor chain, nearest first)
   status: SessionStatus    statusText?: string (<= 200 chars)
   isOrchestrator: bool     deliveryTier: DeliveryTier
   spawnedBy?: SessionId    spawnDepth: int >= 0
@@ -50,18 +51,27 @@ Session {
 machines recognise the same repository without the URL being shared. There is at most one
 orchestrator per account at any time.
 
-`hostPids` lets a hook find its session without any shared state. The MCP server lists its ancestor
-chain once at startup: its parent first, then the parent's parent, up to 8 entries (the chain stops
-earlier at the root). The chain includes launchers, not just the CLI. On Windows, npm installs
-`conveno` as `conveno.cmd`, so the chain is CLI, `cmd.exe`, MCP server, and the CLI is two levels
-up. A hook computes its own chain the same way and looks the session up with `session.byHost`
-(section 6.4).
+`hostPid` lets a hook find its session without shared state. It is the CLI process hosting the
+session. The MCP server works it out once at startup: it walks up from its parent and skips every
+ancestor that is part of launching Conveno itself, and the first ancestor left is the host. The
+skipped launchers are: the `cmd.exe` or `powershell` that runs the `conveno.cmd` or `conveno.ps1`
+shim; `node` running Conveno's own bin script; and a shell whose command line runs
+`conveno hook ...` or `conveno mcp ...` (for example `bash -c "conveno hook claude X"`). Nothing
+else is skipped, so an ordinary shell above the CLI is never mistaken for a launcher. On Windows,
+npm installs `conveno` as `conveno.cmd`, so the chain is CLI, `cmd.exe`, MCP server, and the host
+is the CLI, not the `cmd.exe`. A hook resolves its own host pid the same way and looks the session
+up by that single pid with `session.byHost` (section 6.4). The daemon matches by equality only and
+never walks to farther ancestors, so a hook from a CLI that has no session matches nothing, even
+when it shares a shell or terminal with one that has.
 
-A session goes `offline` when its first `hostPids` entry (the process that launched the MCP server)
-is gone, or when its heartbeat stops. Only the first entry is watched. The MCP server cannot outlive
-its launcher in a useful way: when the CLI dies, the pipe closes and the launcher exits with the MCP
-server. The farther entries are shells and terminals that can outlive the CLI, so they say nothing
-about whether the session is alive.
+`hostPids` is the MCP server's raw ancestor chain, nearest first, up to 8 entries. It is kept for
+diagnostics and is never used to match hooks. If the process list cannot be read (WMI denies it to
+non-admin NETWORK logons), both sides fall back to their direct parent as the host pid. That is
+still an exact equality and matches only when no launcher sits in between.
+
+A session goes `offline` when its `hostPid` is gone, or when its heartbeat stops. Only `hostPid` is
+watched: the launchers exit with the MCP server, and the shells and terminals above the CLI can
+outlive it, so neither says anything about whether the session is alive.
 
 ## 4. Message
 
@@ -156,12 +166,12 @@ Session-scoped methods carry the caller's `sessionId` explicitly. The last colum
 |---|---|---|
 | `hello` | `{ protocolVersion, client: "mcp"\|"cli"\|"adapter", nonce }` | `{ protocolVersion, daemonVersion, proof, challenge }`. MUST be the first call. `nonce` and `challenge` are 32 random bytes as lowercase hex. |
 | `auth` | `{ proof }` | `{ ok: true }`. MUST follow `hello`; everything else returns -32001 until it succeeds. |
-| `session.register` | `{ name?, cli, cliVersion?, cwd, repo?, pid?, hostPids?, spawnedBy? }` (no name: daemon assigns, e.g. `claude@repo-1`) | `{ session }` |
+| `session.register` | `{ name?, cli, cliVersion?, cwd, repo?, pid?, hostPid?, hostPids?, spawnedBy? }` (no name: daemon assigns, e.g. `claude@repo-1`) | `{ session }` |
 | `session.heartbeat` | `{ sessionId }` | `{ lastSeenAt }` |
 | `session.unregister` | `{ sessionId }` | `{ ok: true }` |
 | `session.rename` | `{ sessionId, name }` | `{ session }` |
 | `session.setStatus` | `{ sessionId, status?, statusText? }` (at least one; `statusText: null` clears) | `{ session }` |
-| `session.byHost` | `{ pids }` (1..8 pids) | `{ session: Session \| null }`. `pids` is the caller's ancestor chain, nearest first. The daemon takes the first pid that appears in the `hostPids` of any online session. If exactly one online session holds that pid, it is returned. If several do, the result is `null`: the daemon never guesses. Hooks use it to find their session; the nearest ancestor two sessions share is normally the CLI process that started both, so two sessions under one CLI process are ambiguous. |
+| `session.byHost` | `{ pid }` | `{ session: Session \| null }`. The one online session whose `hostPid` equals `pid`. Exact equality only. No match, or two sessions with the same `hostPid`, gives `null`: the daemon never guesses and never looks at `hostPids`. Hooks use it to find their session. |
 | `daemon.shutdown` | `{}` | `{ ok: true }`. The daemon sends the reply, stops accepting connections, closes its store, removes its socket (POSIX) and its lock file, and exits with code 0. Needs the completed handshake like every other method. `conveno daemon stop` uses it instead of signals. |
 | `session.list` | `{ repo?, cli?, includeOffline = false }` | `{ sessions }` |
 | `orchestrator.claim` | `{ sessionId }` | `{ orchestrator, previous }` (`previous` is `null` if none) |

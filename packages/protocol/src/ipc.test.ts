@@ -155,6 +155,7 @@ describe("session.*", () => {
         cwd: "/r",
         name: "codex-1",
         pid: 1,
+        hostPid: 2,
         hostPids: [2, 3],
         repo: { root: "/r" },
       }).ok,
@@ -270,33 +271,30 @@ describe("message.*", () => {
     expect(schema.safeParse({ message: messageFixture(), delivery: "inbox" }).success).toBe(false);
   });
 
-  it("register: hostPids is a chain of 1 to 8 positive ints", () => {
-    const reg = (hostPids: unknown) =>
-      req("session.register", { cli: "codex", cwd: "/r", hostPids });
-    expect(reg([42]).ok).toBe(true);
-    expect(reg([1, 2, 3, 4, 5, 6, 7, 8]).ok).toBe(true);
-    expect(reg([]).ok).toBe(false);
-    expect(reg([1, 2, 3, 4, 5, 6, 7, 8, 9]).ok).toBe(false);
-    expect(reg([0]).ok).toBe(false);
-    expect(reg([1.5]).ok).toBe(false);
-    expect(reg(42).ok).toBe(false);
-    // The single hostPid of the first drafts is gone.
-    expect(
-      okParams("session.register", { cli: "codex", cwd: "/r", hostPid: 42 }),
-    ).not.toHaveProperty("hostPid");
+  it("register: hostPid is one positive int, hostPids a chain of 1 to 8", () => {
+    const reg = (over: Record<string, unknown>) =>
+      req("session.register", { cli: "codex", cwd: "/r", ...over });
+    expect(reg({ hostPid: 42, hostPids: [400, 42] }).ok).toBe(true);
+    expect(reg({ hostPids: [1, 2, 3, 4, 5, 6, 7, 8] }).ok).toBe(true);
+    expect(reg({ hostPid: 0 }).ok).toBe(false);
+    expect(reg({ hostPid: 1.5 }).ok).toBe(false);
+    expect(reg({ hostPids: [] }).ok).toBe(false);
+    expect(reg({ hostPids: [1, 2, 3, 4, 5, 6, 7, 8, 9] }).ok).toBe(false);
+    expect(reg({ hostPids: [0] }).ok).toBe(false);
+    expect(reg({ hostPids: 42 }).ok).toBe(false);
   });
 
-  it("byHost: needs a chain of 1 to 8 positive int pids; result allows null", () => {
-    expect(req("session.byHost", { pids: [42] }).ok).toBe(true);
-    expect(req("session.byHost", { pids: [42, 41, 40, 39, 38, 37, 36, 35] }).ok).toBe(true);
-    expect(req("session.byHost", { pids: [] }).ok).toBe(false);
-    expect(req("session.byHost", { pids: [0] }).ok).toBe(false);
-    expect(req("session.byHost", { pids: [1, 2, 3, 4, 5, 6, 7, 8, 9] }).ok).toBe(false);
-    expect(req("session.byHost", { hostPid: 42 }).ok).toBe(false);
+  it("byHost: needs one positive int pid; result allows null", () => {
+    expect(req("session.byHost", { pid: 42 }).ok).toBe(true);
+    expect(req("session.byHost", { pid: 0 }).ok).toBe(false);
+    expect(req("session.byHost", { pid: 1.5 }).ok).toBe(false);
+    expect(req("session.byHost", { pids: [42] }).ok).toBe(false);
     expect(req("session.byHost", {}).ok).toBe(false);
     const r = ipcMethods["session.byHost"].result;
     expect(r.safeParse({ session: null }).success).toBe(true);
-    expect(r.safeParse({ session: sessionFixture({ hostPids: [42, 41] }) }).success).toBe(true);
+    expect(
+      r.safeParse({ session: sessionFixture({ hostPid: 42, hostPids: [400, 42] }) }).success,
+    ).toBe(true);
     expect(r.safeParse({ session: sessionFixture({ hostPids: [] }) }).success).toBe(false);
     expect(r.safeParse({}).success).toBe(false);
   });

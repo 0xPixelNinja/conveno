@@ -17,7 +17,7 @@ handshake completes, sends a heartbeat every 15 s, and unregisters when the serv
 
 ## Exports
 
-- `createServer(options)`: build the server from a client, the MCP server's ancestor pids (`hostPids`, nearest first, from `readAncestry`) and a working directory
+- `createServer(options)`: build the server from a client, the host CLI pid and raw ancestor chain (`host`, from `readAncestry`) and a working directory
 - `runStdio(options)`: connect the server to stdio and run until stdin closes or SIGTERM arrives
 - `formatSessionTable`, `formatAge`: the plain-text output used by `list_sessions`
 - `PACKAGE_NAME`

@@ -274,7 +274,7 @@ class Daemon {
       case "session.list":
         return this.list(req.params);
       case "session.byHost":
-        return this.byHost(req.params.pids);
+        return this.byHost(req.params.pid);
       case "daemon.shutdown":
         return { ok: true as const };
       case "orchestrator.claim":
@@ -412,6 +412,7 @@ class Daemon {
         if (repo.remoteUrlHash !== undefined) r.repoRemoteUrlHash = repo.remoteUrlHash;
       }
       if (p.pid !== undefined) r.pid = p.pid;
+      if (p.hostPid !== undefined) r.hostPid = p.hostPid;
       if (p.hostPids !== undefined) r.hostPids = p.hostPids;
       if (p.spawnedBy !== undefined) r.spawnedBy = p.spawnedBy;
       this.store.insertSession(r);
@@ -435,8 +436,7 @@ class Daemon {
     // An offline session that heartbeats again comes back, unless its host died or its name was taken.
     const named = this.named(this.store.allSessions());
     const taken = named.some((s) => s.id !== sessionId && isOnline(s) && s.name === row.name);
-    const launcher = row.hostPids?.[0];
-    if ((launcher !== undefined && !this.isAlive(launcher)) || taken) {
+    if ((row.hostPid !== undefined && !this.isAlive(row.hostPid)) || taken) {
       throw new ConvenoError(
         RpcErrorCode.NotFound,
         `Session "${row.name}" is offline and cannot come back. Register the session again.`,
@@ -516,20 +516,17 @@ class Daemon {
   }
 
   /**
-   * Find the session a hook belongs to. `pids` is the hook's ancestor chain, nearest first. The
-   * first pid that any online session lists in its `hostPids` decides: one such session is the
-   * match, several make the answer ambiguous and the result is null. A farther pid is never
-   * tried after an ambiguous one, because that would be a guess.
+   * Find the session a hook belongs to: the one online session whose `hostPid` equals `pid`.
+   * Exact equality only, with no walk to farther ancestors, so a hook from a CLI that has no
+   * session matches nothing. Two sessions under one CLI process are ambiguous, so the result is
+   * null; the daemon never guesses.
    */
-  private byHost(pids: number[]) {
-    const online = this.store.allSessions().filter((r) => r.status !== "offline");
-    for (const pid of pids) {
-      const holders = online.filter((r) => r.hostPids?.includes(pid));
-      if (holders.length === 0) continue;
-      const only = holders.length === 1 ? holders[0] : undefined;
-      return { session: only ? this.view(only) : null };
-    }
-    return { session: null };
+  private byHost(pid: number) {
+    const holders = this.store
+      .allSessions()
+      .filter((r) => r.status !== "offline" && r.hostPid === pid);
+    const only = holders.length === 1 ? holders[0] : undefined;
+    return { session: only ? this.view(only) : null };
   }
 
   /* ---- orchestrator ---- */
@@ -690,11 +687,7 @@ class Daemon {
       }
       // Sessions that outlived a daemon restart get one full window to heartbeat again.
       const lastSeenMs = Math.max(Date.parse(row.lastSeenAt), this.startedMs);
-      const verdict = evaluateLiveness(
-        { lastSeenMs, hostPid: row.hostPids?.[0] },
-        nowMs,
-        this.isAlive,
-      );
+      const verdict = evaluateLiveness({ lastSeenMs, hostPid: row.hostPid }, nowMs, this.isAlive);
       if (statusAfterLiveness(row.status, verdict) === "offline") this.depart(row.id, "offline");
       else online++;
     }

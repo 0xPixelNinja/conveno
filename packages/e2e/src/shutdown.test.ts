@@ -38,6 +38,7 @@ describe("daemon.shutdown against the real convenod", () => {
       const { sessions } = await client["session.list"]({});
       const mine = sessions.find((s) => s.pid !== undefined);
       // The fake host is the MCP server's parent; the test process spawned the host.
+      expect(mine?.hostPid).toBe(session.hostPid);
       expect(mine?.hostPids?.[0]).toBe(session.hostPid);
       if (process.platform !== "win32") expect(mine?.hostPids?.[1]).toBe(process.pid);
       expect((mine?.hostPids ?? []).length).toBeLessThanOrEqual(8);

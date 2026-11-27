@@ -17,7 +17,7 @@ If `CLAUDE_CONFIG_DIR` is set, both files live in that directory (`.claude.json`
 
 ## Hook output
 
-`hook(event, input, ctx)` looks up the session with `session.byHost({ pids })`, where `pids` is the hook process's ancestor chain, nearest first, calls `message.deliver`, and when messages exist prints:
+`hook(event, input, ctx)` looks up the session with `session.byHost({ pid })`, where `pid` is the CLI process above the hook, calls `message.deliver`, and when messages exist prints:
 
 ```json
 { "hookSpecificOutput": { "hookEventName": "SessionStart", "additionalContext": "<formatHookContext(messages)>" } }

@@ -21,7 +21,12 @@ let root: string;
 const peers: Peer[] = [];
 
 async function startPeer(cwd: string, cli: "claude" | "codex" = "claude"): Promise<Peer> {
-  const mcp = createServer({ cli, client: daemon.client(), hostPids: [4242, 4241], cwd });
+  const mcp = createServer({
+    cli,
+    client: daemon.client(),
+    host: { hostPid: 4242, hostPids: [4242, 4241] },
+    cwd,
+  });
   const client = new Client({ name: "test", version: "0" });
   const [a, b] = InMemoryTransport.createLinkedPair();
   await Promise.all([mcp.connect(a), client.connect(b)]);
@@ -93,6 +98,7 @@ describe("tools", () => {
     expect(s?.cli).toBe("codex");
     expect(s?.cliVersion).toBe("1.2.3");
     expect(s?.pid).toBe(process.pid);
+    expect(s?.hostPid).toBe(4242);
     expect(s?.hostPids).toEqual([4242, 4241]);
     expect(s?.repo?.root).toBe(join(root, "myrepo"));
     expect(s?.name).toBe("codex@myrepo-1");
@@ -190,7 +196,12 @@ describe("session recovery", () => {
     expect([...daemon.sessions.keys()][0]).not.toBe(oldId);
     const regs = daemon.calls.filter((c) => c.method === "session.register");
     expect(regs).toHaveLength(2);
-    expect(regs[1]?.params).toMatchObject({ cli: "claude", cwd: root, hostPids: [4242, 4241] });
+    expect(regs[1]?.params).toMatchObject({
+      cli: "claude",
+      cwd: root,
+      hostPid: 4242,
+      hostPids: [4242, 4241],
+    });
   });
 
   it("says what happened when registering again does not help", async () => {
@@ -206,7 +217,12 @@ describe("session recovery", () => {
         );
       },
     };
-    const mcp = createServer({ cli: "claude", client: failing as never, hostPids: [1], cwd: root });
+    const mcp = createServer({
+      cli: "claude",
+      client: failing as never,
+      host: { hostPid: 1, hostPids: [1] },
+      cwd: root,
+    });
     const client = new Client({ name: "t", version: "0" });
     const [x, y] = InMemoryTransport.createLinkedPair();
     await Promise.all([mcp.connect(x), client.connect(y)]);

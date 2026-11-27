@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  isConvenoLauncher,
   MAX_ANCESTORS,
   type ProcessIo,
   parseProcessTable,
   parseProcStat,
+  pickHostPid,
   readAncestry,
   readCommandLine,
   WINDOWS_TABLE_SCRIPT,
 } from "./process-info.js";
 
-/** A process table as pid -> ppid. */
-type Table = Record<number, number>;
+/** A process table: pid -> [ppid, command line]. */
+type Table = Record<number, [number, string]>;
 
 interface Call {
   file: string;
@@ -18,51 +20,49 @@ interface Call {
   timeoutMs: number;
 }
 
-/** Injected OS access over a fixed table. Records every spawn, and every file read. */
+/** Injected OS access over a fixed table. Records every spawn. */
 function fakeIo(platform: NodeJS.Platform, table: Table, over: Partial<ProcessIo> = {}) {
   const calls: Call[] = [];
-  const reads: string[] = [];
   const io: ProcessIo = {
     platform,
     readFile: async (path) => {
-      reads.push(path);
-      const m = /^\/proc\/(\d+)\/stat$/.exec(path);
-      const ppid = m ? table[Number(m[1])] : undefined;
-      if (ppid === undefined) throw new Error("ENOENT");
-      return `${m?.[1]} (node (x) y) S ${ppid} 1 1 0`;
+      const m = /^\/proc\/(\d+)\/(stat|cmdline)$/.exec(path);
+      const row = m ? table[Number(m[1])] : undefined;
+      if (!m || !row) throw new Error("ENOENT");
+      return m[2] === "stat"
+        ? `${m[1]} (node (x) y) S ${row[0]} 1 1 0`
+        : `${row[1].split(" ").join("\0")}\0`;
     },
     run: async (file, args, timeoutMs) => {
       calls.push({ file, args, timeoutMs });
-      if (platform === "win32") {
-        return `${Object.entries(table)
-          .map(([p, pp]) => `${p} ${pp}`)
-          .join("\r\n")}\r\n`;
-      }
+      const sep = platform === "win32" ? "\r\n" : "\n";
       return Object.entries(table)
-        .map(([p, pp]) => `${p.padStart(6)} ${String(pp).padStart(6)}`)
-        .join("\n");
+        .map(([p, [pp, cmd]]) => `${p.padStart(6)} ${String(pp).padStart(6)} ${cmd}`)
+        .join(sep);
     },
     ...over,
   };
-  return { io, calls, reads };
+  return { io, calls };
 }
 
 describe("parsers", () => {
-  it("reads ps output with padding and PowerShell output with CRLF", () => {
-    expect([...parseProcessTable("    1     0\n  412   300\n")]).toEqual([
-      [1, 0],
-      [412, 300],
+  it("reads ps output with padding and PowerShell output with CRLF, keeping command lines", () => {
+    expect([...parseProcessTable("    1     0 /sbin/init\n  412   300 node a.js --x\n")]).toEqual([
+      [1, { ppid: 0, command: "/sbin/init" }],
+      [412, { ppid: 300, command: "node a.js --x" }],
     ]);
-    expect([...parseProcessTable("4 0\r\n500 400\r\n\r\n")]).toEqual([
-      [4, 0],
-      [500, 400],
+    expect([...parseProcessTable('4 0\r\n500 400 cmd.exe /d /c "x y"\r\n\r\n')]).toEqual([
+      [4, { ppid: 0 }],
+      [500, { ppid: 400, command: 'cmd.exe /d /c "x y"' }],
     ]);
   });
 
   it("ignores headers, blank lines and noise", () => {
     expect([
-      ...parseProcessTable("PID PPID\n\nProcessId ParentProcessId\nGet-CimInstance : x\n7 3"),
-    ]).toEqual([[7, 3]]);
+      ...parseProcessTable(
+        "PID PPID ARGS\n\nProcessId ParentProcessId\nGet-CimInstance : x\n7 3 sh",
+      ),
+    ]).toEqual([[7, { ppid: 3, command: "sh" }]]);
   });
 
   it("reads the parent from /proc stat even when the name has spaces and parentheses", () => {
@@ -71,92 +71,172 @@ describe("parsers", () => {
   });
 });
 
-// The same process tree on every OS: terminal 100 > shell 200 > CLI 300, which starts the MCP
-// server (through a launcher on Windows) and, later, a hook (through its own launcher).
-describe("readAncestry on Linux", () => {
-  const table: Table = { 100: 1, 200: 100, 300: 200, 310: 300, 500: 310 };
+describe("isConvenoLauncher", () => {
+  const BIN = "/opt/conveno/packages/cli/dist/bin.js";
 
-  it("walks /proc one level at a time, nearest first, and stops below init", async () => {
-    const { io } = fakeIo("linux", table);
-    expect(await readAncestry({ pid: 500, ppid: 310, io })).toEqual({
-      pids: [310, 300, 200, 100],
-      complete: true,
-    });
+  it.each([
+    // a shell running a conveno command
+    'bash -c "conveno hook claude UserPromptSubmit"',
+    "/bin/sh -c conveno hook claude UserPromptSubmit; true",
+    "/bin/sh -c /usr/local/bin/conveno hook codex SessionStart",
+    "sh -c conveno mcp --cli claude",
+    // Windows: cmd.exe running the npm shim, with the quoting the shim runner uses
+    String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""C:\Users\u\AppData\Roaming\npm\conveno.cmd" hook claude X"`,
+    String.raw`cmd.exe /d /s /c "conveno.cmd mcp --cli claude"`,
+    String.raw`cmd /d /s /c "^"C:\npm\conveno.cmd^" ^"hook^" ^"claude^""`,
+    // PowerShell running the .ps1 shim
+    String.raw`powershell.exe -NoProfile -File C:\Users\u\AppData\Roaming\npm\conveno.ps1 mcp --cli codex`,
+    // node running our bin script
+    "node /usr/local/bin/conveno mcp --cli claude",
+    String.raw`"C:\Program Files\nodejs\node.exe" C:\Users\u\AppData\Roaming\npm\node_modules\@conveno\cli\dist\bin.js hook claude X`,
+    "/usr/bin/node --no-warnings /home/u/.pnpm/@conveno+cli@0.1.0/node_modules/@conveno/cli/dist/bin.js mcp",
+    `node ${BIN} hook claude X`,
+    `/bin/sh -c "${BIN}" hook claude X; true`,
+  ])("is a launcher: %s", (line) => {
+    expect(isConvenoLauncher(line, [BIN]), line).toBe(true);
+  });
+
+  it.each([
+    "claude",
+    "bash",
+    "-bash",
+    "/bin/sh",
+    "bash -c claude --resume",
+    'bash -c "npm run build && conveno-docs hook"',
+    "zsh -c echo conveno hooked",
+    "cmd.exe /d /c echo hello",
+    "powershell.exe",
+    String.raw`C:\Users\u\AppData\Roaming\npm\claude.exe`,
+    "node /work/app/server.js",
+    "node /work/app/bin.js mcp",
+    "/usr/bin/python3 -m conveno_tools hook",
+    "vim conveno.md",
+    "less notes-on-conveno.cmdline.txt",
+    "node /x/@conveno/daemon/dist/bin.js",
+  ])("is not a launcher: %s", (line) => {
+    expect(isConvenoLauncher(line, [BIN]), line).toBe(false);
+  });
+
+  it("matches paths ignoring case and slash direction", () => {
+    expect(
+      isConvenoLauncher(String.raw`node.exe C:\Work\Conveno\packages\cli\dist\bin.js mcp`, [
+        "C:/work/conveno/packages/cli/dist/bin.js",
+      ]),
+    ).toBe(true);
+  });
+});
+
+describe("pickHostPid", () => {
+  it("takes the first entry that is not a launcher, and an entry without a command line as host", () => {
+    expect(
+      pickHostPid([
+        { pid: 4, command: "cmd.exe /d /s /c conveno.cmd mcp" },
+        { pid: 3, command: "claude.exe" },
+        { pid: 2, command: "powershell.exe" },
+      ]),
+    ).toBe(3);
+    expect(pickHostPid([{ pid: 9 }, { pid: 8, command: "claude" }])).toBe(9);
+    expect(pickHostPid([{ pid: 4, command: "sh -c conveno hook x" }])).toBeUndefined();
+    expect(pickHostPid([])).toBeUndefined();
+  });
+});
+
+// A tree on every OS: terminal 100 > shell 200 > CLI 300. The MCP server hangs under the CLI, on
+// Windows behind the npm shim's cmd.exe. A hook hangs under the CLI behind a shell and the shim.
+const POSIX: Table = {
+  100: [1, "kitty"],
+  200: [100, "-bash"],
+  300: [200, "claude"],
+  310: [300, "node /usr/local/bin/conveno mcp --cli claude"],
+  320: [300, "/bin/sh -c conveno hook claude UserPromptSubmit; true"],
+  330: [320, "node /usr/local/bin/conveno hook claude UserPromptSubmit"],
+};
+const WIN: Table = {
+  100: [0, "WindowsTerminal.exe"],
+  200: [100, "powershell.exe"],
+  300: [200, String.raw`C:\npm\claude.exe`],
+  400: [
+    300,
+    String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""C:\npm\conveno.cmd" mcp --cli claude"`,
+  ],
+  500: [400, String.raw`node.exe C:\npm\node_modules\@conveno\cli\dist\bin.js mcp --cli claude`],
+  405: [300, `bash -c "conveno hook claude UserPromptSubmit"`],
+  410: [
+    405,
+    String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""C:\npm\conveno.cmd" hook claude UserPromptSubmit"`,
+  ],
+  510: [
+    410,
+    String.raw`node.exe C:\npm\node_modules\@conveno\cli\dist\bin.js hook claude UserPromptSubmit`,
+  ],
+};
+
+describe("readAncestry on Linux", () => {
+  it("walks /proc one level at a time and finds the CLI above a sh -c and a symlinked bin", async () => {
+    const { io } = fakeIo("linux", POSIX);
+    const hook = await readAncestry({ pid: 330, ppid: 320, io });
+    expect(hook.pids).toEqual([320, 300, 200, 100]);
+    expect(hook.hostPid).toBe(300);
+    expect(hook.complete).toBe(true);
+    expect(hook.entries[0]?.command).toBe("/bin/sh -c conveno hook claude UserPromptSubmit; true");
+    const mcp = await readAncestry({ pid: 310, ppid: 300, io });
+    expect(mcp.hostPid).toBe(300);
   });
 
   it("reads the parent of the given pid when no ppid is passed", async () => {
-    const { io } = fakeIo("linux", table);
-    expect((await readAncestry({ pid: 500, io })).pids).toEqual([310, 300, 200, 100]);
+    const { io } = fakeIo("linux", POSIX);
+    expect((await readAncestry({ pid: 330, io })).hostPid).toBe(300);
   });
 
   it("caps the chain at eight entries", async () => {
     const deep: Table = {};
-    for (let p = 10; p <= 40; p++) deep[p] = p - 1;
+    for (let p = 10; p <= 40; p++) deep[p] = [p - 1, "x"];
     const { io } = fakeIo("linux", deep);
     const r = await readAncestry({ pid: 40, ppid: 39, io });
-    expect(r.pids).toHaveLength(MAX_ANCESTORS);
     expect(r.pids).toEqual([39, 38, 37, 36, 35, 34, 33, 32]);
+    expect(r.pids).toHaveLength(MAX_ANCESTORS);
   });
 
   it("stops at a cycle", async () => {
-    const { io } = fakeIo("linux", { 20: 30, 30: 20 });
+    const { io } = fakeIo("linux", { 20: [30, "a"], 30: [20, "b"] });
     expect((await readAncestry({ pid: 10, ppid: 20, io })).pids).toEqual([20, 30]);
   });
 
-  it("ends the chain where /proc stops answering, still complete", async () => {
-    const { io } = fakeIo("linux", { 310: 300, 500: 310 });
-    // 300 is not readable: the chain is the parent and the ancestor that was seen.
-    expect(await readAncestry({ pid: 500, ppid: 310, io })).toEqual({
-      pids: [310, 300],
-      complete: true,
-    });
-  });
-
-  it("falls back to the direct parent, marked incomplete, when /proc is not readable", async () => {
+  it("falls back to the direct parent, flagged, when /proc is not readable", async () => {
     const { io } = fakeIo(
       "linux",
       {},
       { readFile: async () => Promise.reject(new Error("EACCES")) },
     );
-    expect(await readAncestry({ pid: 500, ppid: 310, io })).toEqual({
-      pids: [310],
-      complete: false,
-    });
+    const r = await readAncestry({ pid: 330, ppid: 320, io });
+    expect(r).toEqual({ entries: [{ pid: 320 }], pids: [320], hostPid: 320, complete: false });
   });
 });
 
 describe("readAncestry on macOS", () => {
-  const table: Table = { 1: 0, 100: 1, 200: 100, 300: 200, 310: 300, 500: 310 };
-
-  it("builds the chain from one ps call", async () => {
-    const { io, calls } = fakeIo("darwin", table);
-    expect(await readAncestry({ pid: 500, ppid: 310, timeoutMs: 800, io })).toEqual({
-      pids: [310, 300, 200, 100],
-      complete: true,
-    });
-    expect(calls).toEqual([{ file: "ps", args: ["-A", "-o", "pid=,ppid="], timeoutMs: 800 }]);
+  it("builds the chain and command lines from one ps call", async () => {
+    const { io, calls } = fakeIo("darwin", { 1: [0, "/sbin/launchd"], ...POSIX });
+    const r = await readAncestry({ pid: 330, ppid: 320, timeoutMs: 800, io });
+    expect(r.pids).toEqual([320, 300, 200, 100]);
+    expect(r.hostPid).toBe(300);
+    expect(calls).toEqual([{ file: "ps", args: ["-A", "-o", "pid=,ppid=,args="], timeoutMs: 800 }]);
   });
 
   it("falls back to the direct parent when ps fails", async () => {
-    const { io } = fakeIo("darwin", table, { run: async () => null });
-    expect(await readAncestry({ pid: 500, ppid: 310, io })).toEqual({
-      pids: [310],
+    const { io } = fakeIo("darwin", POSIX, { run: async () => null });
+    expect(await readAncestry({ pid: 330, ppid: 320, io })).toMatchObject({
+      pids: [320],
+      hostPid: 320,
       complete: false,
     });
   });
 });
 
 describe("readAncestry on Windows", () => {
-  // npm installs conveno as conveno.cmd, so each side goes through a cmd.exe shim:
-  //   WindowsTerminal 100 > powershell 200 > claude 300
-  //     > cmd.exe 400 > node 500 (MCP server, started from conveno.cmd)
-  //     > cmd.exe 410 > node 510 (hook, started from conveno.cmd)
-  const table: Table = { 100: 0, 200: 100, 300: 200, 400: 300, 500: 400, 410: 300, 510: 410 };
-
-  it("reads the whole table with one PowerShell call and walks it", async () => {
-    const { io, calls } = fakeIo("win32", table);
+  it("reads the table, command lines included, with one PowerShell call", async () => {
+    const { io, calls } = fakeIo("win32", WIN);
     const mcp = await readAncestry({ pid: 500, ppid: 400, timeoutMs: 30_000, io });
-    expect(mcp).toEqual({ pids: [400, 300, 200, 100], complete: true });
+    expect(mcp.pids).toEqual([400, 300, 200, 100]);
     expect(calls).toHaveLength(1);
     expect(calls[0]?.file).toBe("powershell.exe");
     expect(calls[0]?.args).toEqual([
@@ -165,44 +245,62 @@ describe("readAncestry on Windows", () => {
       "-Command",
       WINDOWS_TABLE_SCRIPT,
     ]);
-    expect(WINDOWS_TABLE_SCRIPT).toContain("Get-CimInstance");
-    expect(WINDOWS_TABLE_SCRIPT).toContain("Win32_Process");
-    expect(WINDOWS_TABLE_SCRIPT).toContain("ProcessId,ParentProcessId");
+    for (const word of [
+      "Get-CimInstance",
+      "Win32_Process",
+      "ProcessId,ParentProcessId,CommandLine",
+    ]) {
+      expect(WINDOWS_TABLE_SCRIPT).toContain(word);
+    }
     expect(calls[0]?.timeoutMs).toBe(30_000);
   });
 
-  it("gives the MCP server and the hook chains that meet at the CLI, past both cmd.exe shims", async () => {
-    const { io } = fakeIo("win32", table);
-    const mcp = (await readAncestry({ pid: 500, ppid: 400, io })).pids;
-    const hook = (await readAncestry({ pid: 510, ppid: 410, io })).pids;
-    expect(mcp).toEqual([400, 300, 200, 100]);
-    expect(hook).toEqual([410, 300, 200, 100]);
-    // The old rule (ppid against ppid) never matched: 400 is not in the hook's chain.
-    expect(hook).not.toContain(mcp[0]);
-    expect(hook.find((p) => mcp.includes(p))).toBe(300);
+  it("gives the MCP server and the hook the same host: the CLI, through the shim and bash -c", async () => {
+    const { io } = fakeIo("win32", WIN);
+    const mcp = await readAncestry({ pid: 500, ppid: 400, io });
+    const hook = await readAncestry({ pid: 510, ppid: 410, io });
+    expect(mcp.hostPid).toBe(300);
+    expect(hook.pids).toEqual([410, 405, 300, 200, 100]);
+    expect(hook.hostPid).toBe(300);
   });
 
-  it("falls back to [ppid] and flags it when WMI denies the query (non-admin NETWORK logon)", async () => {
+  it("gives an unregistered CLI in the same terminal a different host, never the shared shell", async () => {
+    const other: Table = {
+      ...WIN,
+      301: [200, String.raw`C:\npm\codex.exe`],
+      411: [301, String.raw`cmd /d /s /c ""C:\npm\conveno.cmd" hook codex X"`],
+      511: [411, String.raw`node.exe C:\npm\node_modules\@conveno\cli\dist\bin.js hook codex X`],
+    };
+    const { io } = fakeIo("win32", other);
+    const mine = await readAncestry({ pid: 510, ppid: 410, io });
+    const theirs = await readAncestry({ pid: 511, ppid: 411, io });
+    expect(theirs.hostPid).toBe(301);
+    expect(theirs.hostPid).not.toBe(mine.hostPid);
+    // The shared shell is in both raw chains, which is why the chain alone never decides a match.
+    expect(theirs.pids).toContain(200);
+    expect(mine.pids).toContain(200);
+  });
+
+  it("falls back to the direct parent and flags it when WMI denies the query", async () => {
     for (const out of [null, "", "Get-CimInstance : Access denied \r\n"]) {
-      const { io } = fakeIo("win32", table, { run: async () => out });
+      const { io } = fakeIo("win32", WIN, { run: async () => out });
       expect(await readAncestry({ pid: 510, ppid: 410, io })).toEqual({
+        entries: [{ pid: 410 }],
         pids: [410],
+        hostPid: 410,
         complete: false,
       });
     }
   });
 
-  it("still answers the direct parent when the parent is not in the table", async () => {
-    const { io } = fakeIo("win32", { 100: 4 });
-    expect(await readAncestry({ pid: 510, ppid: 410, io })).toEqual({
-      pids: [410],
-      complete: true,
-    });
+  it("matches the old behaviour when there is no shim: the direct parent is the CLI", async () => {
+    const { io } = fakeIo("win32", WIN, { run: async () => null });
+    expect((await readAncestry({ pid: 888, ppid: 300, io })).hostPid).toBe(300);
   });
 
   it("never throws, even when the runner does", async () => {
-    const { io } = fakeIo("win32", table, { run: async () => Promise.reject(new Error("spawn")) });
-    expect(await readAncestry({ pid: 510, ppid: 410, io })).toEqual({
+    const { io } = fakeIo("win32", WIN, { run: async () => Promise.reject(new Error("spawn")) });
+    expect(await readAncestry({ pid: 510, ppid: 410, io })).toMatchObject({
       pids: [410],
       complete: false,
     });
@@ -215,6 +313,7 @@ describe("readAncestry with the real OS", () => {
     expect(r.complete).toBe(true);
     expect(r.pids[0]).toBe(process.ppid);
     expect(r.pids.length).toBeLessThanOrEqual(MAX_ANCESTORS);
+    expect(r.hostPid).toBeDefined();
   });
 });
 
