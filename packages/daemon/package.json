@@ -1,0 +1,27 @@
+{
+  "name": "@0xpixelninja/caucus-daemon",
+  "version": "0.0.0",
+  "private": true,
+  "description": "caucusd: local daemon (IPC server, SQLite, process management)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}
