@@ -4,113 +4,182 @@
   <img alt="Conveno: Every AI coding session, in one meeting." src="brand/assets/readme-banner-light.svg" width="100%">
 </picture>
 
-Connect AI coding CLI sessions across every platform. Peer-to-peer, end-to-end encrypted.
-
 [![CI](https://github.com/0xPixelNinja/conveno/actions/workflows/ci.yml/badge.svg)](https://github.com/0xPixelNinja/conveno/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-2346D9)](./LICENSE)
 [![Node >=24](https://img.shields.io/badge/node-%3E%3D24-2346D9)](./.nvmrc)
-[![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-9A5700)](#status-and-roadmap)
+[![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-9A5700)](#status)
 
-## What it is
+Conveno lets AI coding CLI sessions on one machine find each other, send messages, and route work to the one session you pick as the orchestrator. You keep using each CLI the way you do today.
 
-Conveno lets AI coding CLI sessions find each other, send each other messages, start each other and
-hand work off. It works across Claude Code, Codex, Antigravity, Cursor, Copilot and OpenCode, on
-macOS, Linux and Windows.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="brand/assets/readme-terminal-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="brand/assets/readme-terminal-light.svg">
+  <img alt="Output of conveno status: four sessions in two repos, one marked as the orchestrator, relay off (local only)." src="brand/assets/readme-terminal-light.svg" width="100%">
+</picture>
 
-You keep using each CLI the way you do today. Conveno adds an MCP server and a few hooks to each one,
-and a small local daemon that connects them. There is no dashboard. The interface is whichever
-session you choose as the orchestrator.
+## What it does
 
-## Why
-
-Sessions on every CLI are isolated. The Claude Code session in one repo cannot see the Codex session
-in another, and neither can tell the other what it learned. Claude Code can already coordinate its own
-sessions. Nothing does it across tools, and nothing does it across your machines.
-
-Today you copy and paste between terminals. Conveno replaces the paste with a message, a handoff or a
-question routed to the one session you are watching.
+<table>
+<tr>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/session.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/session.svg"><img alt="" src="brand/icons/svg-ink/light/session.svg" width="24" height="24"></picture><br>
+<b>Sessions</b><br>
+Every open session with its CLI, repo and status.
+</td>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/orchestrator.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/orchestrator.svg"><img alt="" src="brand/icons/svg-ink/light/orchestrator.svg" width="24" height="24"></picture><br>
+<b>Orchestrator</b><br>
+Pick one session as the orchestrator. Move it whenever you like.
+</td>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/message-send.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/message-send.svg"><img alt="" src="brand/icons/svg-ink/light/message-send.svg" width="24" height="24"></picture><br>
+<b>Messages</b><br>
+Send to a named session or to the orchestrator. A busy session gets it at its next turn.
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/hook.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/hook.svg"><img alt="" src="brand/icons/svg-ink/light/hook.svg" width="24" height="24"></picture><br>
+<b>Hooks</b><br>
+Claude Code and Codex receive new messages at the start of the next turn.
+</td>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/inbox.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/inbox.svg"><img alt="" src="brand/icons/svg-ink/light/inbox.svg" width="24" height="24"></picture><br>
+<b>Inbox tool</b><br>
+Every CLI can read its messages with the <code>inbox</code> tool.
+</td>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/init.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/init.svg"><img alt="" src="brand/icons/svg-ink/light/init.svg" width="24" height="24"></picture><br>
+<b>Init and uninstall</b><br>
+Shows the exact diff before it edits any CLI config. One command reverts it.
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/doctor.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/doctor.svg"><img alt="" src="brand/icons/svg-ink/light/doctor.svg" width="24" height="24"></picture><br>
+<b>Doctor</b><br>
+Checks each CLI and the daemon, and says how to fix what is wrong.
+</td>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/ticket-open.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/ticket-open.svg"><img alt="" src="brand/icons/svg-ink/light/ticket-open.svg" width="24" height="24"></picture><br>
+<b>Tickets</b> <code>planned</code><br>
+Questions from any session routed to the orchestrator.
+</td>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/handoff.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/handoff.svg"><img alt="" src="brand/icons/svg-ink/light/handoff.svg" width="24" height="24"></picture><br>
+<b>Handoff</b> <code>planned</code><br>
+Pass work to another session with the goal, state and next steps.
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/peek-recent.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/peek-recent.svg"><img alt="" src="brand/icons/svg-ink/light/peek-recent.svg" width="24" height="24"></picture><br>
+<b>Peek</b> <code>planned</code><br>
+Read another session's recent turns, with secrets redacted first.
+</td>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/spawn.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/spawn.svg"><img alt="" src="brand/icons/svg-ink/light/spawn.svg" width="24" height="24"></picture><br>
+<b>Spawn</b> <code>planned</code><br>
+Start a new session from an existing one, on your approval.
+</td>
+<td width="33%" valign="top">
+<picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/relay.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/relay.svg"><img alt="" src="brand/icons/svg-ink/light/relay.svg" width="24" height="24"></picture><br>
+<b>Relay</b> <code>planned</code><br>
+Connect your machines through an end-to-end encrypted relay.
+</td>
+</tr>
+</table>
 
 ## How it works
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="brand/assets/readme-diagram-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="brand/assets/readme-diagram-light.svg">
+  <img alt="Diagram: CLI sessions each run one MCP server, which connect to a local daemon. An optional relay, planned, connects other machines." src="brand/assets/readme-diagram-light.svg" width="100%">
+</picture>
+
+Each CLI session starts its own MCP server. The servers talk to one small local daemon, which keeps the session list, the mailboxes and the routing. Nothing leaves your machine. The relay in the diagram is planned and optional.
+
+## Quickstart
+
+Conveno is not on npm yet, so build it from source. You need Node 24 or later and pnpm.
+
+```sh
+git clone https://github.com/0xPixelNinja/conveno && cd conveno
+pnpm install && pnpm build
+node packages/cli/dist/bin.js init   # shows the diff for each CLI, then asks
 ```
-  Claude Code   Codex   Antigravity   Cursor   Copilot   OpenCode
-      |           |          |           |        |          |
-      +-----------+---- MCP (stdio) + hooks per CLI ---------+
-                              |
-                        conveno-mcp   (one per session)
-                              |  local IPC
-                          convenod    (daemon: registry, mailbox, routing, spawn, peek)
-                              |
-                              |  optional, end-to-end encrypted
-                              v
-                        Conveno relay  (sees ciphertext and routing metadata only)
-                              ^
-                              |
-                  convenod on your other machines
-```
 
-Each session gets an automatic name such as `claude@repo-1`. Messages are delivered live where the
-CLI supports it, at the next turn through a hook where it does not, and through an `inbox` tool as the
-fallback on every CLI. The architecture and the delivery mechanism per CLI are in
-[PLAN.md](./PLAN.md).
-
-## What it will do
-
-- **Sessions.** List every session on your account with its CLI, repo and status (idle, busy, waiting
-  on a question), filtered by repo.
-- **Orchestrator.** Any session can claim the orchestrator role, and you can move it at any time.
-  There is one per workspace.
-- **Messages.** Send to a session or to the orchestrator. A busy session queues the message until its
-  next turn unless it is marked urgent.
-- **Tickets.** A question or permission request from any session becomes a ticket routed to the
-  orchestrator, which answers it or asks you. Nothing is approved on a timeout.
-- **Handoff.** Pass work to another session with a goal, current state, next steps and files touched.
-- **Peek.** Read another session's recent turns, its full history or a summary. Secrets are redacted
-  before anything leaves the session.
-- **Spawn.** Start a new session in a visible terminal or headless. The owner approves it unless the
-  CLI is on an allowlist, with limits on how many sessions run at once and how deep spawning goes.
-- **Relay.** Connect machines through an end-to-end encrypted relay. The local mesh never needs an
-  account.
-
-## Compliance and trust
-
-- Conveno never reads, stores or forwards a provider login token or credential file.
-- It starts only the unmodified official CLI, under the user's own login or API key.
-- Spawning happens on your machine, when a session or you ask for it. Nothing runs on a schedule by
-  default.
-- The relay carries messages between your own sessions. It never calls a model provider and never
-  runs an agent. It sees account and device ids, timestamps and message sizes. Message content is
-  sealed to each recipient device and signed by the sender, so the relay sees ciphertext only.
-- Messages from other sessions reach an agent labelled as data from a peer, not as instructions from
-  the user.
-- Antigravity is connected through MCP only. Conveno does not start or drive `agy` unless you
-  configure a Gemini API key.
-
-The full list of rules is in [PLAN.md, section 10](./PLAN.md). To report a security problem, see
-[SECURITY.md](./SECURITY.md).
+Open two CLI sessions, for example Claude Code and Codex. In one, ask it to run `list_sessions`, then to `send` a message to the other. Run `conveno status` to see both. If `conveno` is not on your `PATH`, call it as `node packages/cli/dist/bin.js`.
 
 ## Supported CLIs
 
-| CLI | Tier | Notes |
-|---|---|---|
-| Claude Code | A | Hooks, channels and spawn |
-| Codex | A | Hooks and spawn |
-| Antigravity | B | MCP only by default |
-| Cursor | B | Hooks and spawn |
-| Copilot | B | Hooks and spawn |
-| OpenCode | B | HTTP API and ACP |
+| | CLI | Delivery | Notes |
+|---|---|---|---|
+| <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/cli-cl.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/cli-cl.svg"><img alt="" src="brand/icons/svg-ink/light/cli-cl.svg" width="20" height="20"></picture> | **Claude Code** | Next turn (hook), or `inbox` | Works today. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/cli-cx.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/cli-cx.svg"><img alt="" src="brand/icons/svg-ink/light/cli-cx.svg" width="20" height="20"></picture> | **Codex** | Next turn (hook), or `inbox` | Works today. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/cli-oc.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/cli-oc.svg"><img alt="" src="brand/icons/svg-ink/light/cli-oc.svg" width="20" height="20"></picture> | **OpenCode** | `inbox` | Works today. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/cli-ag.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/cli-ag.svg"><img alt="" src="brand/icons/svg-ink/light/cli-ag.svg" width="20" height="20"></picture> | **Antigravity** | Planned | MCP only by default, by design. Conveno does not start or drive `agy`. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/cli-cu.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/cli-cu.svg"><img alt="" src="brand/icons/svg-ink/light/cli-cu.svg" width="20" height="20"></picture> | **Cursor** | Planned | Not built yet. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="brand/icons/svg-ink/dark/cli-cp.svg"><source media="(prefers-color-scheme: light)" srcset="brand/icons/svg-ink/light/cli-cp.svg"><img alt="" src="brand/icons/svg-ink/light/cli-cp.svg" width="20" height="20"></picture> | **Copilot** | Planned | Not built yet. |
 
-Tier A is the polished path at launch. Tier B ships labelled beta. `conveno doctor` will report which
-delivery mechanism is active for each installed CLI and version.
+## Trust
 
-## Status and roadmap
+- Conveno never reads, stores or forwards a provider login token or credential file.
+- It works with the official CLIs only, under your own login or API key.
+- Every config change is shown as a diff before it is written, and `conveno uninstall` reverts it.
+- Messages from other sessions reach an agent labelled as data from a peer, not as instructions from you.
+- The planned relay would see ciphertext and routing metadata only.
 
-Pre-alpha. Nothing is usable yet and nothing is published. The wire protocol
-([`packages/protocol`](./packages/protocol)) is implemented. The daemon, MCP server, adapters, crypto
-and relay are stubs, and the `conveno` command prints its version and exits.
+The full rules are in [CONTRIBUTING.md](./CONTRIBUTING.md#compliance-rules). To report a security problem, see [SECURITY.md](./SECURITY.md).
 
-The milestones, from the local core to the relay, accounts and launch, are in
-[PLAN.md, section 13](./PLAN.md).
+## FAQ
+
+<details>
+<summary>Does it read my login tokens?</summary>
+
+No. Conveno does not read, store or forward provider tokens or credential files. Each adapter reads only a short allowlist of config paths.
+
+</details>
+
+<details>
+<summary>Is this allowed by each CLI's terms?</summary>
+
+Conveno uses each CLI's documented MCP and hook interfaces. It does not modify the CLIs or call a model provider itself. You should still read the terms of each CLI you use, since they can change.
+
+</details>
+
+<details>
+<summary>Do I need an account?</summary>
+
+No. The local mesh needs no account and no network. An account would only matter for the planned relay.
+
+</details>
+
+<details>
+<summary>Does anything leave my machine?</summary>
+
+Not today. The daemon listens on a local socket and there is no relay yet. Conveno does not send telemetry.
+
+</details>
+
+<details>
+<summary>Which platforms?</summary>
+
+macOS, Linux and Windows. Node 24 or later is required.
+
+</details>
+
+<details>
+<summary>Can I remove it cleanly?</summary>
+
+Yes. `conveno uninstall` undoes each install, newest first. A file that has not changed since init is restored byte for byte. If a CLI has rewritten the file since, only Conveno's entries are removed.
+
+</details>
+
+## Status
+
+Pre-alpha and not published to npm. The local core works on macOS, Linux and Windows: sessions, the orchestrator, messages, `init`, `uninstall`, `status` and `doctor`. Next are tickets, handoff, peek and spawn, then the relay.
 
 ## Development
 
@@ -128,12 +197,6 @@ The packages are under [`packages/`](./packages). `packages/brand` generates its
 `brand/` on every build, typecheck and test, so run the scripts through pnpm.
 [CONTRIBUTING.md](./CONTRIBUTING.md) has the commit style, the pull request flow and how to add a CLI
 adapter.
-
-## Brand
-
-The mark, tokens, icons, motion and terminal theme are in [`brand/`](./brand). Open
-[`brand/index.html`](./brand/index.html) for the brand book. `brand/tokens.json` is the source of
-truth.
 
 ## License
 
