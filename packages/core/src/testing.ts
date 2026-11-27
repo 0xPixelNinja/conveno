@@ -15,16 +15,25 @@ export const sess = (
 
 export const textMessage = (
   text: string,
-  over: { urgent?: boolean; from?: SessionId; createdAt?: string } = {},
-): Message => ({
-  kind: "text",
-  body: { text },
-  id: newMessageId(),
-  from: over.from ?? newSessionId(),
-  to: "orchestrator",
-  urgent: over.urgent ?? false,
-  createdAt: over.createdAt ?? "2026-11-27T14:02:11.000Z",
-});
+  over: {
+    urgent?: boolean;
+    from?: SessionId;
+    createdAt?: string;
+    fromName?: string | null;
+  } = {},
+): Message =>
+  ({
+    kind: "text",
+    body: { text },
+    id: newMessageId(),
+    from: over.from ?? newSessionId(),
+    to: "orchestrator",
+    urgent: over.urgent ?? false,
+    createdAt: over.createdAt ?? "2026-11-27T14:02:11.000Z",
+    ...(over.fromName === null
+      ? {}
+      : { fromName: over.fromName ?? SENDER.name, fromCli: SENDER.cli }),
+  }) as Message;
 
 export const SENDER = { name: "codex@api-2", cli: "codex" as CliKind };
 

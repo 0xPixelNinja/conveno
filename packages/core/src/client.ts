@@ -13,10 +13,12 @@ export type ClientMethodName =
   | "session.unregister"
   | "session.rename"
   | "session.setStatus"
+  | "session.byHost"
   | "session.list"
   | "orchestrator.claim"
   | "message.send"
   | "message.inbox"
+  | "message.deliver"
   | "message.ack"
   | "events.subscribe";
 

@@ -11,5 +11,11 @@ export class ConvenoError extends Error {
   }
 }
 
+export const unknownRecipientMessage = (to: string): string =>
+  `No session named "${to}". Run list_sessions to see who is available.`;
+
+export const offlineRecipientMessage = (name: string): string =>
+  `Session "${name}" is offline. Run list_sessions to see who is available.`;
+
 export const NO_ORCHESTRATOR_MESSAGE =
   "No session holds the orchestrator role. Run orchestrate in the session you want to use.";

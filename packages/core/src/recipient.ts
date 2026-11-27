@@ -1,5 +1,10 @@
 import { ORCHESTRATOR_ALIAS, RpcErrorCode, SessionId } from "@0xpixelninja/conveno-protocol";
-import { ConvenoError, NO_ORCHESTRATOR_MESSAGE } from "./errors.js";
+import {
+  ConvenoError,
+  NO_ORCHESTRATOR_MESSAGE,
+  offlineRecipientMessage,
+  unknownRecipientMessage,
+} from "./errors.js";
 import { isOnline } from "./liveness.js";
 import type { NamedSession } from "./naming.js";
 import { effectiveHolder } from "./orchestrator.js";
@@ -23,22 +28,13 @@ export function resolveRecipient(
   const found = byId ?? sessions.find((s) => s.name === to && isOnline(s));
   if (found) {
     if (!isOnline(found)) {
-      throw new ConvenoError(
-        RpcErrorCode.NotFound,
-        `Session "${found.name}" is offline. Run list_sessions to see who is available.`,
-      );
+      throw new ConvenoError(RpcErrorCode.NotFound, offlineRecipientMessage(found.name));
     }
     return found;
   }
   const offline = sessions.find((s) => s.name === to);
   if (offline) {
-    throw new ConvenoError(
-      RpcErrorCode.NotFound,
-      `Session "${to}" is offline. Run list_sessions to see who is available.`,
-    );
+    throw new ConvenoError(RpcErrorCode.NotFound, offlineRecipientMessage(to));
   }
-  throw new ConvenoError(
-    RpcErrorCode.NotFound,
-    `No session named "${to}". Run list_sessions to see who is available.`,
-  );
+  throw new ConvenoError(RpcErrorCode.NotFound, unknownRecipientMessage(to));
 }
