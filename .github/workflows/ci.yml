@@ -1,20 +1,13 @@
 name: CI
 
-# macOS minutes cost 10x and Windows 2x on private repositories, so the full matrix runs only
-# on main and on request. Release tags run every check in release.yml. Branch work runs CI
-# through a pull request or `gh workflow run ci.yml --ref <branch>` (`-f full=true` adds macOS).
 on:
   push:
     branches: [main]
     paths-ignore: ["**/*.md"]
   pull_request:
     paths-ignore: ["**/*.md"]
+  # A branch without a pull request can be checked with `gh workflow run ci.yml --ref <branch>`.
   workflow_dispatch:
-    inputs:
-      full:
-        description: Also run macOS
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -29,9 +22,9 @@ jobs:
     name: lint and typecheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm
@@ -45,19 +38,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS only on main and full runs (10x minutes on private repos).
-        os: ${{ fromJSON((github.event_name == 'push' || inputs.full) && '["ubuntu-latest", "windows-latest", "macos-latest"]' || '["ubuntu-latest", "windows-latest"]') }}
-        node: [24, 26]
-        exclude:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [24]
+        include:
           # Node 26 differs from 24 in the runtime, not the OS: one OS is enough for it.
-          - os: windows-latest
-            node: 26
-          - os: macos-latest
+          - os: ubuntu-latest
             node: 26
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
@@ -71,11 +61,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON((github.event_name == 'push' || inputs.full) && '["ubuntu-latest", "windows-latest", "macos-latest"]' || '["ubuntu-latest", "windows-latest"]') }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm

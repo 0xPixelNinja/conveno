@@ -30,15 +30,23 @@ node packages/cli/dist/bin.js init
 | `pnpm format` | Biome format, writes changes |
 | `pnpm deps:check` | List outdated dependencies across the workspace (`pnpm outdated -r`); exits 1 when any are |
 | `pnpm typecheck` | `tsc` in every package, through turbo |
-| `pnpm smoke:pack` | Pack the publishable packages, install them with npm in a temp project and run the installed `conveno` |
+| `pnpm smoke:pack` | Pack `@conveno/cli`, install the tarball with npm in a temp project and run the installed `conveno` |
 | `pnpm build` | `tsdown` in every package, through turbo |
 | `pnpm test` | `vitest run` in every package, through turbo |
+| `pnpm check:release` | Check that the published package and the workspace versions agree |
 
-CI runs lint and typecheck once, then build and test on Ubuntu (Node 24 and 26) and Windows (Node
-24), plus an install check from packed tarballs. macOS joins on pushes to main and on request
-(`gh workflow run ci.yml --ref <branch> -f full=true`).
-Run them locally in that order before you push. Code must work on all three operating systems, so
-use `node:path` and avoid shell-specific commands.
+Run the scripts through pnpm, not `pnpm -r`: turbo runs the `generate` step that `build`,
+`typecheck` and `test` need.
+
+CI runs lint and typecheck once, then build and test on Ubuntu (Node 24 and 26), Windows and macOS
+(Node 24), plus an install check from the packed tarball on all three. It runs on every pull request
+and on pushes to main. A branch without a pull request can be checked with
+`gh workflow run ci.yml --ref <branch>`. Run the scripts locally in that order before you push. Code
+must work on all three operating systems, so use `node:path` and avoid shell-specific commands.
+
+Only `@conveno/cli` is published. The other packages are private workspace packages that `tsdown`
+bundles into it, so a third-party dependency of any of them must also be a dependency of
+`@conveno/cli` at the same exact version (`pnpm check:release` checks this).
 
 `packages/brand` generates its TypeScript and CSS from `brand/` in a turbo `generate` task that build, typecheck
 and test depend on. Edit `brand/tokens.json`, not the generated files.
