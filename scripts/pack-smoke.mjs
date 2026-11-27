@@ -175,7 +175,9 @@ async function main(work) {
     check(/daemon running/.test(status.stdout), `daemon status: ${status.stdout}${status.stderr}`);
     log(`conveno daemon status: ${status.stdout.trim()}`);
 
-    await mcpRoundTrip(project, bin, env, home);
+    const session = await mcpRoundTrip(project, bin, env, home);
+    await waitUnregistered(conveno, session);
+    log(`mcp server unregistered ${session} after its client closed`);
 
     await conveno(["daemon", "stop"]);
     daemonMayRun = false;
@@ -232,8 +234,29 @@ async function mcpRoundTrip(project, bin, env, cwd) {
     for (const want of EXPECTED_TOOLS)
       check(names.includes(want), `tools/list is missing ${want}: ${names}`);
     log(`mcp initialize + tools/list ok (${names.length} tools)`);
+    const who = await client.callTool({ name: "whoami", arguments: {} });
+    const name = /Name: (\S+)/.exec(who.content?.[0]?.text ?? "")?.[1];
+    check(name !== undefined, `whoami did not name the session: ${JSON.stringify(who)}`);
+    return name;
   } finally {
     await client.close().catch(() => {});
+  }
+}
+
+/**
+ * After its client closes stdin, the MCP server unregisters and exits. On Windows it runs behind
+ * the conveno.cmd shim and takes a moment, and while it runs it holds files in this folder. Wait
+ * for the daemon to show the session gone or offline, which also checks that unregister works.
+ */
+async function waitUnregistered(conveno, name) {
+  const deadline = Date.now() + 15_000;
+  for (;;) {
+    const line = (await conveno(["status"])).stdout.split("\n").find((l) => l.includes(name));
+    if (line === undefined || /offline/.test(line)) return;
+    if (Date.now() > deadline) {
+      throw new SmokeError(`session ${name} is still online 15 s after its MCP client closed`);
+    }
+    await new Promise((r) => setTimeout(r, 250));
   }
 }
 
