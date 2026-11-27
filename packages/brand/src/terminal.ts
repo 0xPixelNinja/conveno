@@ -124,7 +124,7 @@ export interface Theme {
   glyph(name: GlyphName): string;
   /** The glyph in its role colour (tokens.terminal.glyphColors). */
   status(name: GlyphName): string;
-  /** The mark in miniature: `c` in ink, point in entry. `c●`, or `c*` in ASCII. */
+  /** The mark in miniature: `c` in the default foreground, point in entry. `c●`, or `c*` in ASCII. */
   mark(): string;
   spinner(): Spinner;
 }
@@ -167,6 +167,8 @@ export function createTheme(opts: ThemeOptions = {}): Theme {
   const wrap = (codes: string, text: string) => `${ESC}${codes}m${text}${RESET}`;
   const paint: Theme["paint"] = (role, text, o) => {
     if (colorLevel === 0 || text === "") return text;
+    // Ink is the terminal's own foreground: never set it, only bold it.
+    if (role === "ink") return o?.bold ? wrap("1", text) : text;
     const color = sgr(role, colorLevel, background);
     return wrap(o?.bold ? `1;${color}` : (color as string), text);
   };
