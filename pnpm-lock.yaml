@@ -218,7 +218,13 @@ importers:
 
   packages/adapters/opencode: {}
 
-  packages/cli: {}
+  packages/brand: {}
+
+  packages/cli:
+    dependencies:
+      '@0xpixelninja/conveno-brand':
+        specifier: workspace:*
+        version: link:../brand
 
   packages/core: {}
 

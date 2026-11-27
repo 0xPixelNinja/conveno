@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { VERSION } from "./index.js";
+import { versionLine } from "./banner.js";
 
-console.log(`conveno ${VERSION}`);
+console.log(versionLine());
 console.log("not implemented yet");
