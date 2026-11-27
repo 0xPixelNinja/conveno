@@ -1,4 +1,5 @@
 import { access } from "node:fs/promises";
+import { connect } from "@0xpixelninja/conveno-client";
 import {
   baseName,
   type ConvenoClient,
@@ -325,15 +326,13 @@ export function createServer(opts: CreateServerOptions): McpServer {
   return mcp;
 }
 
-type ConnectFn = (opts: { kind: "mcp"; autoStart: boolean }) => Promise<ConvenoClient>;
-
 /** Run the MCP server over stdio until stdin closes or SIGTERM arrives. */
-export async function runStdio(opts: { cli: CliKind }): Promise<void> {
-  // Imported lazily so the package loads (and tests run) without a daemon client installed.
-  const { connect } = (await import("@0xpixelninja/conveno-client")) as unknown as {
-    connect: ConnectFn;
-  };
-  const client = await connect({ kind: "mcp", autoStart: true });
+export async function runStdio(opts: { cli: CliKind; daemonEntry?: string }): Promise<void> {
+  const client = await connect({
+    kind: "mcp",
+    autoStart: true,
+    ...(opts.daemonEntry ? { daemonEntry: opts.daemonEntry } : {}),
+  });
   const mcp = createServer({
     cli: opts.cli,
     client,
