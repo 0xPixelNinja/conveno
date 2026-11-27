@@ -1,5 +1,4 @@
-import { execFile } from "node:child_process";
-import { rmSync } from "node:fs";
+import { execFile, spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -46,8 +45,6 @@ describe("conveno forget against the real daemon", () => {
   let daemon: DaemonProc;
   let keep: FakeSession;
   let gone: FakeSession;
-  let ghost: FakeSession;
-  let ghostRepo = "";
   let keepName = "";
   let goneName = "";
   let ghostName = "";
@@ -66,15 +63,12 @@ describe("conveno forget against the real daemon", () => {
     daemon = await startDaemonProc(t);
     keep = await startFakeSession(t, "codex", makeRepo(t, "keep"));
     gone = await startFakeSession(t, "claude", makeRepo(t, "conveno-real-gone"));
-    ghostRepo = makeRepo(t, "ghost");
-    ghost = await startFakeSession(t, "claude", ghostRepo);
     keepName = nameOf((await keep.call("whoami")).text);
     goneName = nameOf((await gone.call("whoami")).text);
-    ghostName = nameOf((await ghost.call("whoami")).text);
   });
 
   afterAll(async () => {
-    await Promise.all([keep?.close(), gone?.close(), ghost?.close()]);
+    await Promise.all([keep?.close(), gone?.close()]);
     await daemon?.stop();
     if (t) await removeEnv(t);
   });
@@ -83,9 +77,21 @@ describe("conveno forget against the real daemon", () => {
     expect((await gone.call("send", { to: keepName, text: "from gone" })).isError).toBe(false);
     expect((await keep.call("send", { to: goneName, text: "to gone" })).isError).toBe(false);
 
+    // A session in a folder that never existed, hosted by a process that has already exited. It
+    // costs no extra processes, which matters on slow CI machines.
+    const dead = spawnSync(process.execPath, ["-e", ""]).pid;
+    const client = await cliClient(t);
+    try {
+      const { session } = await client["session.register"]({
+        cli: "claude",
+        cwd: join(t.root, "deleted-repo"),
+        hostPid: dead,
+      });
+      ghostName = session.name;
+    } finally {
+      await client.close();
+    }
     gone.killHost();
-    ghost.killHost();
-    rmSync(ghostRepo, { recursive: true, force: true });
 
     // One sweep marks both offline, the next removes the ghost. The other offline session stays,
     // because its folder exists and a day has not passed.
