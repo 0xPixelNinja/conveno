@@ -32,5 +32,9 @@
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@0xpixelninja/conveno-core": "workspace:*",
+    "jsonc-parser": "3.3.1"
   }
 }
