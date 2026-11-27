@@ -39,9 +39,9 @@ describe("state machine", () => {
       }
     }
   });
-  it("treats queued and delivered as unread", () => {
+  it("treats only queued as unread; hook-delivered messages were already shown", () => {
     expect(isUnread(mk("a"))).toBe(true);
-    expect(isUnread(advanceEntry(mk("a"), "delivered", T1))).toBe(true);
+    expect(isUnread(advanceEntry(mk("a"), "delivered", T1))).toBe(false);
     expect(isUnread(advanceEntry(mk("a"), "read", T1))).toBe(false);
   });
 });
@@ -100,7 +100,10 @@ describe("injection and ack", () => {
     );
     expect(after.every((e) => e.state === "delivered")).toBe(true);
     expect(pendingForInjection(after)).toHaveLength(0);
-    expect(readInbox(after, { unreadOnly: true, limit: 20 }, T2).returned).toHaveLength(2);
+    const unread = readInbox(after, { unreadOnly: true, limit: 20 }, T2);
+    expect(unread.returned).toHaveLength(0);
+    expect(unread.unreadCount).toBe(0);
+    expect(readInbox(after, { unreadOnly: false, limit: 20 }, T2).returned).toHaveLength(2);
   });
   it("counts acks once and ignores unknown ids", () => {
     const entries = [mk("a"), mk("b")];

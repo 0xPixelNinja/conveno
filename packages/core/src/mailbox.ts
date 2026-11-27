@@ -39,9 +39,12 @@ export function advanceEntry(entry: MailboxEntry, to: MailboxState, at: string):
   return next;
 }
 
-/** Unread means the agent has not yet seen it through `inbox`: queued or delivered (hook-injected). */
-export const isUnread = (e: MailboxEntry): boolean =>
-  e.state === "queued" || e.state === "delivered";
+/**
+ * Unread means the agent has never been shown the message: still queued. A message a hook
+ * injected (delivered) was already shown, so it is not unread. `inbox` with `unreadOnly = false`
+ * still lists it.
+ */
+export const isUnread = (e: MailboxEntry): boolean => e.state === "queued";
 
 /** Urgent first, then oldest first. Message ids are monotonic ULIDs, so id order is send order. */
 export function compareEntries(a: MailboxEntry, b: MailboxEntry): number {

@@ -1,6 +1,7 @@
 import {
   type CliKind,
   type Message,
+  type MessageId,
   newMessageId,
   newSessionId,
   type SessionId,
@@ -20,6 +21,7 @@ export const textMessage = (
     from?: SessionId;
     createdAt?: string;
     fromName?: string | null;
+    replyTo?: MessageId;
   } = {},
 ): Message =>
   ({
@@ -29,6 +31,7 @@ export const textMessage = (
     from: over.from ?? newSessionId(),
     to: "orchestrator",
     urgent: over.urgent ?? false,
+    ...(over.replyTo ? { replyTo: over.replyTo } : {}),
     createdAt: over.createdAt ?? "2026-11-27T14:02:11.000Z",
     ...(over.fromName === null
       ? {}

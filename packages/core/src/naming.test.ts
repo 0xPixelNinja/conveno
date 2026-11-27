@@ -1,4 +1,9 @@
-import { RpcErrorCode, SESSION_NAME_PATTERN, SessionName } from "@0xpixelninja/conveno-protocol";
+import {
+  newSessionId,
+  RpcErrorCode,
+  SESSION_NAME_PATTERN,
+  SessionName,
+} from "@0xpixelninja/conveno-protocol";
 import { describe, expect, it } from "vitest";
 import { ConvenoError } from "./errors.js";
 import { generateSessionName, sanitizeNamePart, validateRename } from "./naming.js";
@@ -78,5 +83,11 @@ describe("validateRename", () => {
     for (const bad of ["", "Upper", "-x", "has space", "a".repeat(65), "orchestrator"]) {
       expect(code(() => validateRename(a.id, bad, all))).toBe(RpcErrorCode.InvalidParams);
     }
+  });
+});
+
+describe("reserved names", () => {
+  it.each(["conveno", "orchestrator", "system", "user"])("refuses %s on rename", (name) => {
+    expect(() => validateRename(newSessionId(), name, [])).toThrow(/reserved/);
   });
 });
