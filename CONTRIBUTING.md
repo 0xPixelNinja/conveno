@@ -1,8 +1,10 @@
 # Contributing to Conveno
 
-Conveno is pre-alpha. The wire protocol is implemented and most other packages are stubs, so the
-most useful contributions right now are protocol review, tests, docs and adapter research. Open an
-issue before starting anything large.
+Conveno is pre-alpha. The M1 local core is in progress. The protocol, daemon, client, core, MCP server
+and CLI are implemented, along with the Claude, Codex and OpenCode adapters. The relay, crypto, redact
+and account-web packages and the Antigravity, Copilot and Cursor adapters are still stubs, so the most
+useful contributions right now are protocol review, tests, docs and adapter research. Open an issue
+before starting anything large.
 
 By taking part you agree to follow the [Code of Conduct](./CODE_OF_CONDUCT.md). Report security problems
 privately, as described in [SECURITY.md](./SECURITY.md).
