@@ -1,5 +1,15 @@
 Conveno
 Copyright 2026 0xPixelNinja
 
-This product is licensed under the Apache License, Version 2.0 (see LICENSE),
-except packages/relay, which is licensed under AGPL-3.0-only.
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The Conveno name, mark, wordmark, lockups, icons and other brand assets are not
+licensed under the Apache License. Section 6 of that License grants no right to
+use them as trade names or marks. They are copyright 0xPixelNinja, all rights
+reserved except as brand/LICENSE.md allows:
+https://github.com/0xPixelNinja/conveno/blob/main/brand/LICENSE.md
+The @conveno/cli package contains no brand asset files. The terminal colours and
+glyphs compiled into it are part of the Apache-2.0 licensed code.
+
+In the source repository, packages/relay (not published) is licensed under
+AGPL-3.0-only.
