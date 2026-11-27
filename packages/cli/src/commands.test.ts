@@ -407,10 +407,20 @@ describe("daemon", () => {
     /** A fake daemon behind `connect`: answers until `daemon.shutdown`, then vanishes. */
     function fakeDaemon(
       c: TestCtx,
-      opts: { shutdown?: () => Promise<unknown>; lingers?: boolean } = {},
+      opts: { shutdown?: () => Promise<unknown>; lingers?: boolean; exitPolls?: number } = {},
     ) {
-      const state = { up: true, shutdowns: 0 };
+      const state = { up: true, shutdowns: 0, aliveChecks: 0 };
       const lock = dataPaths(c.platform, c.dataDir).lock;
+      // The fake daemon's process (the made-up pid in its lock) lives exactly as long as the fake
+      // daemon does. Real pids must not leak in: 4242 can be a live process on a CI runner.
+      // `exitPolls`: the process outlives its socket and lock for that many liveness checks.
+      const realIsAlive = c.isAlive;
+      let exitPolls = opts.exitPolls ?? 0;
+      c.isAlive = (pid) => {
+        if (pid !== 4242) return realIsAlive(pid);
+        state.aliveChecks++;
+        return state.up || exitPolls-- > 0;
+      };
       c.connect = (async () => {
         if (!state.up) throw new Error("ECONNREFUSED");
         return {
@@ -456,16 +466,14 @@ describe("daemon", () => {
     );
 
     it("waits for the daemon process to exit, not only for its socket and lock", async () => {
-      let checks = 0;
-      // The process outlives its socket and lock for three polls, as a daemon still closing its
-      // database does.
-      const c = await make({ isAlive: (pid) => pid === 4242 && ++checks <= 3 });
+      const c = await make();
       const lock = dataPaths(c.platform, c.dataDir).lock;
       try {
         await seed(lock, JSON.stringify({ pid: 4242 }));
-        fakeDaemon(c);
+        // As a daemon still closing its database does.
+        const state = fakeDaemon(c, { exitPolls: 3 });
         expect(await main(["daemon", "stop"], c)).toBe(0);
-        expect(checks).toBeGreaterThan(3);
+        expect(state.aliveChecks).toBeGreaterThan(3);
         expect(c.outText()).toContain("Stopped the daemon (pid 4242)");
       } finally {
         await rm(lock, { force: true });
