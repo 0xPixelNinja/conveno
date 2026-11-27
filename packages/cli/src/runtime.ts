@@ -108,8 +108,23 @@ function readAllStdin(): Promise<string> {
   });
 }
 
-function ask(theme: Theme, question: string, defaultYes: boolean): Promise<boolean> {
-  const rl = createInterface({ input: process.stdin, output: process.stderr });
+/** Where `ask` reads the answer and writes the question. Tests pass fake streams. */
+export interface PromptIo {
+  input: NodeJS.ReadableStream;
+  output: NodeJS.WritableStream;
+}
+
+/**
+ * Ask a yes/no question. The readline interface is closed before the answer is returned, which
+ * pauses stdin, so nothing started afterwards (a CLI's own `mcp add` command) shares it.
+ */
+export function ask(
+  theme: Theme,
+  question: string,
+  defaultYes: boolean,
+  io: PromptIo = { input: process.stdin, output: process.stderr },
+): Promise<boolean> {
+  const rl = createInterface({ input: io.input, output: io.output });
   const choices = theme.paint("quiet", defaultYes ? "[Y/n]" : "[y/N]");
   return new Promise((resolve) => {
     rl.question(`${theme.status("prompt")} ${question} ${choices} `, (answer) => {
