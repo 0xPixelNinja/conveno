@@ -1,7 +1,8 @@
 import { access, readFile, rm } from "node:fs/promises";
 import { dataPaths } from "@conveno/core";
 import { type Ctx, connectOpts } from "./ctx.js";
-import { closest, cmd, fail, plainError } from "./fmt.js";
+import { daemonProblem } from "./daemonError.js";
+import { closest, cmd, fail, plainError, warnBlock } from "./fmt.js";
 
 async function lockPid(ctx: Ctx): Promise<number | null> {
   try {
@@ -177,10 +178,14 @@ export async function runDaemon(ctx: Ctx, argv: string[]): Promise<number> {
       const c = await ctx.connect(connectOpts(ctx, true));
       await c.close().catch(() => undefined);
     } catch (e) {
+      const problem = daemonProblem(t, e);
       return fail(ctx, {
         what: "The Conveno daemon did not start",
-        detail: [plainError(e)],
-        fix: `Run ${cmd(t, "conveno doctor")} to check the install, then try again.`,
+        detail: [problem.why],
+        // A start that fails because no daemon is running is a start failure: doctor is the next step.
+        fix: problem.notRunning
+          ? `Run ${cmd(t, "conveno doctor")} to check the install, then try again.`
+          : problem.fix,
         exit: 1,
         ref: "e_daemon_start",
       });
@@ -191,11 +196,22 @@ export async function runDaemon(ctx: Ctx, argv: string[]): Promise<number> {
   }
 
   if (sub === "status") {
-    const up = await reachable(ctx);
     const pid = await lockPid(ctx);
-    if (up) ctx.out(`${t.status("ok")} daemon running${pid ? `, pid ${pid}` : ""}\n`);
-    else ctx.out(`${t.glyph("offline")} daemon not running\n`);
-    return up ? 0 : 1;
+    try {
+      const c = await ctx.connect(connectOpts(ctx, false));
+      await c.close().catch(() => undefined);
+      ctx.out(`${t.status("ok")} daemon running${pid ? `, pid ${pid}` : ""}\n`);
+      return 0;
+    } catch (e) {
+      const problem = daemonProblem(t, e);
+      if (problem.notRunning) {
+        ctx.out(`${t.glyph("offline")} daemon not running\n`);
+      } else {
+        ctx.out(`${t.status("error")} daemon cannot be reached\n`);
+        ctx.err(warnBlock(t, "The Conveno daemon cannot be reached.", problem.fix, problem.why));
+      }
+      return 1;
+    }
   }
 
   if (sub === "stop") return stopDaemon(ctx);

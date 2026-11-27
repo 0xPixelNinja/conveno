@@ -2,6 +2,7 @@ import { CLI_KINDS, type CliKind } from "@conveno/protocol";
 import { COMMAND_NAMES, COMMANDS, commandHelp, parseFlags } from "./args.js";
 import type { Ctx } from "./ctx.js";
 import { runDaemon } from "./daemon.js";
+import { daemonProblem } from "./daemonError.js";
 import { runDoctor } from "./doctor.js";
 import { closest, cmd, fail, plainError } from "./fmt.js";
 import { runHook } from "./hook.js";
@@ -55,10 +56,13 @@ async function runMcp(ctx: Ctx, argv: string[]): Promise<number> {
     });
     return 0;
   } catch (e) {
+    const problem = daemonProblem(t, e);
     return fail(ctx, {
       what: "The Conveno MCP server stopped",
-      detail: [plainError(e)],
-      fix: `Run ${cmd(t, "conveno doctor")} to check the daemon.`,
+      detail: [problem.why],
+      fix: problem.notRunning
+        ? `Run ${cmd(t, "conveno doctor")} to check the daemon.`
+        : problem.fix,
       exit: 1,
       ref: "e_mcp",
     });

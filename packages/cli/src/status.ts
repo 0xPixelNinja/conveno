@@ -2,6 +2,7 @@ import type { Theme } from "@conveno/brand";
 import type { DeliveryTier, Session } from "@conveno/protocol";
 import { COMMANDS, parseFlags } from "./args.js";
 import { type Ctx, connectOpts } from "./ctx.js";
+import { daemonProblem } from "./daemonError.js";
 import { cmd, columns, plural, tilde, warnBlock } from "./fmt.js";
 
 const CLI_SHORT: Record<string, string> = {
@@ -93,14 +94,17 @@ export async function runStatus(ctx: Ctx, argv: string[] = []): Promise<number> 
   let client: Awaited<ReturnType<Ctx["connect"]>>;
   try {
     client = await ctx.connect(connectOpts(ctx, false));
-  } catch {
+  } catch (e) {
+    const problem = daemonProblem(t, e);
     ctx.err(
-      warnBlock(
-        t,
-        "The Conveno daemon is not running.",
-        `Run ${cmd(t, "conveno daemon start")}, or open a supported CLI after ${cmd(t, "conveno init")}.`,
-        "Sessions are listed by the daemon, and nothing is listening on its socket.",
-      ),
+      problem.notRunning
+        ? warnBlock(
+            t,
+            "The Conveno daemon is not running.",
+            `Run ${cmd(t, "conveno daemon start")}, or open a supported CLI after ${cmd(t, "conveno init")}.`,
+            "Sessions are listed by the daemon, and nothing is listening on its socket.",
+          )
+        : warnBlock(t, "The Conveno daemon cannot be reached.", problem.fix, problem.why),
     );
     return 0;
   }
