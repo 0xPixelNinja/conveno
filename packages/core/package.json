@@ -1,6 +1,6 @@
 {
   "name": "@conveno/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Core library for Conveno: client interface, mailbox, naming, framing and data paths.",
   "license": "Apache-2.0",
   "repository": {

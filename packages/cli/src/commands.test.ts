@@ -51,7 +51,7 @@ describe("help, version, unknown", () => {
   it("prints the version", async () => {
     const c = await make();
     expect(await main(["--version"], c)).toBe(0);
-    expect(c.outText()).toBe("0.1.0\n");
+    expect(c.outText()).toBe("0.1.1\n");
   });
 
   it("prints plain, short help", async () => {
