@@ -17,6 +17,7 @@ startDaemon(opts: {
   isAlive?: (pid: number) => boolean;  // default: process.kill(pid, 0), EPERM counts as alive
   sweepIntervalMs?: number;            // default 15 s
   onIdleExit?: () => void;
+  pathExists?: (path: string) => boolean; // default: existsSync; for the missing-folder rule
 }): Promise<{ socketPath: string; close(): Promise<void>; sweep(): void }>
 ```
 
@@ -52,7 +53,15 @@ SIGINT or SIGTERM after closing cleanly.
   session with the same name, CLI and repo is deleted 5 minutes after it went offline. It cannot come
   back, because a heartbeat is refused while another live session holds its name. (3) Any other
   offline session is deleted after 24 hours: it returns only while its host process lives, and a new
-  run of the CLI registers as a new session. Online sessions are never deleted.
+  run of the CLI registers as a new session. (4) Whatever its age or mail, an offline session whose
+  recorded working directory, or repository root when it has one, no longer exists on disk is
+  deleted with its mailbox at the next sweep, unless its host process still runs (it can come back
+  with a heartbeat). This clears the sessions of deleted temp repos and old checkouts. Online
+  sessions are never deleted.
+- Forget: `session.forget` removes offline sessions on request (`conveno forget`), by id, by name or
+  `*` glob, and by how long ago they were last seen. It never removes an online session and reports
+  those it skipped. A removed session's mailbox goes with it in one transaction; messages it sent to
+  others stay. `dryRun` reports without changing anything.
 - Status text is reduced to one line: control characters become spaces and whitespace collapses.
 - Clients cannot send `system` messages, and `conveno`, `orchestrator`, `system` and `user` are
   reserved session names. Binding a session to the connection that registered it is planned.

@@ -172,6 +172,7 @@ Session-scoped methods carry the caller's `sessionId` explicitly. The last colum
 | `session.rename` | `{ sessionId, name }` | `{ session }` |
 | `session.setStatus` | `{ sessionId, status?, statusText? }` (at least one; `statusText: null` clears) | `{ session }` |
 | `session.byHost` | `{ pid }` | `{ session: Session \| null }`. The one online session whose `hostPid` equals `pid`. Exact equality only. No match, or two sessions with the same `hostPid`, gives `null`: the daemon never guesses and never looks at `hostPids`. Hooks use it to find their session. |
+| `session.forget` | `{ ids?, names?, olderThanMs?, dryRun = false }` (at least one of `ids`, `names`, `olderThanMs`) | `{ forgotten: { id, name }[], skippedOnline: { id, name }[] }`. Removes offline sessions on the owner's request. See below. |
 | `daemon.shutdown` | `{}` | `{ ok: true }`. The daemon sends the reply, stops accepting connections, closes its store, removes its socket (POSIX) and its lock file, and exits with code 0. Needs the completed handshake like every other method. `conveno daemon stop` uses it instead of signals. |
 | `session.list` | `{ repo?, cli?, includeOffline = false }` | `{ sessions }` |
 | `orchestrator.claim` | `{ sessionId }` | `{ orchestrator, previous }` (`previous` is `null` if none) |
@@ -196,6 +197,21 @@ session id it knows. The token is the only boundary, and it is per user.
 `session.list` takes its filter fields at the top level of `params` (not nested under a `filter`
 key). Names are unique per account: `session.register` and `session.rename` fail with -32006 on
 a collision.
+
+`session.forget` is housekeeping for the machine's owner, driven by `conveno forget`. It removes
+only sessions whose status is `offline`, never a live one. `ids` are session ids; `names` are exact
+names or simple globs where `*` matches any run of characters (names are not unique among offline
+sessions, so a name can select several). A session is selected when it matches `ids` or `names`
+(with neither, every session is a candidate), and then, when `olderThanMs` is set, only if it was
+last seen at least that many milliseconds ago; `olderThanMs: 0` therefore means every offline
+session. Online candidates picked by `ids` or `names` come back in `skippedOnline` and are left
+alone; with `olderThanMs` alone they are ignored. Removing a session deletes its mailbox rows, the
+messages addressed to it, in the same transaction. Messages it sent that sit in other sessions'
+mailboxes stay, and their `fromName` and `fromCli` keep the sender readable. With `dryRun` the
+result is the same and nothing changes. The daemon emits no event for a forgotten session. Unknown
+ids and patterns that match nothing are not errors: they appear in neither list. There is
+deliberately no MCP tool for this. Forgetting sessions is something the owner does for their own
+machine, not something one agent should do to the others.
 
 Recipient resolution and its errors (all -32002 NotFound):
 
@@ -223,7 +239,9 @@ A connection that has not finished `auth` within 5 seconds is closed.
 
 Daemon limits: the periodic sweep deletes offline sessions with their mailbox. A session with
 unread messages goes after 7 days offline, one replaced by a newer live session with the same name,
-CLI and repo after 5 minutes, and any other after 24 hours.
+CLI and repo after 5 minutes, and any other after 24 hours. Independently of age, the sweep also forgets an offline session whose
+recorded working directory or repository root no longer exists on disk, unless its host process is
+still running (it could still come back).
 
 ### 6.5 Events
 

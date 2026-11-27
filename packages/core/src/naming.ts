@@ -78,3 +78,16 @@ export function validateRename(
   }
   return parsed.data;
 }
+
+/**
+ * Does a session name match a pattern? A pattern is an exact name, or a simple glob where `*`
+ * matches any run of characters, including none. Nothing else is special, and the dot is literal.
+ */
+export function nameMatchesPattern(pattern: string, name: string): boolean {
+  if (!pattern.includes("*")) return pattern === name;
+  const source = pattern
+    .split("*")
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join(".*");
+  return new RegExp(`^${source}$`).test(name);
+}
