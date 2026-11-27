@@ -90,6 +90,8 @@ export interface DaemonOptions {
   sweepIntervalMs?: number;
   /** Called after the daemon shut itself down because it was idle. */
   onIdleExit?: () => void;
+  /** Close connections that have not finished the handshake after this long. Default 5 s. */
+  authTimeoutMs?: number;
 }
 
 export interface DaemonHandle {
@@ -128,6 +130,7 @@ class Daemon {
     private readonly isAlive: (pid: number) => boolean,
     private readonly idleExitMs: number,
     private readonly requestIdleExit: () => void,
+    private readonly authTimeoutMs: number = AUTH_TIMEOUT_MS,
   ) {
     this.deviceId = store.deviceId();
     this.startedMs = now().getTime();
@@ -143,7 +146,7 @@ class Daemon {
     this.conns.add(conn);
     const authTimer = setTimeout(() => {
       if (!conn.authed) socket.destroy();
-    }, AUTH_TIMEOUT_MS);
+    }, this.authTimeoutMs);
     authTimer.unref();
     const decoder = createLineDecoder();
     socket.on("data", (chunk) => {
@@ -714,6 +717,7 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
       () => {
         void close().then(() => opts.onIdleExit?.());
       },
+      opts.authTimeoutMs ?? AUTH_TIMEOUT_MS,
     );
 
     const srv = createServer((socket) => daemon.attach(socket));

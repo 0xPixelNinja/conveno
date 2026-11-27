@@ -92,27 +92,20 @@ describe("handshake and auth", () => {
     expect(r.error?.message).toContain("conveno/1");
   });
 
-  it("closes a connection that does not finish the handshake within 5 s", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout"] });
-    try {
-      const c = await h.client();
-      await vi.advanceTimersByTimeAsync(5_001);
-      await c.waitClosed();
-    } finally {
-      vi.useRealTimers();
-    }
+  it("closes a connection that does not finish the handshake in time", async () => {
+    await h.stop();
+    h = await startHarness({ authTimeoutMs: 150 });
+    const c = await h.client();
+    await c.waitClosed();
   });
 
-  it("keeps a connection that finished the handshake open past 5 s", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout"] });
-    try {
-      const c = await h.authed();
-      await vi.advanceTimersByTimeAsync(6_000);
-      expect(c.closed).toBe(false);
-      expect((await c.call("session.list", {})).sessions).toEqual([]);
-    } finally {
-      vi.useRealTimers();
-    }
+  it("keeps a connection that finished the handshake open past the handshake timeout", async () => {
+    await h.stop();
+    h = await startHarness({ authTimeoutMs: 150 });
+    const c = await h.authed();
+    await new Promise((r) => setTimeout(r, 400));
+    expect(c.closed).toBe(false);
+    expect((await c.call("session.list", {})).sessions).toEqual([]);
   });
 
   it("answers every method but hello and auth with Unauthorized before the handshake", async () => {
