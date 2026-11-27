@@ -46,7 +46,9 @@ export async function testCtx(over: Partial<Ctx> = {}): Promise<TestCtx> {
       .replaceAll("\\", "/");
   const ctx: TestCtx = {
     home,
-    platform: process.platform,
+    // Output and plans are pinned to one platform so snapshots match on every OS. Tests that
+    // cover Windows behaviour pass platform "win32" themselves.
+    platform: "linux",
     cwd: home,
     env: {},
     dataDir: join(home, ".conveno-data"),
