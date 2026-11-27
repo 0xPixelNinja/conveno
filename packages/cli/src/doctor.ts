@@ -1,15 +1,25 @@
-import type { Adapter, Detection } from "@conveno/core";
+import type { Adapter, ConfigChange, ConfigComponent, Detection } from "@conveno/core";
 import { COMMANDS, parseFlags } from "./args.js";
 import { adapterEnv, type Ctx, connectOpts } from "./ctx.js";
 import { daemonProblem } from "./daemonError.js";
 import { cmd, columns, errorBlock, plainError, plural, warnBlock } from "./fmt.js";
 
+/** `ok`: set up. `missing`: not set up. `outdated`: set up by an older Conveno and needs `init`. */
+type Part = "ok" | "missing" | "outdated";
+
 interface Row {
   adapter: Adapter;
   detection: Detection;
-  mcp: boolean | null;
-  hooks: boolean | null;
+  mcp: Part | null;
+  hooks: Part | null;
   planError?: string;
+}
+
+/** What the plan says about one part: nothing to do, an addition, or an update to what is there. */
+function partState(changes: ConfigChange[], component: ConfigComponent): Part {
+  const mine = changes.filter((c) => c.component === component);
+  if (mine.length === 0) return "ok";
+  return mine.some((c) => c.kind === "add") ? "missing" : "outdated";
 }
 
 /** Time allowed for the one process-table query. */
@@ -29,16 +39,18 @@ async function inspect(ctx: Ctx, adapter: Adapter): Promise<Row> {
   const hasHooks = adapter.deliveryTier !== "inbox";
   try {
     const changes = await adapter.plan(env);
-    const text = changes.map((c) => c.description);
-    const hooksMissing = text.some((d) => /hook/i.test(d));
-    const mcpMissing = text.some((d) => /mcp/i.test(d)) || (changes.length > 0 && !hooksMissing);
-    return { adapter, detection, mcp: !mcpMissing, hooks: hasHooks ? !hooksMissing : null };
+    return {
+      adapter,
+      detection,
+      mcp: partState(changes, "mcp"),
+      hooks: hasHooks ? partState(changes, "hooks") : null,
+    };
   } catch (e) {
     return {
       adapter,
       detection,
-      mcp: false,
-      hooks: hasHooks ? false : null,
+      mcp: "missing",
+      hooks: hasHooks ? "missing" : null,
       planError: plainError(e),
     };
   }
@@ -110,8 +122,12 @@ export async function runDoctor(ctx: Ctx, argv: string[] = []): Promise<number> 
   const table: string[][] = [
     [`    ${q("CLI")}`, q("NAME"), q("VERSION"), q("MCP"), q("HOOKS"), q("TIER"), q("NOTE")],
   ];
-  const yesNo = (v: boolean | null): string =>
-    v === null ? q("n/a") : v ? "yes" : t.paint("warn", "not configured");
+  const yesNo = (v: Part | null): string =>
+    v === null
+      ? q("n/a")
+      : v === "ok"
+        ? "yes"
+        : t.paint("warn", v === "missing" ? "not configured" : "needs update");
   for (const r of rows) {
     const { adapter, detection } = r;
     if (!detection.installed) {
@@ -126,12 +142,18 @@ export async function runDoctor(ctx: Ctx, argv: string[] = []): Promise<number> 
       ]);
       continue;
     }
-    const good = r.mcp === true && r.hooks !== false && !r.planError;
+    const good = r.mcp === "ok" && (r.hooks === null || r.hooks === "ok") && !r.planError;
     let note =
       adapter.deliveryTier === "next_turn"
         ? "delivered at the next prompt"
         : "read through the inbox tool";
-    if (!good) note = r.planError ? "config could not be read" : "not fully configured";
+    if (!good) {
+      note = r.planError
+        ? "config could not be read"
+        : r.mcp === "outdated" || r.hooks === "outdated"
+          ? "needs an update"
+          : "not fully configured";
+    }
     table.push([
       `  ${good ? t.status("ok") : t.status("warn")} ${adapter.cli}`,
       adapter.displayName,
@@ -156,18 +178,34 @@ export async function runDoctor(ctx: Ctx, argv: string[] = []): Promise<number> 
       ok++;
     } else {
       warnings++;
-      const missing = [
-        r.mcp === false ? "the MCP server" : "",
-        r.hooks === false ? "the hooks" : "",
-      ]
-        .filter(Boolean)
-        .join(" and ");
+      const named = [
+        ["the MCP server", r.mcp],
+        ["the hooks", r.hooks],
+      ] as const;
+      const list = (state: Part) =>
+        named
+          .filter(([, s]) => s === state)
+          .map(([n]) => n)
+          .join(" and ");
+      const missing = list("missing");
+      const outdated = list("outdated");
+      const fix = `Run ${cmd(t, "conveno init")}, then restart open ${adapter.displayName} sessions.`;
+      // init shows its diff first, and for an outdated part the diff is only the lines that changed.
       notes.push(
-        warnBlock(
-          t,
-          `${adapter.displayName} is missing ${missing}.`,
-          `Run ${cmd(t, "conveno init")}, then restart open ${adapter.displayName} sessions.`,
-        ),
+        missing && outdated
+          ? warnBlock(
+              t,
+              `${adapter.displayName} is missing ${missing} and needs an update to ${outdated}.`,
+              fix,
+            )
+          : missing
+            ? warnBlock(t, `${adapter.displayName} is missing ${missing}.`, fix)
+            : warnBlock(
+                t,
+                `${adapter.displayName} needs an update.`,
+                fix,
+                `Conveno's setup for ${outdated} is from an older version. ${cmd(t, "conveno init")} shows exactly which lines change.`,
+              ),
       );
     }
   }

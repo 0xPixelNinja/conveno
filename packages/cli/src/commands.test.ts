@@ -162,6 +162,8 @@ describe("init", () => {
       cli: "claude",
       plan: async () => [
         {
+          component: "mcp" as const,
+          kind: "add" as const,
           path: target,
           before: null,
           after: '{"a":1}\n',

@@ -432,3 +432,37 @@ describe("hook", () => {
     err.mockRestore();
   });
 });
+
+describe("change component and kind", () => {
+  it("marks a first install as an addition of both parts", async () => {
+    const changes = await claudeAdapter.plan(env());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([
+      ["mcp", "add"],
+      ["hooks", "add"],
+    ]);
+  });
+  it("marks a moved conveno command as an update of both parts", async () => {
+    await apply(await claudeAdapter.plan(env()));
+    const changes = await claudeAdapter.plan(env({ conveno: { command: ["/new/conveno"] } }));
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([
+      ["mcp", "update"],
+      ["hooks", "update"],
+    ]);
+  });
+  it("marks one missing hook event of an installed pair as an update", async () => {
+    await apply(await claudeAdapter.plan(env()));
+    const settings = await readJson(settingsPath());
+    delete settings.hooks.UserPromptSubmit;
+    await put(settingsPath(), JSON.stringify(settings));
+    const changes = await claudeAdapter.plan(env());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([["hooks", "update"]]);
+  });
+  it("marks uninstall changes as removals", async () => {
+    await apply(await claudeAdapter.plan(env()));
+    const changes = await claudeAdapter.uninstallPlan(env());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([
+      ["mcp", "remove"],
+      ["hooks", "remove"],
+    ]);
+  });
+});

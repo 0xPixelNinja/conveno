@@ -1,7 +1,18 @@
 import type { CliKind } from "@conveno/protocol";
 import type { ConvenoClient } from "./client.js";
 
+/** The part of a CLI's setup a change belongs to. */
+export type ConfigComponent = "mcp" | "hooks";
+
 export interface ConfigChange {
+  /** Which part of the setup this change adds or fixes. `conveno doctor` reads it. */
+  component: ConfigComponent;
+  /**
+   * `add` when nothing of that part is set up yet. `update` when Conveno's entry exists but is out
+   * of date, such as an upgrade that adds a setting or a moved `conveno` command. `remove` is for
+   * an uninstall plan.
+   */
+  kind: "add" | "update" | "remove";
   path: string;
   before: string | null;
   after: string;

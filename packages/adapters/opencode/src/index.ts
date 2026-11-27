@@ -184,6 +184,8 @@ async function plan(env: AdapterEnv): Promise<ConfigChange[]> {
   const where = shape === "v1" ? `mcp.${SERVER_NAME}` : `mcp.servers.${SERVER_NAME}`;
   return [
     {
+      component: "mcp",
+      kind: current !== undefined || other !== undefined ? "update" : "add",
       path: file.path,
       before: file.text,
       after,
@@ -209,6 +211,8 @@ async function uninstallPlan(env: AdapterEnv): Promise<ConfigChange[]> {
   if (removed.length === 0) return [];
   return [
     {
+      component: "mcp",
+      kind: "remove",
       path: file.path,
       before: file.text,
       after: text,

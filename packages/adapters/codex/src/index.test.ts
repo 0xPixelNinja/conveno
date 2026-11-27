@@ -393,3 +393,48 @@ describe("CODEX_HOME", () => {
     expect(changes.map((c) => c.path)).toContain(join(alt, "hooks.json"));
   });
 });
+
+describe("change component and kind", () => {
+  it("marks a first install as an addition of both parts", async () => {
+    const changes = await named.plan(env());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([
+      ["mcp", "add"],
+      ["hooks", "add"],
+    ]);
+  });
+  it("marks an install that only lacks the approval mode as an update of the MCP server", async () => {
+    await apply(await named.plan(env()));
+    const text = await readFile(cfg(), "utf8");
+    await write(cfg(), text.replace(/^default_tools_approval_mode.*\n/m, ""));
+    const changes = await named.plan(env());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([["mcp", "update"]]);
+    // The new text differs from the old by the one missing line only.
+    const before = changes[0]?.before ?? "";
+    const added = (changes[0]?.after ?? "").split("\n").filter((l) => !before.includes(l));
+    expect(added).toEqual(['default_tools_approval_mode = "approve"']);
+  });
+  it("marks a moved conveno command as an update of both parts", async () => {
+    await apply(await named.plan(env()));
+    const changes = await named.plan(env({ conveno: { command: ["/new/conveno"] } }));
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([
+      ["mcp", "update"],
+      ["hooks", "update"],
+    ]);
+  });
+  it("marks one missing hook event of an installed pair as an update", async () => {
+    await apply(await named.plan(env()));
+    const h = JSON.parse(await readFile(hooksFile(), "utf8"));
+    delete h.hooks.UserPromptSubmit;
+    await write(hooksFile(), JSON.stringify(h));
+    const changes = await named.plan(env());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([["hooks", "update"]]);
+  });
+  it("marks uninstall changes as removals", async () => {
+    await apply(await named.plan(env()));
+    const changes = await named.uninstallPlan(env());
+    expect(changes.map((c) => [c.component, c.kind])).toEqual([
+      ["mcp", "remove"],
+      ["hooks", "remove"],
+    ]);
+  });
+});
