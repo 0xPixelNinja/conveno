@@ -4,7 +4,7 @@ Direction: **Minutes**. Mark: **variant C, "lowercase c"** (`locked/mark.svg`): 
 Everything below derives from the mark's grid and the Minutes tokens. Nothing ships until the owner approves the brand book.
 
 ## 0. Foundations (locked first)
-- Final mark: `mark/variant-?.svg`. Construction drawing on the 64 grid.
+- Final mark: `locked/mark.svg` (variant C, lowercase c). Optical sizes in `locked/assets/mark-16|24|32.svg`.
 - Tokens (from `explorations/minutes/tokens.json`, refined): colour light/dark, semantic colours (ok / warn / error / info, separate from the entry accent), type scale, spacing (4-based), radius, stroke widths, motion (easing + durations).
 - Type: Schibsted Grotesk (display), IBM Plex Sans (body), IBM Plex Mono (mono, timestamps, terminal).
 
