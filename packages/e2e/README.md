@@ -2,7 +2,7 @@
 
 Cross-platform end-to-end tests for Conveno. Private, never published.
 
-Each test file starts the real `convenod` (`packages/daemon/dist/bin.js`) in a temporary home, data dir and socket (via `HOME`, `XDG_DATA_HOME`, `XDG_RUNTIME_DIR`, `LOCALAPPDATA` and `USERNAME`). Fake CLIs are child processes that spawn the MCP server (`src/fixtures/mcp-entry.mjs`, which calls `runStdio`), so `hostPid` relationships are real. The MCP SDK `Client` drives each server over stdio.
+Each test file starts the real `convenod` (`packages/daemon/dist/bin.js`) in a temporary home, data dir and socket (via `HOME`, `XDG_DATA_HOME`, `XDG_RUNTIME_DIR`, `LOCALAPPDATA` and `USERNAME`). Fake CLIs are child processes that spawn the MCP server (`src/fixtures/mcp-entry.mjs`, which calls `runStdio`), so the `hostPids` ancestor chains are real. The MCP SDK `Client` drives each server over stdio.
 
 | File | Covers |
 |---|---|

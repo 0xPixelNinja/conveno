@@ -17,7 +17,7 @@ Without a terminal and without `--approve-init` the script prints the plan, writ
 
 ## Prerequisites
 
-- Node 24 or newer, git, and `conveno` on PATH (or `--conveno <path>`). On Windows, commands are resolved on PATH with PATHEXT, and `.cmd` shims run through `cmd.exe` with one quoted command line (shared with the CLI: `packages/cli/src/win-spawn.ts`, loaded by Node's type stripping).
+- Node 24 or newer, git, and `conveno` on PATH (or `--conveno <path>`). On Windows, commands are resolved on PATH with PATHEXT, and `.cmd` shims run through `cmd.exe` with one quoted command line (shared with the CLI: `packages/core/src/win-spawn.ts`, loaded by Node's type stripping).
 - Claude Code installed and logged in. It is required: it is the receiver in every pair.
 - OpenCode and Codex are optional. A missing CLI is a skipped step.
 - Do not run it while you have important Conveno sessions open: it stops the daemon at the end.

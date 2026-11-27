@@ -20,7 +20,7 @@ import {
 } from "./primitives.js";
 import type { RpcErrorObject } from "./rpc.js";
 import { makeError, RpcErrorCode, RpcId, RpcRequestEnvelope } from "./rpc.js";
-import { RepoInfo, Session, STATUS_TEXT_MAX } from "./session.js";
+import { HostPids, RepoInfo, Session, STATUS_TEXT_MAX } from "./session.js";
 import { Ticket } from "./ticket.js";
 import { PROTOCOL_VERSION } from "./version.js";
 
@@ -64,8 +64,8 @@ const RegisterParams = z.object({
   cwd: z.string().min(1),
   repo: RepoInfo.optional(),
   pid: z.number().int().positive().optional(),
-  /** The CLI process hosting the session (the MCP server's parent). */
-  hostPid: z.number().int().positive().optional(),
+  /** The MCP server's ancestor chain, nearest first (1 to 8 pids). See `Session.hostPids`. */
+  hostPids: HostPids.optional(),
   /** Set by the daemon when it spawned this session itself. */
   spawnedBy: SessionId.optional(),
 });
@@ -188,10 +188,12 @@ export const ipcMethods = {
   },
   "session.setStatus": { params: SetStatusParams, result: SessionResult },
   "session.byHost": {
-    params: z.object({ hostPid: z.number().int().positive() }),
-    // Online sessions only; the newest one when several share the host pid.
+    // The hook's ancestor chain, nearest first. The daemon takes the first pid that appears in any
+    // online session's `hostPids`; one session holding it is the match, several give null.
+    params: z.object({ pids: HostPids }),
     result: z.object({ session: Session.nullable() }),
   },
+  "daemon.shutdown": { params: z.object({}), result: z.object({ ok: z.literal(true) }) },
   "session.list": { params: ListParams, result: z.object({ sessions: z.array(Session) }) },
   "orchestrator.claim": {
     params: z.object(sid),

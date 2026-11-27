@@ -6,7 +6,12 @@ export const OFFLINE_AFTER_MS = 45_000;
 export interface LivenessInput {
   /** Epoch milliseconds of the last heartbeat (or registration). */
   lastSeenMs: number;
-  /** PID of the CLI process hosting the session, when known. */
+  /**
+   * The first entry of the session's `hostPids`: the process that launched the MCP server. When
+   * it dies the MCP server is orphaned and the session is over. The farther entries (the CLI, a
+   * shell, a terminal) are only used to match hooks. Some of them outlive the session, so they
+   * say nothing about whether it is alive.
+   */
   hostPid?: number | undefined;
 }
 

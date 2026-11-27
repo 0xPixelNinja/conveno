@@ -65,8 +65,20 @@ export async function testCtx(over: Partial<Ctx> = {}): Promise<TestCtx> {
     now: () => FIXED_NOW,
     readStdin: async () => "",
     connect,
-    ppid: process.pid,
-    parentOf: async () => null,
+    ancestry: async () => ({ pids: [process.pid], complete: true }),
+    isAlive: (pid) => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    commandLineOf: async () => null,
+    kill: () => {
+      throw new Error("test context: kill was not expected");
+    },
+    stopTimeoutMs: 1_000,
     runMcp: async () => undefined,
     hookTimeoutMs: 2_000,
     ...over,

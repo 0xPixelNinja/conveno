@@ -8,10 +8,12 @@ import {
   formatInbox,
   HEARTBEAT_INTERVAL_MS,
   NOT_FROM_USER_NOTICE,
+  readAncestry,
   validateRename,
 } from "@conveno/core";
 import {
   type CliKind,
+  HOST_PIDS_MAX,
   INBOX_MAX_LIMIT,
   MessageId,
   RpcErrorCode,
@@ -29,8 +31,11 @@ const SERVER_VERSION = "0.1.0";
 export interface CreateServerOptions {
   cli: CliKind;
   client: ConvenoClient;
-  /** PID of the CLI process hosting this server (usually `process.ppid`). */
-  hostPid: number;
+  /**
+   * This server's ancestor chain, nearest first (see `readAncestry`). Hooks find the session
+   * through it. A promise lets the server start before the process table has been read.
+   */
+  hostPids: number[] | Promise<number[]>;
   cwd: string;
 }
 
@@ -127,7 +132,7 @@ const DELIVERY_NOTE: Record<string, string> = {
  * tool call), heartbeats every 15 s, and unregisters when the server closes.
  */
 export function createServer(opts: CreateServerOptions): McpServer {
-  const { cli, client, hostPid, cwd } = opts;
+  const { cli, client, hostPids, cwd } = opts;
   const mcp = new McpServer({ name: "conveno", version: SERVER_VERSION });
 
   let registering: Promise<Session> | undefined;
@@ -137,11 +142,12 @@ export function createServer(opts: CreateServerOptions): McpServer {
   const register = async (): Promise<Session> => {
     const repo = await detectRepo(cwd, { exists: pathExists });
     const cliVersion = process.env.CONVENO_CLI_VERSION?.trim().slice(0, 64);
+    const chain = await hostPids;
     const res = await client["session.register"]({
       cli,
       cwd,
       pid: process.pid,
-      hostPid,
+      ...(chain.length > 0 ? { hostPids: chain.slice(0, HOST_PIDS_MAX) } : {}),
       ...(cliVersion ? { cliVersion } : {}),
       ...(repo.root ? { repo: { root: repo.root } } : {}),
     });
@@ -411,7 +417,8 @@ export async function runStdio(opts: { cli: CliKind; daemonEntry?: string }): Pr
   const mcp = createServer({
     cli: opts.cli,
     client,
-    hostPid: process.ppid,
+    // Read once, with no time budget: nothing waits on it but this session's registration.
+    hostPids: readAncestry({ timeoutMs: 30_000 }).then((a) => a.pids),
     cwd: process.cwd(),
   });
 

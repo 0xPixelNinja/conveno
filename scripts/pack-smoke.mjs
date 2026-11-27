@@ -19,7 +19,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 // Plain erasable TypeScript, loaded by Node's type stripping (the e2e real-cli script does too).
-import { planSpawn } from "../packages/cli/src/win-spawn.ts";
+import { planSpawn } from "../packages/core/src/win-spawn.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const win = process.platform === "win32";

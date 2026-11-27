@@ -11,6 +11,9 @@ interface Row {
   planError?: string;
 }
 
+/** Time allowed for the one process-table query. */
+const ANCESTRY_TIMEOUT_MS = 5_000;
+
 const tierWord = (t: Adapter["deliveryTier"]): string => (t === "next_turn" ? "next turn" : t);
 
 async function inspect(ctx: Ctx, adapter: Adapter): Promise<Row> {
@@ -76,6 +79,21 @@ export async function runDoctor(ctx: Ctx, argv: string[] = []): Promise<number> 
     );
   }
   ctx.out(`${columns([daemonLine]).join("\n")}\n\n`);
+
+  // Process ancestry: hooks use it to find their session. It is quiet when it works.
+  if (!(await ctx.ancestry(ANCESTRY_TIMEOUT_MS)).complete) {
+    warnings++;
+    notes.push(
+      warnBlock(
+        t,
+        "Process ancestry is unavailable.",
+        `Run ${cmd(t, "conveno doctor")} from a normal desktop session, or allow this user to read the process list. Messages still reach the inbox tool either way.`,
+        ctx.platform === "win32"
+          ? "Windows refused the process list (WMI denies it to non-admin remote logons such as SSH). A hook can then only match a session whose CLI is its direct parent, so next-turn delivery can miss sessions started through a launcher such as conveno.cmd."
+          : "The process list could not be read. A hook can then only match a session whose CLI is its direct parent, so next-turn delivery can miss sessions started through a launcher or a shell.",
+      ),
+    );
+  }
 
   // CLIs.
   const rows = await Promise.all(ctx.adapters.map((a) => inspect(ctx, a)));

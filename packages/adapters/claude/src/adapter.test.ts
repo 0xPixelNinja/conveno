@@ -388,7 +388,7 @@ describe("hook", () => {
       ["SessionStart", sessionStartInput],
       ["UserPromptSubmit", promptInput],
     ] as const) {
-      const out = await claudeAdapter.hook(event, input, { client, hostPid: 4242 });
+      const out = await claudeAdapter.hook(event, input, { client, pids: [4242, 4241] });
       expect(out.exitCode).toBe(0);
       expect(JSON.parse(out.stdout)).toEqual({
         hookSpecificOutput: {
@@ -397,25 +397,25 @@ describe("hook", () => {
         },
       });
     }
-    expect(client["session.byHost"]).toHaveBeenCalledWith({ hostPid: 4242 });
+    expect(client["session.byHost"]).toHaveBeenCalledWith({ pids: [4242, 4241] });
     expect(client["message.deliver"]).toHaveBeenCalledWith({ sessionId: me.id });
   });
 
   it("prints nothing without a session, without messages, or on unknown events", async () => {
     const none = await claudeAdapter.hook("UserPromptSubmit", promptInput, {
       client: clientWith({}),
-      hostPid: 1,
+      pids: [1],
     });
     expect(none).toEqual({ stdout: "", exitCode: 0 });
 
     const me = sess("claude@web");
     const empty = await claudeAdapter.hook("SessionStart", sessionStartInput, {
       client: clientWith({ "session.byHost": async () => ({ session: me }) }),
-      hostPid: 1,
+      pids: [1],
     });
     expect(empty).toEqual({ stdout: "", exitCode: 0 });
 
-    const unknown = await claudeAdapter.hook("Stop", {}, { client: clientWith({}), hostPid: 1 });
+    const unknown = await claudeAdapter.hook("Stop", {}, { client: clientWith({}), pids: [1] });
     expect(unknown).toEqual({ stdout: "", exitCode: 0 });
   });
 
@@ -426,7 +426,7 @@ describe("hook", () => {
       },
     });
     const err = vi.spyOn(process.stderr, "write");
-    const out = await claudeAdapter.hook("UserPromptSubmit", promptInput, { client, hostPid: 1 });
+    const out = await claudeAdapter.hook("UserPromptSubmit", promptInput, { client, pids: [1] });
     expect(out).toEqual({ stdout: "", exitCode: 0 });
     expect(err).not.toHaveBeenCalled();
     err.mockRestore();

@@ -51,7 +51,7 @@ describe("hook path with real host pids", () => {
     const out = await claudeAdapter.hook(
       "UserPromptSubmit",
       {},
-      { client, hostPid: claude.hostPid },
+      { client, pids: [claude.hostPid] },
     );
     expect(out.exitCode).toBe(0);
     const json = JSON.parse(out.stdout) as HookJson;
@@ -67,7 +67,7 @@ describe("hook path with real host pids", () => {
     const again = await claudeAdapter.hook(
       "UserPromptSubmit",
       {},
-      { client, hostPid: claude.hostPid },
+      { client, pids: [claude.hostPid] },
     );
     expect(again.stdout).toBe("");
 
@@ -78,10 +78,10 @@ describe("hook path with real host pids", () => {
   });
 
   it("claude hook prints nothing for unknown events and unknown host pids", async () => {
-    const other = await claudeAdapter.hook("Stop", {}, { client, hostPid: claude.hostPid });
+    const other = await claudeAdapter.hook("Stop", {}, { client, pids: [claude.hostPid] });
     expect(other.stdout).toBe("");
     // A pid nobody registered with. Highest valid pid on every platform we run on.
-    const unknown = await claudeAdapter.hook("SessionStart", {}, { client, hostPid: 2 ** 22 - 1 });
+    const unknown = await claudeAdapter.hook("SessionStart", {}, { client, pids: [2 ** 22 - 1] });
     expect(unknown.stdout).toBe("");
   });
 
@@ -89,7 +89,7 @@ describe("hook path with real host pids", () => {
     const codexName = nameOf((await codex.call("whoami")).text);
     await sender.call("send", { to: codexName, text: "hello codex" });
 
-    const out = await codexAdapter.hook("SessionStart", {}, { client, hostPid: codex.hostPid });
+    const out = await codexAdapter.hook("SessionStart", {}, { client, pids: [codex.hostPid] });
     expect(out.exitCode).toBe(0);
     expect(out.stdout.endsWith("\n")).toBe(true);
     const json = JSON.parse(out.stdout) as HookJson;
@@ -100,7 +100,7 @@ describe("hook path with real host pids", () => {
     const again = await codexAdapter.hook(
       "UserPromptSubmit",
       {},
-      { client, hostPid: codex.hostPid },
+      { client, pids: [codex.hostPid] },
     );
     expect(again.stdout).toBe("");
     const history = await codex.call("inbox", { unread_only: false });
@@ -113,13 +113,13 @@ describe("hook path with real host pids", () => {
     const wrong = await claudeAdapter.hook(
       "UserPromptSubmit",
       {},
-      { client, hostPid: claude.hostPid },
+      { client, pids: [claude.hostPid] },
     );
     expect(wrong.stdout).toBe("");
     const right = await claudeAdapter.hook(
       "UserPromptSubmit",
       {},
-      { client, hostPid: sender.hostPid },
+      { client, pids: [sender.hostPid] },
     );
     expect(right.stdout).toContain("only for sender");
   });

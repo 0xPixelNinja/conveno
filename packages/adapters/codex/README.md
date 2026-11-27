@@ -21,7 +21,7 @@ Conveno adapter for the OpenAI Codex CLI. Exports `codexAdapter` (also the defau
 
 ## Hook contract
 
-Codex runs the command with a JSON object on stdin. The adapter ignores that input and finds the session by `hostPid` (`session.byHost`), takes undelivered messages (`message.deliver`), and prints, for both events:
+Codex runs the command with a JSON object on stdin. The adapter ignores that input and finds the session by the hook's ancestor pids (`session.byHost`), takes undelivered messages (`message.deliver`), and prints, for both events:
 
 ```json
 {"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"<formatHookContext output>"}}

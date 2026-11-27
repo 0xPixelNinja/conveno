@@ -1,6 +1,5 @@
 import { execFile } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -10,11 +9,11 @@ import codexAdapter from "@conveno/adapter-codex";
 import opencodeAdapter from "@conveno/adapter-opencode";
 import { createTheme, type Theme } from "@conveno/brand";
 import { connect } from "@conveno/client";
-import { dataDir } from "@conveno/core";
+import { dataDir, planSpawn, readAncestry, readCommandLine } from "@conveno/core";
+import { defaultIsAlive } from "@conveno/daemon";
 import { runStdio } from "@conveno/mcp";
 import type { Ctx } from "./ctx.js";
 import { type ShimIo, windowsConvenoIsThisInstall } from "./shim.js";
-import { planSpawn } from "./win-spawn.js";
 
 /**
  * Path to the daemon entry script, resolved from this package's own dependencies so it works from
@@ -72,63 +71,6 @@ export function convenoCommand(
   return pathConvenoIsThisInstall(env, binPath, platform, shimIo)
     ? ["conveno"]
     : [nodePath, binPath];
-}
-
-function run(cmd: string, args: string[], timeout: number): Promise<string | null> {
-  return new Promise((resolve) => {
-    execFile(cmd, args, { timeout, windowsHide: true, encoding: "utf8" }, (err, stdout) =>
-      resolve(err ? null : stdout),
-    );
-  });
-}
-
-let windowsTable: Promise<Map<number, number>> | undefined;
-
-/** One query for the whole process table, so walking six levels costs one PowerShell start. */
-function windowsParents(): Promise<Map<number, number>> {
-  windowsTable ??= (async () => {
-    const map = new Map<number, number>();
-    const out = await run(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }',
-      ],
-      1_500,
-    );
-    for (const line of (out ?? "").split(/\r?\n/)) {
-      const m = /^(\d+) (\d+)$/.exec(line.trim());
-      if (m) map.set(Number(m[1]), Number(m[2]));
-    }
-    return map;
-  })();
-  return windowsTable;
-}
-
-/** Parent pid of `pid`: /proc on Linux, `ps` on macOS, a CIM query on Windows. Null when unknown. */
-export async function parentOf(
-  pid: number,
-  platform: NodeJS.Platform = process.platform,
-): Promise<number | null> {
-  if (!Number.isInteger(pid) || pid <= 1) return null;
-  let ppid: number;
-  if (platform === "linux") {
-    try {
-      const stat = await readFile(`/proc/${pid}/stat`, "utf8");
-      // `pid (comm) state ppid ...`: comm may hold spaces and parentheses, so cut after the last `)`.
-      ppid = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
-    } catch {
-      return null;
-    }
-  } else if (platform === "win32") {
-    ppid = (await windowsParents()).get(pid) ?? Number.NaN;
-  } else {
-    const out = await run("ps", ["-o", "ppid=", "-p", String(pid)], 500);
-    ppid = Number((out ?? "").trim());
-  }
-  return Number.isInteger(ppid) && ppid > 0 ? ppid : null;
 }
 
 function exec(cmd: string, args: string[]): Promise<{ code: number; stdout: string }> {
@@ -202,8 +144,11 @@ export function createRuntimeCtx(): Ctx {
     now: () => new Date(),
     readStdin: readAllStdin,
     connect,
-    ppid: process.ppid,
-    parentOf,
+    ancestry: (timeoutMs) => readAncestry({ timeoutMs }),
+    isAlive: defaultIsAlive,
+    commandLineOf: (pid) => readCommandLine(pid),
+    kill: (pid) => process.kill(pid),
+    stopTimeoutMs: 5_000,
     runMcp: runStdio,
     hookTimeoutMs: 2_000,
   };

@@ -70,7 +70,7 @@ export class FakeDaemon {
             cwd: p.cwd,
             ...(p.repo ? { repo: p.repo } : {}),
             ...(p.pid ? { pid: p.pid } : {}),
-            ...(p.hostPid ? { hostPid: p.hostPid } : {}),
+            ...(p.hostPids ? { hostPids: p.hostPids } : {}),
             status: "idle",
             isOrchestrator: false,
             deliveryTier: "inbox",
@@ -111,9 +111,16 @@ export class FakeDaemon {
           return { session: this.withOrch(next) };
         },
       ),
-      "session.byHost": rec("session.byHost", (p: { hostPid: number }) => ({
-        session: this.all().find((s) => s.hostPid === p.hostPid && s.status !== "offline") ?? null,
-      })),
+      "session.byHost": rec("session.byHost", (p: { pids: number[] }) => {
+        const online = this.all().filter((s) => s.status !== "offline");
+        for (const pid of p.pids) {
+          const holders = online.filter((s) => s.hostPids?.includes(pid));
+          if (holders.length > 0)
+            return { session: holders.length === 1 ? (holders[0] ?? null) : null };
+        }
+        return { session: null };
+      }),
+      "daemon.shutdown": rec("daemon.shutdown", () => ({ ok: true as const })),
       "session.list": rec(
         "session.list",
         (p: {

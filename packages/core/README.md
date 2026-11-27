@@ -14,6 +14,8 @@ mailbox state and message framing. The daemon, client, MCP server and CLI import
   `ackEntries`. Entries move through `queued`, `delivered`, `read` and `acked`.
 - Framing: `formatInbox`, `formatHookContext`, `formatFramedMessage`, `renderBody`
 - Repo and paths: `detectRepo`, `baseName`, `dataDir`, `dataPaths`
+- Processes: `readAncestry` (the ancestor chain of a process, nearest first, one query per OS),
+  `readCommandLine`, and `planSpawn` and friends for starting programs on Windows without a shell
 - Types: `ConvenoClient` and `ClientMethodName` (the typed IPC surface), `Adapter`, `HookContext`,
   `HookOutput`, `Detection`, `ConvenoError`
 

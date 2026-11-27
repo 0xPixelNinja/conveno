@@ -286,7 +286,7 @@ describe("hook", () => {
 
   for (const event of ["SessionStart", "UserPromptSubmit"]) {
     it(`prints additionalContext for ${event}`, async () => {
-      const out = await named.hook(event, {}, { client: fakeClient(), hostPid: 42 });
+      const out = await named.hook(event, {}, { client: fakeClient(), pids: [42] });
       expect(out.exitCode).toBe(0);
       const parsed = JSON.parse(out.stdout);
       expect(parsed.hookSpecificOutput.hookEventName).toBe(event);
@@ -300,12 +300,12 @@ describe("hook", () => {
       "session.byHost": async (p: unknown) => (calls.push(p), { session }),
       "message.deliver": async (p: unknown) => (calls.push(p), { messages: [], remaining: 0 }),
     });
-    await named.hook("UserPromptSubmit", {}, { client, hostPid: 7 });
-    expect(calls).toEqual([{ hostPid: 7 }, { sessionId: session.id }]);
+    await named.hook("UserPromptSubmit", {}, { client, pids: [7, 6] });
+    expect(calls).toEqual([{ pids: [7, 6] }, { sessionId: session.id }]);
   });
   it("prints nothing with no session, no messages, unknown events or errors", async () => {
     const empty = { stdout: "", exitCode: 0 };
-    const ctx = (client: ConvenoClient) => ({ client, hostPid: 1 });
+    const ctx = (client: ConvenoClient) => ({ client, pids: [1] });
     expect(
       await named.hook(
         "SessionStart",

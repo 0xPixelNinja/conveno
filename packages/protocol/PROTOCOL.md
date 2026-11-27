@@ -38,7 +38,7 @@ Session {
   deviceId: DeviceId       cwd: string
   repo?: { root: string, remoteUrlHash?: Sha256Hex }
   pid?: int > 0          (the MCP server process)
-  hostPid?: int > 0      (the CLI process hosting the session)
+  hostPids?: int > 0 [1..8]  (the MCP server's ancestor chain, nearest first)
   status: SessionStatus    statusText?: string (<= 200 chars)
   isOrchestrator: bool     deliveryTier: DeliveryTier
   spawnedBy?: SessionId    spawnDepth: int >= 0
@@ -49,6 +49,19 @@ Session {
 `remoteUrlHash` is the SHA-256 of the normalised git `origin` URL. It lets sessions on different
 machines recognise the same repository without the URL being shared. There is at most one
 orchestrator per account at any time.
+
+`hostPids` lets a hook find its session without any shared state. The MCP server lists its ancestor
+chain once at startup: its parent first, then the parent's parent, up to 8 entries (the chain stops
+earlier at the root). The chain includes launchers, not just the CLI. On Windows, npm installs
+`conveno` as `conveno.cmd`, so the chain is CLI, `cmd.exe`, MCP server, and the CLI is two levels
+up. A hook computes its own chain the same way and looks the session up with `session.byHost`
+(section 6.4).
+
+A session goes `offline` when its first `hostPids` entry (the process that launched the MCP server)
+is gone, or when its heartbeat stops. Only the first entry is watched. The MCP server cannot outlive
+its launcher in a useful way: when the CLI dies, the pipe closes and the launcher exits with the MCP
+server. The farther entries are shells and terminals that can outlive the CLI, so they say nothing
+about whether the session is alive.
 
 ## 4. Message
 
@@ -143,12 +156,13 @@ Session-scoped methods carry the caller's `sessionId` explicitly. The last colum
 |---|---|---|
 | `hello` | `{ protocolVersion, client: "mcp"\|"cli"\|"adapter", nonce }` | `{ protocolVersion, daemonVersion, proof, challenge }`. MUST be the first call. `nonce` and `challenge` are 32 random bytes as lowercase hex. |
 | `auth` | `{ proof }` | `{ ok: true }`. MUST follow `hello`; everything else returns -32001 until it succeeds. |
-| `session.register` | `{ name?, cli, cliVersion?, cwd, repo?, pid?, hostPid?, spawnedBy? }` (no name: daemon assigns, e.g. `claude@repo-1`) | `{ session }` |
+| `session.register` | `{ name?, cli, cliVersion?, cwd, repo?, pid?, hostPids?, spawnedBy? }` (no name: daemon assigns, e.g. `claude@repo-1`) | `{ session }` |
 | `session.heartbeat` | `{ sessionId }` | `{ lastSeenAt }` |
 | `session.unregister` | `{ sessionId }` | `{ ok: true }` |
 | `session.rename` | `{ sessionId, name }` | `{ session }` |
 | `session.setStatus` | `{ sessionId, status?, statusText? }` (at least one; `statusText: null` clears) | `{ session }` |
-| `session.byHost` | `{ hostPid }` | `{ session: Session \| null }`. Online sessions only; the newest if several share the pid. Hooks use it to find their session. |
+| `session.byHost` | `{ pids }` (1..8 pids) | `{ session: Session \| null }`. `pids` is the caller's ancestor chain, nearest first. The daemon takes the first pid that appears in the `hostPids` of any online session. If exactly one online session holds that pid, it is returned. If several do, the result is `null`: the daemon never guesses. Hooks use it to find their session; the nearest ancestor two sessions share is normally the CLI process that started both, so two sessions under one CLI process are ambiguous. |
+| `daemon.shutdown` | `{}` | `{ ok: true }`. The daemon sends the reply, stops accepting connections, closes its store, removes its socket (POSIX) and its lock file, and exits with code 0. Needs the completed handshake like every other method. `conveno daemon stop` uses it instead of signals. |
 | `session.list` | `{ repo?, cli?, includeOffline = false }` | `{ sessions }` |
 | `orchestrator.claim` | `{ sessionId }` | `{ orchestrator, previous }` (`previous` is `null` if none) |
 | `message.send` | `{ sessionId, to, kind, body, urgent = false, replyTo? }` | `{ message, delivery, deliveredTo: { id, name } }` (`delivery` is the tier used). `replyTo` must be the id of an existing message (else -32002). Clients cannot send `kind: "system"` (-32602); only the daemon creates those. A recipient with 1000 unread messages is refused with -32004. |

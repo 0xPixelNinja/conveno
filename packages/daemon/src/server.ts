@@ -1,4 +1,4 @@
-import { chmodSync, existsSync } from "node:fs";
+import { chmodSync, existsSync, rmSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -90,6 +90,8 @@ export interface DaemonOptions {
   sweepIntervalMs?: number;
   /** Called after the daemon shut itself down because it was idle. */
   onIdleExit?: () => void;
+  /** Called after the daemon shut down because a client sent `daemon.shutdown`. */
+  onShutdown?: () => void;
   /** Close connections that have not finished the handshake after this long. Default 5 s. */
   authTimeoutMs?: number;
 }
@@ -130,6 +132,7 @@ class Daemon {
     private readonly isAlive: (pid: number) => boolean,
     private readonly idleExitMs: number,
     private readonly requestIdleExit: () => void,
+    private readonly requestShutdown: () => void,
     private readonly authTimeoutMs: number = AUTH_TIMEOUT_MS,
   ) {
     this.deviceId = store.deviceId();
@@ -161,10 +164,13 @@ class Daemon {
     socket.on("error", () => socket.destroy());
   }
 
-  private send(conn: Conn, obj: unknown): void {
-    if (conn.socket.destroyed) return;
+  private send(conn: Conn, obj: unknown, flushed?: () => void): void {
+    if (conn.socket.destroyed) {
+      flushed?.();
+      return;
+    }
     try {
-      conn.socket.write(encodeFrame(obj));
+      conn.socket.write(encodeFrame(obj), flushed);
     } catch {
       // The frame could not be encoded (too large). Answer the same request with an error so
       // the caller is not left waiting; notifications have no id and are dropped.
@@ -223,7 +229,9 @@ class Daemon {
     }
     try {
       const result = await this.dispatch(conn, req);
-      this.send(conn, makeResult(req.id, result));
+      // The shutdown reply must reach the client before the connection is torn down.
+      const flushed = req.method === "daemon.shutdown" ? this.requestShutdown : undefined;
+      this.send(conn, makeResult(req.id, result), flushed);
     } catch (e) {
       this.sendError(conn, req.id, e);
       if (req.method === "hello" || req.method === "auth") conn.socket.end();
@@ -266,7 +274,9 @@ class Daemon {
       case "session.list":
         return this.list(req.params);
       case "session.byHost":
-        return this.byHost(req.params.hostPid);
+        return this.byHost(req.params.pids);
+      case "daemon.shutdown":
+        return { ok: true as const };
       case "orchestrator.claim":
         return this.claim(req.params.sessionId);
       case "message.send":
@@ -402,7 +412,7 @@ class Daemon {
         if (repo.remoteUrlHash !== undefined) r.repoRemoteUrlHash = repo.remoteUrlHash;
       }
       if (p.pid !== undefined) r.pid = p.pid;
-      if (p.hostPid !== undefined) r.hostPid = p.hostPid;
+      if (p.hostPids !== undefined) r.hostPids = p.hostPids;
       if (p.spawnedBy !== undefined) r.spawnedBy = p.spawnedBy;
       this.store.insertSession(r);
       return r;
@@ -425,7 +435,8 @@ class Daemon {
     // An offline session that heartbeats again comes back, unless its host died or its name was taken.
     const named = this.named(this.store.allSessions());
     const taken = named.some((s) => s.id !== sessionId && isOnline(s) && s.name === row.name);
-    if ((row.hostPid !== undefined && !this.isAlive(row.hostPid)) || taken) {
+    const launcher = row.hostPids?.[0];
+    if ((launcher !== undefined && !this.isAlive(launcher)) || taken) {
       throw new ConvenoError(
         RpcErrorCode.NotFound,
         `Session "${row.name}" is offline and cannot come back. Register the session again.`,
@@ -504,12 +515,21 @@ class Daemon {
     return { sessions: rows.map((r) => this.view(r)) };
   }
 
-  private byHost(hostPid: number) {
-    const rows = this.store
-      .allSessions()
-      .filter((r) => r.status !== "offline" && r.hostPid === hostPid);
-    const newest = rows[rows.length - 1];
-    return { session: newest ? this.view(newest) : null };
+  /**
+   * Find the session a hook belongs to. `pids` is the hook's ancestor chain, nearest first. The
+   * first pid that any online session lists in its `hostPids` decides: one such session is the
+   * match, several make the answer ambiguous and the result is null. A farther pid is never
+   * tried after an ambiguous one, because that would be a guess.
+   */
+  private byHost(pids: number[]) {
+    const online = this.store.allSessions().filter((r) => r.status !== "offline");
+    for (const pid of pids) {
+      const holders = online.filter((r) => r.hostPids?.includes(pid));
+      if (holders.length === 0) continue;
+      const only = holders.length === 1 ? holders[0] : undefined;
+      return { session: only ? this.view(only) : null };
+    }
+    return { session: null };
   }
 
   /* ---- orchestrator ---- */
@@ -670,7 +690,11 @@ class Daemon {
       }
       // Sessions that outlived a daemon restart get one full window to heartbeat again.
       const lastSeenMs = Math.max(Date.parse(row.lastSeenAt), this.startedMs);
-      const verdict = evaluateLiveness({ lastSeenMs, hostPid: row.hostPid }, nowMs, this.isAlive);
+      const verdict = evaluateLiveness(
+        { lastSeenMs, hostPid: row.hostPids?.[0] },
+        nowMs,
+        this.isAlive,
+      );
       if (statusAfterLiveness(row.status, verdict) === "offline") this.depart(row.id, "offline");
       else online++;
     }
@@ -717,6 +741,9 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
       () => {
         void close().then(() => opts.onIdleExit?.());
       },
+      () => {
+        void close().then(() => opts.onShutdown?.());
+      },
       opts.authTimeoutMs ?? AUTH_TIMEOUT_MS,
     );
 
@@ -737,9 +764,13 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
     function close(): Promise<void> {
       closing ??= (async () => {
         if (timer) clearInterval(timer);
+        // Stop accepting first, then drop the open connections, then let go of the files.
+        const stopped = new Promise<void>((resolve) => srv.close(() => resolve()));
         for (const c of daemon.conns) c.socket.destroy();
-        await new Promise<void>((resolve) => srv.close(() => resolve()));
+        await stopped;
         liveStore.close();
+        if (platform !== "win32" && !socketPath.startsWith("\\\\"))
+          rmSync(socketPath, { force: true });
         releaseLock();
       })();
       return closing;

@@ -127,7 +127,7 @@ export interface FakeSession {
   repo: string;
   client: Client;
   transport: StdioClientTransport;
-  /** Pid of the fake host CLI process (the MCP server's parent). */
+  /** Pid of the fake host CLI process: the MCP server's parent, the first of its registered hostPids. */
   hostPid: number;
   /** Call an MCP tool; returns its text and whether it was an error. */
   call(name: string, args?: Record<string, unknown>): Promise<{ text: string; isError: boolean }>;

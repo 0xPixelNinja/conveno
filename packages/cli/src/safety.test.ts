@@ -8,7 +8,6 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { type PlannedChange, usesCommand } from "./apply.js";
 import { levenshtein } from "./fmt.js";
 import { main } from "./main.js";
-import { parentOf } from "./runtime.js";
 import { fakeAdapter, seed, startTestDaemon, type TestCtx, testCtx } from "./test-utils.js";
 
 beforeAll(() => {
@@ -182,16 +181,11 @@ describe("apply safety", () => {
 });
 
 describe("hook finds the CLI above a shell", () => {
-  it.skipIf(process.platform === "win32")("reads the parent pid of a live process", async () => {
-    expect(await parentOf(process.pid)).toBe(process.ppid);
-    expect(await parentOf(1)).toBeNull();
-  });
-
-  it("tries each ancestor until the daemon knows one", async () => {
+  it("matches a session through an ancestor the hook shares with it", async () => {
     const shellPid = 424242;
     const c = await make({
-      ppid: shellPid,
-      parentOf: async (pid) => (pid === shellPid ? process.pid : null),
+      // `sh -c "conveno hook ..."`: the shell is the direct parent, the CLI is next.
+      ancestry: async () => ({ pids: [shellPid, process.pid], complete: true }),
       readStdin: async () => "{}",
     });
     const d = await startTestDaemon(c);
@@ -205,7 +199,7 @@ describe("hook finds the CLI above a shell", () => {
       const me = await client["session.register"]({
         cli: "claude",
         cwd: "/work/api",
-        hostPid: process.pid,
+        hostPids: [process.pid],
         pid: process.pid,
       });
       const other = await client["session.register"]({ cli: "codex", cwd: "/work/api" });
@@ -224,18 +218,17 @@ describe("hook finds the CLI above a shell", () => {
     }
   });
 
-  it("stops after six levels", async () => {
-    const asked: number[] = [];
+  it("sends the whole chain to the daemon in one lookup", async () => {
+    const lookups: unknown[] = [];
     const c = await make({
-      ppid: 100,
-      parentOf: async (pid) => (asked.push(pid), pid + 1),
+      ancestry: async () => ({ pids: [11, 12, 13, 14, 15, 16, 17, 18], complete: true }),
       connect: (async () => ({
         close: async () => undefined,
-        "session.byHost": async () => ({ session: null }),
+        "session.byHost": async (p: unknown) => (lookups.push(p), { session: null }),
       })) as never,
     });
     expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
-    expect(asked.length).toBe(5); // six pids are checked, so five parent lookups
+    expect(lookups).toEqual([{ pids: [11, 12, 13, 14, 15, 16, 17, 18] }]);
     expect(c.outText()).toBe("");
   });
 });

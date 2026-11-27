@@ -3,7 +3,7 @@
 // name the target script. Reading that target is the only way to compare a shim with `bin.js`.
 import { readFileSync, realpathSync, statSync } from "node:fs";
 import { win32 } from "node:path";
-import { type Env, resolveWindowsCommand } from "./win-spawn.js";
+import { type Env, resolveWindowsCommand } from "@conveno/core";
 
 /** File access for shim detection, injected so tests need no Windows disk. */
 export interface ShimIo {

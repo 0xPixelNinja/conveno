@@ -57,6 +57,7 @@ const CLIENT_METHODS = [
   "session.rename",
   "session.setStatus",
   "session.byHost",
+  "daemon.shutdown",
   "session.list",
   "orchestrator.claim",
   "message.send",
@@ -70,7 +71,7 @@ const CLIENT_METHODS = [
  * Methods that must not be sent twice. If the connection drops after one of these went out, the
  * daemon may have acted on it, so the caller gets an error instead of a silent retry.
  */
-const NOT_REPLAYABLE = new Set<string>(["message.send", "session.register"]);
+const NOT_REPLAYABLE = new Set<string>(["message.send", "session.register", "daemon.shutdown"]);
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const errCode = (e: unknown) => (e as NodeJS.ErrnoException | undefined)?.code;
