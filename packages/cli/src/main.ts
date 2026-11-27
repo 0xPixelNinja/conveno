@@ -1,59 +1,52 @@
-import { parseArgs } from "node:util";
 import { CLI_KINDS, type CliKind } from "@0xpixelninja/conveno-protocol";
-import { versionLine } from "./banner.js";
+import { COMMAND_NAMES, COMMANDS, commandHelp, parseFlags } from "./args.js";
 import type { Ctx } from "./ctx.js";
 import { runDaemon } from "./daemon.js";
 import { runDoctor } from "./doctor.js";
-import { cmd, errorBlock } from "./fmt.js";
+import { closest, cmd, fail, plainError } from "./fmt.js";
 import { runHook } from "./hook.js";
 import { runInit } from "./init.js";
 import { runStatus } from "./status.js";
 import { runUninstall } from "./uninstall.js";
 import { VERSION } from "./version.js";
 
+export const DESCRIPTION =
+  "Conveno lets AI coding sessions on one machine find each other and exchange messages.";
+
 export function helpText(ctx: Ctx): string {
   const t = ctx.theme;
-  const row = (c: string, d: string) => `  ${t.bold(c.padEnd(26))}${d}`;
+  const rows = COMMANDS.map((c) => [c.usage.replace(/^conveno /, ""), c.summary] as const);
+  const width = Math.max(...rows.map(([u]) => u.length), "--version".length) + 2;
+  const row = (c: string, d: string) => `  ${t.bold(c.padEnd(width))}${d}`;
   return [
-    `${versionLine(t)}`,
+    DESCRIPTION,
     "",
     "Usage: conveno <command> [options]",
     "",
-    row("init [--yes] [--dry-run]", "Set up Claude Code, Codex and OpenCode"),
-    row("  [--cli list]", "Limit init to some CLIs"),
-    row("uninstall [--yes]", "Undo what init changed"),
-    row("status", "List sessions by repo"),
-    row("doctor", "Check each CLI and the daemon"),
-    row("daemon start|stop|status", "Manage the background daemon"),
-    row("mcp --cli <cli>", "MCP server on stdio (CLIs launch this)"),
-    row("hook <cli> <event>", "Hook entry (CLIs launch this)"),
+    ...rows.map(([u, d]) => row(u, d)),
     row("--version", "Print the version"),
     "",
-    `--cli takes a comma-separated list such as claude,codex.`,
+    `Run ${cmd(t, "conveno <command> --help")} for the options of one command.`,
+    `conveno ${t.paint("info", VERSION)}`,
     "",
   ].join("\n");
 }
 
 async function runMcp(ctx: Ctx, argv: string[]): Promise<number> {
   const t = ctx.theme;
-  let cli: string | undefined;
-  try {
-    cli = parseArgs({ args: argv, options: { cli: { type: "string" } }, allowPositionals: false })
-      .values.cli;
-  } catch (e) {
-    cli = undefined;
-    void e;
-  }
+  const spec = COMMANDS.find((c) => c.name === "mcp");
+  if (!spec) return 2;
+  const parsed = parseFlags(ctx, spec, argv);
+  if (typeof parsed === "number") return parsed;
+  const cli = typeof parsed.values.cli === "string" ? parsed.values.cli : undefined;
   if (!cli || !(CLI_KINDS as readonly string[]).includes(cli)) {
-    ctx.err(
-      errorBlock(
-        t,
-        "conveno mcp needs a CLI name",
-        [`Got ${cli ? `"${cli}"` : "none"}. Known: ${CLI_KINDS.join(", ")}.`],
-        `Run ${cmd(t, "conveno mcp --cli claude")}, or let ${cmd(t, "conveno init")} write the config.`,
-      ),
-    );
-    return 2;
+    return fail(ctx, {
+      what: "conveno mcp needs a CLI name",
+      detail: [`Got ${cli ? `"${cli}"` : "none"}. Known: ${CLI_KINDS.join(", ")}.`],
+      fix: `Run ${cmd(t, "conveno mcp --cli claude")}, or let ${cmd(t, "conveno init")} write the config.`,
+      exit: 2,
+      ref: "e_usage",
+    });
   }
   try {
     await ctx.runMcp({
@@ -62,22 +55,54 @@ async function runMcp(ctx: Ctx, argv: string[]): Promise<number> {
     });
     return 0;
   } catch (e) {
-    ctx.err(
-      errorBlock(
-        t,
-        "The Conveno MCP server stopped",
-        [e instanceof Error ? e.message : String(e)],
-        `Run ${cmd(t, "conveno doctor")} to check the daemon.`,
-      ),
-    );
-    return 1;
+    return fail(ctx, {
+      what: "The Conveno MCP server stopped",
+      detail: [plainError(e)],
+      fix: `Run ${cmd(t, "conveno doctor")} to check the daemon.`,
+      exit: 1,
+      ref: "e_mcp",
+    });
   }
 }
 
-/** Run one command line. Returns the exit code. */
+async function dispatch(command: string, rest: string[], ctx: Ctx): Promise<number> {
+  const spec = COMMANDS.find((c) => c.name === command);
+  if (spec && (rest.includes("--help") || rest.includes("-h")) && command !== "hook") {
+    ctx.out(commandHelp(ctx, spec));
+    return 0;
+  }
+  switch (command) {
+    case "init":
+      return runInit(ctx, rest);
+    case "uninstall":
+      return runUninstall(ctx, rest);
+    case "status":
+      return runStatus(ctx, rest);
+    case "doctor":
+      return runDoctor(ctx, rest);
+    case "daemon":
+      return runDaemon(ctx, rest);
+    case "mcp":
+      return runMcp(ctx, rest);
+    case "hook":
+      return runHook(ctx, rest);
+    default: {
+      const suggestion = closest(command, COMMAND_NAMES);
+      return fail(ctx, {
+        what: `Unknown command "${command}"`,
+        detail: [`conveno ${VERSION} has: ${COMMAND_NAMES.join(", ")}.`],
+        fix: `Run ${cmd(ctx.theme, "conveno --help")} to see usage.`,
+        ...(suggestion ? { didYouMean: `Did you mean ${suggestion}?` } : {}),
+        exit: 2,
+        ref: "e_usage",
+      });
+    }
+  }
+}
+
+/** Run one command line. Returns the exit code. Never throws. */
 export async function main(argv: string[], ctx: Ctx): Promise<number> {
   const [command, ...rest] = argv;
-  const t = ctx.theme;
   switch (command) {
     case undefined:
     case "--help":
@@ -88,31 +113,18 @@ export async function main(argv: string[], ctx: Ctx): Promise<number> {
     case "--version":
     case "-v":
     case "version":
-      ctx.out(`${versionLine(t)}\n`);
+      ctx.out(`${VERSION}\n`);
       return 0;
-    case "init":
-      return runInit(ctx, rest);
-    case "uninstall":
-      return runUninstall(ctx, rest);
-    case "status":
-      return runStatus(ctx);
-    case "doctor":
-      return runDoctor(ctx);
-    case "daemon":
-      return runDaemon(ctx, rest);
-    case "mcp":
-      return runMcp(ctx, rest);
-    case "hook":
-      return runHook(ctx, rest);
-    default:
-      ctx.err(
-        errorBlock(
-          t,
-          `Unknown command "${command}"`,
-          [`conveno ${VERSION} has: init, uninstall, status, doctor, daemon, mcp, hook.`],
-          `Run ${cmd(t, "conveno --help")} to see usage.`,
-        ),
-      );
-      return 2;
+  }
+  try {
+    return await dispatch(command, rest, ctx);
+  } catch (e) {
+    return fail(ctx, {
+      what: "conveno stopped before it could finish",
+      detail: [plainError(e)],
+      fix: `Run ${cmd(ctx.theme, "conveno doctor")} to check the install, then try again.`,
+      exit: 1,
+      ref: "e_internal",
+    });
   }
 }

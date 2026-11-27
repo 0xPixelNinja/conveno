@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readdir, readFile, symlink, writeFile } from "node:fs/promises";
+import { chmod, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import claudeAdapter from "@0xpixelninja/conveno-adapter-claude";
 import codexAdapter from "@0xpixelninja/conveno-adapter-codex";
@@ -43,7 +43,7 @@ describe("help, version, unknown", () => {
   it("prints the version", async () => {
     const c = await make();
     expect(await main(["--version"], c)).toBe(0);
-    expect(c.outText()).toBe("c● conveno 0.0.0\n");
+    expect(c.outText()).toBe("0.0.0\n");
   });
 
   it("prints plain, short help", async () => {
@@ -60,9 +60,9 @@ describe("help, version, unknown", () => {
 });
 
 describe("init", () => {
-  it("prints the plan and exits 1 without a terminal or --yes, changing nothing", async () => {
+  it("prints the plan and exits 2 without a terminal or --yes, changing nothing", async () => {
     const c = await make({ exec: execFor({ claude: "2.1.4" }) });
-    expect(await main(["init"], c)).toBe(1);
+    expect(await main(["init"], c)).toBe(2);
     expect(c.outText()).toMatchSnapshot("stdout");
     expect(c.errText()).toMatchSnapshot("stderr");
     expect(existsSync(claudeJson(c))).toBe(false);
@@ -163,13 +163,19 @@ describe("init", () => {
     const ok = {
       ...c,
       adapters: [adapter],
-      exec: async (cmd: string, args: string[]) => (
-        calls.push([cmd, ...args]), { code: 0, stdout: "" }
-      ),
+      exec: async (cmd: string, args: string[]) => {
+        calls.push([cmd, ...args]);
+        // The CLI's own command writes the file in its own format.
+        await writeFile(target, '{ "a": 1 }\n');
+        return { code: 0, stdout: "" };
+      },
     };
     expect(await main(["init", "--yes"], ok)).toBe(0);
-    expect(calls).toEqual([["fake", "add", "a"]]);
-    expect(existsSync(target)).toBe(false); // the command is trusted to have written it
+    if (process.platform !== "win32") {
+      expect(calls).toEqual([["fake", "add", "a"]]);
+      expect(await readFile(target, "utf8")).toBe('{ "a": 1 }\n');
+    }
+    await rm(target, { force: true });
 
     const failing = { ...c, adapters: [adapter], exec: async () => ({ code: 1, stdout: "" }) };
     expect(await main(["init", "--yes"], failing)).toBe(0);
@@ -244,7 +250,7 @@ describe("uninstall", () => {
   it("needs --yes without a terminal", async () => {
     const c = await make({ exec: execFor({ claude: "2.1.4" }) });
     await main(["init", "--yes"], c);
-    expect(await main(["uninstall"], c)).toBe(1);
+    expect(await main(["uninstall"], c)).toBe(2);
     expect(c.errText()).toContain("conveno uninstall --yes");
   });
 });
@@ -360,6 +366,8 @@ describe("daemon", () => {
     // On Windows, stop shells out to taskkill. The default fake exec only answers --version, so
     // stand in for taskkill by ending the child, and check the arguments it was given.
     const c = await make({
+      // Something answers the Conveno handshake on the socket.
+      connect: (async () => ({ close: async () => undefined })) as never,
       exec: async (cmd, args) => {
         taskkills.push([cmd, ...args]);
         child.kill();
@@ -377,6 +385,25 @@ describe("daemon", () => {
       } else {
         expect(taskkills).toEqual([]);
       }
+    } finally {
+      child.kill("SIGKILL");
+    }
+  });
+
+  it("stop never signals a pid when nothing answers as the daemon, and removes the stale lock", async () => {
+    // An unrelated live process whose pid sits in the lock file.
+    const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      stdio: "ignore",
+    });
+    const c = await make();
+    const lock = dataPaths(c.platform, c.dataDir).lock;
+    try {
+      await seed(lock, JSON.stringify({ pid: child.pid }));
+      expect(await main(["daemon", "stop"], c)).toBe(0);
+      expect(c.outText()).toContain("Removed the stale lock file");
+      expect(existsSync(lock)).toBe(false);
+      expect(child.exitCode).toBeNull();
+      expect(child.killed).toBe(false);
     } finally {
       child.kill("SIGKILL");
     }
@@ -475,7 +502,10 @@ describe("hook", () => {
     const c = await make({
       adapters: [adapter],
       hookTimeoutMs: 50,
-      connect: (async () => ({ close: async () => undefined })) as never,
+      connect: (async () => ({
+        close: async () => undefined,
+        "session.byHost": async () => ({ session: { id: "s" } }),
+      })) as never,
     });
     const t0 = Date.now();
     expect(await main(["hook", "claude", "SessionStart"], c)).toBe(0);

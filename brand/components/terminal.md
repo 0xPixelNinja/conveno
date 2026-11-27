@@ -28,6 +28,7 @@ Rules:
 - `stamp` and `warn` share a hue on purpose. Context separates them: `stamp` is for tickets and waiting, `warn` is always paired with `!` and a fix line.
 - `entry` is for the orchestrator, the live tier, links, and the spinner's point (the mark's point) only; it is never used for decoration, headings, commands or the prompt. Commands are bold ink; the prompt `›` is `quiet`. Section titles are plain bold or quiet.
 - Colour is never the only carrier of meaning. Every colour sits beside a glyph or a word (`!`, `x`, `waiting`, `orchestrator`).
+- The version is shown in `info` (`conveno 0.0.0` in `--help`). `conveno --version` alone prints the bare version, no colour.
 - Reset (SGR 0) at the end of every coloured span and every line, so a crash never leaves the terminal tinted.
 - Background colours are never set.
 
@@ -121,7 +122,7 @@ ASCII frames: `c`, `c-`, `c--`, `c---`, `c--- *`, `c--- *`. Colour: the `c` and 
   <quiet detail line>
 ```
 
-One `✓` line per completed step. The final line names the result in bold (`Done`, `Paired studio-linux`). Next steps are commands in bold ink, each on its own line.
+One `✓` line per completed step. The final line is `✓ Done.` in bold, then the duration (`Done. 2.4s`), then detail lines with the next steps. Next steps are commands in bold ink, each on its own line.
 
 ### Warning
 
@@ -215,7 +216,7 @@ Conveno will change 4 files. Nothing else is touched.
     + mcp.conveno
 
   Backups go to ~/.conveno/backups/2026-11-27T14-02-07/
-  Undo any time with: conveno init --uninstall
+  Undo any time with: conveno uninstall
 
 › Apply these changes? [Y/n] y
 
@@ -224,12 +225,47 @@ Conveno will change 4 files. Nothing else is touched.
   ✓ agy       configured
   ✓ opencode  configured
 
-✓ Done in 2.4s. Restart open sessions so they pick up Conveno.
+✓ Done. 2.4s
+  Restart open sessions so they pick up Conveno.
   Next: conveno pair adds another device.
         conveno status lists your sessions.
 ```
 
+Without a terminal and without `--yes`, `init` prints the same changes, then fails with exit 2:
+
+```text
+x Needs a terminal to confirm
+  No changes were made.
+  fix  Run conveno init --yes to apply the changes shown above.
+
+exit 2 · ref e_no_tty
+```
+
+### `conveno uninstall`
+
+Files that still match what `init` wrote are restored byte for byte. A file that changed since (for example `~/.claude.json`, which Claude Code rewrites) is not restored: only Conveno's entries are removed, and the result names it. Times are local.
+
+```text
+$ conveno uninstall
+Conveno will undo 1 install, made 2026-11-27 14:02:07 (local time).
+
+  ~/.claude.json                   edited since init, so only Conveno's entries are removed
+  ~/.claude/settings.json          restored byte for byte
+  ~/.codex/config.toml             removed, it did not exist before
+
+› Undo these changes? [y/N] y
+
+✓ Done. 0.3s
+  Restored 2 files to how init found them.
+  Edited, not restored, because they changed since init: ~/.claude.json. Only Conveno's entries were removed.
+  Restart open sessions to drop Conveno.
+```
+
+The default is `N`. Without a terminal and without `--yes` it fails with exit 2, the same as `init`.
+
 ### `conveno status`
+
+In M1 there is no relay, so the first line says `relay: off (local only)`. The first line has no leading `✓`. Sessions are grouped by repo; the grouping by device below applies once devices are paired.
 
 ```text
 $ conveno status

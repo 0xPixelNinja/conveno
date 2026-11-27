@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@0xpixelninja/conveno-core": "workspace:*",
-    "@0xpixelninja/conveno-protocol": "workspace:*"
+    "@0xpixelninja/conveno-protocol": "workspace:*",
+    "jsonc-parser": "3.3.1"
   }
 }

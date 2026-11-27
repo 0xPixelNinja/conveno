@@ -8,7 +8,7 @@ import {
   type HookContext,
   type HookOutput,
 } from "@0xpixelninja/conveno-core";
-import { isObject, type JsonObject, loadJson, serialize } from "./json-file.js";
+import { editJson, isObject, type JsonEdit, type JsonObject, loadJson } from "./json-file.js";
 
 export const SERVER_NAME = "conveno";
 export const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit"] as const;
@@ -119,10 +119,7 @@ async function plan(env: AdapterEnv): Promise<ConfigChange[]> {
   const servers = mcpObject(mcpFile.value, p.mcp);
   const want = desiredServer(env);
   if (!sameJson(servers[SERVER_NAME], want)) {
-    const after = serialize(mcpFile, {
-      ...mcpFile.value,
-      mcpServers: { ...servers, [SERVER_NAME]: want },
-    });
+    const after = editJson(mcpFile, [{ path: ["mcpServers", SERVER_NAME], value: want }]);
     changes.push({
       path: p.mcp,
       before: mcpFile.raw,
@@ -148,7 +145,10 @@ async function plan(env: AdapterEnv): Promise<ConfigChange[]> {
     changes.push({
       path: p.settings,
       before: setFile.raw,
-      after: serialize(setFile, { ...setFile.value, hooks: next }),
+      after: editJson(
+        setFile,
+        missing.map((e) => ({ path: ["hooks", e], value: next[e] })),
+      ),
       description: `Add ${missing.join(" and ")} hooks that deliver Conveno messages to Claude Code.`,
     });
   }
@@ -162,11 +162,10 @@ async function uninstallPlan(env: AdapterEnv): Promise<ConfigChange[]> {
   const mcpFile = await loadJson(p.mcp);
   const servers = mcpObject(mcpFile.value, p.mcp);
   if (SERVER_NAME in servers) {
-    const { [SERVER_NAME]: _removed, ...rest } = servers;
     changes.push({
       path: p.mcp,
       before: mcpFile.raw,
-      after: serialize(mcpFile, { ...mcpFile.value, mcpServers: rest }),
+      after: editJson(mcpFile, [{ path: ["mcpServers", SERVER_NAME], value: undefined }]),
       description: `Remove the "${SERVER_NAME}" MCP server from user scope.`,
       viaCommand: ["claude", "mcp", "remove", "--scope", "user", SERVER_NAME],
     });
@@ -175,23 +174,22 @@ async function uninstallPlan(env: AdapterEnv): Promise<ConfigChange[]> {
   const setFile = await loadJson(p.settings);
   const hooks = hooksObject(setFile.value, p.settings);
   const next: JsonObject = { ...hooks };
-  let touched = false;
+  const edits: JsonEdit[] = [];
   for (const e of HOOK_EVENTS) {
     const groups = groupsOf(hooks, e);
     const stripped = stripOurHooks(groups);
     if (sameJson(groups, stripped)) continue;
-    touched = true;
     if (stripped.length > 0) next[e] = stripped;
     else delete next[e];
+    edits.push({ path: ["hooks", e], value: stripped.length > 0 ? stripped : undefined });
   }
-  if (touched) {
-    const value: JsonObject = { ...setFile.value };
-    if (Object.keys(next).length > 0) value.hooks = next;
-    else delete value.hooks;
+  if (edits.length > 0) {
+    // Dropping the last event takes the empty `hooks` object with it.
+    if (Object.keys(next).length === 0) edits.push({ path: ["hooks"], value: undefined });
     changes.push({
       path: p.settings,
       before: setFile.raw,
-      after: serialize(setFile, value),
+      after: editJson(setFile, edits),
       description: "Remove the Conveno SessionStart and UserPromptSubmit hooks.",
     });
   }

@@ -137,6 +137,27 @@ describe("opencodeAdapter", () => {
     expect(missing.configPaths.length).toBe(2);
   });
 
+  it("honours XDG_CONFIG_HOME", async () => {
+    const xdg = join(home, "xdg");
+    const env = { ...envFor(), env: { XDG_CONFIG_HOME: xdg } };
+    const [c] = await opencodeAdapter.plan(env);
+    expect(c?.path).toBe(join(xdg, "opencode", "opencode.json"));
+  });
+
+  it("uses the file named by OPENCODE_CONFIG, creating it when missing", async () => {
+    const file = join(home, "custom", "oc.jsonc");
+    const env = { ...envFor(), env: { OPENCODE_CONFIG: file } };
+    const [c] = await opencodeAdapter.plan(env);
+    expect(c?.path).toBe(file);
+    expect(c?.before).toBeNull();
+    expect((await opencodeAdapter.detect(env)).configPaths).toEqual([file]);
+    await mkdir(join(home, "custom"), { recursive: true });
+    await writeFile(file, '{ "theme": "x" } // keep\n');
+    const [d] = await opencodeAdapter.plan(env);
+    expect(d?.before).toBe('{ "theme": "x" } // keep\n');
+    expect(d?.after).toContain("// keep");
+  });
+
   it("hook returns empty output", async () => {
     const out = await opencodeAdapter.hook("x", {}, {} as never);
     expect(out).toEqual({ stdout: "", exitCode: 0 });

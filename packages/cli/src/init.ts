@@ -1,9 +1,15 @@
-import { parseArgs } from "node:util";
 import { type Adapter, type Detection, dataPaths } from "@0xpixelninja/conveno-core";
 import { CLI_KINDS, type CliKind } from "@0xpixelninja/conveno-protocol";
-import { type Applied, applyChanges, type PlannedChange, presentChanges } from "./apply.js";
+import {
+  type Applied,
+  applyChanges,
+  type PlannedChange,
+  presentChanges,
+  StaleError,
+} from "./apply.js";
+import { COMMANDS, parseFlags } from "./args.js";
 import { adapterEnv, type Ctx } from "./ctx.js";
-import { cmd, columns, errorBlock, plural, tilde } from "./fmt.js";
+import { closest, cmd, columns, fail, plainError, plural, seconds, tilde } from "./fmt.js";
 
 export const CODEX_NOTE = "Codex asks you to trust new hooks once: run /hooks inside Codex.";
 
@@ -26,7 +32,10 @@ export async function detectAll(ctx: Ctx, adapters: Adapter[] = ctx.adapters): P
   );
 }
 
-export function parseCliList(raw: string | undefined, ctx: Ctx): Adapter[] | string {
+export function parseCliList(
+  raw: string | undefined,
+  ctx: Ctx,
+): Adapter[] | { message: string; suggestion?: string } {
   if (raw === undefined) return ctx.adapters;
   const names = raw
     .split(",")
@@ -35,11 +44,20 @@ export function parseCliList(raw: string | undefined, ctx: Ctx): Adapter[] | str
   const out: Adapter[] = [];
   for (const n of names) {
     if (!(CLI_KINDS as readonly string[]).includes(n)) {
-      return `Unknown CLI "${n}". Known CLIs: ${ctx.adapters.map((a) => a.cli).join(", ")}.`;
+      const suggestion = closest(
+        n,
+        ctx.adapters.map((a) => a.cli),
+      );
+      return {
+        message: `Unknown CLI "${n}". Known CLIs: ${ctx.adapters.map((a) => a.cli).join(", ")}.`,
+        ...(suggestion ? { suggestion: `Did you mean ${suggestion}?` } : {}),
+      };
     }
     const a = ctx.adapters.find((x) => x.cli === n);
     if (!a) {
-      return `"${n}" is not supported in this version. Supported: ${ctx.adapters.map((x) => x.cli).join(", ")}.`;
+      return {
+        message: `"${n}" is not supported in this version. Supported: ${ctx.adapters.map((x) => x.cli).join(", ")}.`,
+      };
     }
     out.push(a);
   }
@@ -77,7 +95,7 @@ export async function collectPlans(
         items.push({ cli: adapter.cli, installed: detection.installed, change });
       }
     } catch (e) {
-      failures.push({ cli: adapter.cli, message: e instanceof Error ? e.message : String(e) });
+      failures.push({ cli: adapter.cli, message: plainError(e) });
     }
   }
   return { items, failures };
@@ -89,22 +107,30 @@ export function reportFailures(
   retry: string,
 ): void {
   for (const f of failures) {
-    ctx.err(
-      errorBlock(
-        ctx.theme,
-        `Could not plan changes for ${f.cli}`,
-        [f.message],
-        `Fix the problem above, or run ${cmd(ctx.theme, retry)} to leave ${f.cli} out.`,
-      ),
-    );
+    fail(ctx, {
+      what: `Could not plan changes for ${f.cli}`,
+      detail: [f.message],
+      fix: `Fix the problem above, or run ${cmd(ctx.theme, retry)} to leave ${f.cli} out.`,
+      exit: 1,
+      ref: "e_plan",
+    });
   }
 }
+
+export const staleFailure = (ctx: Ctx, e: StaleError, rerun: string): number =>
+  fail(ctx, {
+    what: `${tilde(e.path, ctx.home)} changed while Conveno was waiting`,
+    detail: ["Conveno did not overwrite it. Some other files may already be changed."],
+    fix: `Run ${cmd(ctx.theme, rerun)} again to plan from the file as it is now.`,
+    exit: 1,
+    ref: "e_stale",
+  });
 
 /** Show the plan, confirm, back up, apply. Shared by init and the plan-based uninstall. */
 export async function confirmAndApply(
   ctx: Ctx,
   items: PlannedChange[],
-  opts: { yes: boolean; verb: string; rerun: string },
+  opts: { yes: boolean; verb: string; rerun: string; markRestored?: boolean },
 ): Promise<{ applied: Applied } | { exit: number }> {
   const t = ctx.theme;
   const files = new Set(items.map((i) => i.change.path)).size;
@@ -120,15 +146,15 @@ export async function confirmAndApply(
 
   if (!opts.yes) {
     if (!ctx.interactive) {
-      ctx.err(
-        errorBlock(
-          t,
-          "Needs a terminal to confirm",
-          ["No changes were made."],
-          `Run ${cmd(t, `${opts.rerun} --yes`)} to apply the changes shown above.`,
-        ),
-      );
-      return { exit: 1 };
+      return {
+        exit: fail(ctx, {
+          what: "Needs a terminal to confirm",
+          detail: ["No changes were made."],
+          fix: `Run ${cmd(t, `${opts.rerun} --yes`)} to apply the changes shown above.`,
+          exit: 2,
+          ref: "e_no_tty",
+        }),
+      };
     }
     if (!(await ctx.confirm(`${opts.verb} these changes?`, true))) {
       ctx.out(`${t.status("info")} Nothing was changed.\n`);
@@ -137,65 +163,53 @@ export async function confirmAndApply(
   }
 
   try {
-    return { applied: await applyChanges(ctx, items) };
+    return {
+      applied: await applyChanges(ctx, items, opts.markRestored ? { markRestored: true } : {}),
+    };
   } catch (e) {
-    ctx.err(
-      errorBlock(
-        t,
-        "Could not write the changes",
-        [e instanceof Error ? e.message : String(e), "Some files may already be changed."],
-        `Run ${cmd(t, "conveno uninstall")} to restore the backups, then fix the problem and run again.`,
-      ),
-    );
-    return { exit: 1 };
+    if (e instanceof StaleError) return { exit: staleFailure(ctx, e, opts.rerun) };
+    return {
+      exit: fail(ctx, {
+        what: "Could not write the changes",
+        detail: [plainError(e), "Some files may already be changed."],
+        fix: `Run ${cmd(t, "conveno uninstall")} to restore the backups, then fix the problem and run again.`,
+        exit: 1,
+        ref: "e_write",
+      }),
+    };
   }
 }
 
 export async function runInit(ctx: Ctx, argv: string[]): Promise<number> {
   const t = ctx.theme;
-  let values: { yes?: boolean; cli?: string; "dry-run"?: boolean };
-  try {
-    values = parseArgs({
-      args: argv,
-      options: {
-        yes: { type: "boolean", short: "y" },
-        cli: { type: "string" },
-        "dry-run": { type: "boolean" },
-      },
-      allowPositionals: false,
-    }).values;
-  } catch (e) {
-    ctx.err(
-      errorBlock(
-        t,
-        "Could not read the arguments for conveno init",
-        [e instanceof Error ? e.message : String(e)],
-        `Run ${cmd(t, "conveno --help")} to see the options.`,
-      ),
-    );
-    return 2;
-  }
-  const chosen = parseCliList(values.cli, ctx);
-  if (typeof chosen === "string") {
-    ctx.err(
-      errorBlock(t, chosen, [], `Pass ${cmd(t, "--cli claude,codex,opencode")} or leave it out.`),
-    );
-    return 2;
+  const started = ctx.now();
+  const spec = COMMANDS.find((c) => c.name === "init");
+  if (!spec) return 2;
+  const parsed = parseFlags(ctx, spec, argv);
+  if (typeof parsed === "number") return parsed;
+  const values = parsed.values;
+  const chosen = parseCliList(typeof values.cli === "string" ? values.cli : undefined, ctx);
+  if (!Array.isArray(chosen)) {
+    return fail(ctx, {
+      what: chosen.message,
+      fix: `Pass ${cmd(t, "--cli claude,codex,opencode")} or leave it out.`,
+      ...(chosen.suggestion ? { didYouMean: chosen.suggestion } : {}),
+      exit: 2,
+      ref: "e_usage",
+    });
   }
 
   const found = await detectAll(ctx, chosen);
   printDetections(ctx, found);
   const installed = found.filter((f) => f.detection.installed);
   if (installed.length === 0) {
-    ctx.err(
-      errorBlock(
-        t,
-        "No supported AI coding CLI was found",
-        [`Looked for ${chosen.map((a) => a.displayName).join(", ")} on PATH.`],
-        "Install one of them, then run conveno init again.",
-      ),
-    );
-    return 1;
+    return fail(ctx, {
+      what: "No supported AI coding CLI was found",
+      detail: [`Looked for ${chosen.map((a) => a.displayName).join(", ")} on PATH.`],
+      fix: "Install one of them, then run conveno init again.",
+      exit: 1,
+      ref: "e_no_cli",
+    });
   }
 
   const { items, failures } = await collectPlans(ctx, installed, "plan");
@@ -238,9 +252,9 @@ export async function runInit(ctx: Ctx, argv: string[]): Promise<number> {
     vias.every((v) => v === "command") ? "configured with the CLI's own command" : "configured",
   ]);
   ctx.out(`${columns(rows).join("\n")}\n\n`);
-  ctx.out(
-    `${t.status("ok")} ${t.bold("Done.")} Backups are in ${tilde(result.applied.backupDir, ctx.home)}. Restart open sessions so they pick up Conveno.\n`,
-  );
+  ctx.out(`${t.status("ok")} ${t.bold("Done.")} ${seconds(started, ctx.now())}\n`);
+  ctx.out(`  Backups are in ${tilde(result.applied.backupDir, ctx.home)}.\n`);
+  ctx.out("  Restart open sessions so they pick up Conveno.\n");
   if (byCli.has("codex")) ctx.out(`${t.status("info")} ${CODEX_NOTE}\n`);
   ctx.out(`  Next: ${cmd(t, "conveno status")} lists your sessions.\n`);
   return 0;

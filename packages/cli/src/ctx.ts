@@ -30,6 +30,8 @@ export interface Ctx {
   readStdin(): Promise<string>;
   connect: typeof connect;
   ppid: number;
+  /** Parent of a process, or null when unknown. Best effort, used to find the CLI above a shell. */
+  parentOf(pid: number): Promise<number | null>;
   runMcp(opts: { cli: CliKind; daemonEntry?: string }): Promise<void>;
   /** Run a hook within this many ms or give up. */
   hookTimeoutMs: number;

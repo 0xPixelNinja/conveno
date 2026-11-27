@@ -42,6 +42,14 @@ When it writes one shape it removes our entry from the other. Uninstall removes 
 
 The docs list no Windows-specific global path, so `~/.config/opencode` is used on every OS.
 
+## Config location overrides
+
+1. `OPENCODE_CONFIG`, when set, names one config file. That file is the only one the adapter reads or writes (it is created if missing).
+2. Otherwise `$XDG_CONFIG_HOME/opencode/` when `XDG_CONFIG_HOME` is an absolute path.
+3. Otherwise `~/.config/opencode/`.
+
+Source for the default location: https://opencode.ai/docs/config/ (global config at `~/.config/opencode/opencode.json(c)`). That page does not describe `OPENCODE_CONFIG` or `XDG_CONFIG_HOME`; honouring them follows the XDG convention and the variable OpenCode's own tooling uses for a custom config file. Check them against the docs when they list them.
+
 ## TODO (M2): plugin delivery
 
 The config docs say OpenCode loads plugins from the `plugins` config array (a package name, or an object with `package` and `options`) and from `plugins/` directories, including the global config directory. They do not describe the plugin event API; the plugins guide (https://opencode.ai/docs/plugins/) has to be read first. M2 should ship a Conveno plugin there that fetches pending messages from the daemon and injects them at the start of a turn, which would move this adapter to the `next_turn` tier.

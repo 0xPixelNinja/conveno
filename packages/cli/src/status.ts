@@ -1,5 +1,6 @@
 import type { Theme } from "@0xpixelninja/conveno-brand";
 import type { DeliveryTier, Session } from "@0xpixelninja/conveno-protocol";
+import { COMMANDS, parseFlags } from "./args.js";
 import { type Ctx, connectOpts } from "./ctx.js";
 import { cmd, columns, plural, tilde, warnBlock } from "./fmt.js";
 
@@ -41,7 +42,8 @@ function stateCell(theme: Theme, s: Session): { glyph: string; word: string } {
   if (s.status === "waiting_on_question")
     return { glyph: theme.status("waiting"), word: "waiting" };
   if (s.isOrchestrator) return { glyph: theme.status("orchestrator"), word: s.status };
-  if (s.status === "busy") return { glyph: theme.status("busy"), word: "busy" };
+  // Busy is the terminal's own ink, so the glyph is not painted.
+  if (s.status === "busy") return { glyph: theme.glyph("busy"), word: "busy" };
   return { glyph: theme.status("idle"), word: "idle" };
 }
 
@@ -81,8 +83,13 @@ export function renderSessions(ctx: Ctx, sessions: Session[]): string {
   return blocks.join("\n\n");
 }
 
-export async function runStatus(ctx: Ctx): Promise<number> {
+export async function runStatus(ctx: Ctx, argv: string[] = []): Promise<number> {
   const t = ctx.theme;
+  const spec = COMMANDS.find((c) => c.name === "status");
+  if (spec) {
+    const parsed = parseFlags(ctx, spec, argv);
+    if (typeof parsed === "number") return parsed;
+  }
   let client: Awaited<ReturnType<Ctx["connect"]>>;
   try {
     client = await ctx.connect(connectOpts(ctx, false));
@@ -101,7 +108,7 @@ export async function runStatus(ctx: Ctx): Promise<number> {
     const { sessions } = await client["session.list"]({ includeOffline: true });
     const repos = new Set(sessions.map((s) => s.repo?.root ?? s.cwd)).size;
     ctx.out(
-      `${t.status("ok")} daemon up ${t.glyph("bullet")} ${plural(sessions.length, "session")}\n`,
+      `daemon up ${t.status("bullet")} relay: off (local only) ${t.status("bullet")} ${plural(sessions.length, "session")}\n`,
     );
     if (sessions.length === 0) {
       ctx.out(

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import type {
   Adapter,
   AdapterEnv,
@@ -29,12 +29,30 @@ type Shape = "v1" | "v2";
 /** First OpenCode release that reads `mcp.servers`. There were no 2.0.x or 2.1.x releases. */
 const V2_MIN: readonly [number, number, number] = [2, 2, 0];
 
+/** `$XDG_CONFIG_HOME/opencode` when XDG_CONFIG_HOME is an absolute path, else `~/.config/opencode`. */
 function configDir(env: AdapterEnv): string {
-  return join(env.home, ".config", "opencode");
+  const xdg = env.env.XDG_CONFIG_HOME;
+  const base = xdg && isAbsolute(xdg) ? xdg : join(env.home, ".config");
+  return join(base, "opencode");
 }
 
-/** Prefers an existing opencode.jsonc, then opencode.json, else a new opencode.json. */
+/** `OPENCODE_CONFIG` names one config file; when set it is the only file we touch. */
+const customConfig = (env: AdapterEnv): string | undefined => env.env.OPENCODE_CONFIG || undefined;
+
+/**
+ * `OPENCODE_CONFIG` when set. Otherwise an existing opencode.jsonc, then opencode.json, else a
+ * new opencode.json in the config directory.
+ */
 async function locateConfig(env: AdapterEnv): Promise<ConfigFile> {
+  const custom = customConfig(env);
+  if (custom) {
+    try {
+      return { path: custom, text: await readFile(custom, "utf8") };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+      return { path: custom, text: null };
+    }
+  }
   const dir = configDir(env);
   for (const name of ["opencode.jsonc", "opencode.json"]) {
     const path = join(dir, name);
@@ -129,10 +147,10 @@ function servers(config: Record<string, unknown>): Record<string, unknown> | und
 }
 
 async function detect(env: AdapterEnv): Promise<Detection> {
-  const configPaths = [
-    join(configDir(env), "opencode.jsonc"),
-    join(configDir(env), "opencode.json"),
-  ];
+  const custom = customConfig(env);
+  const configPaths = custom
+    ? [custom]
+    : [join(configDir(env), "opencode.jsonc"), join(configDir(env), "opencode.json")];
   try {
     const res = await env.exec("opencode", ["--version"]);
     if (res.code !== 0) return { installed: false, configPaths };

@@ -63,6 +63,7 @@ export async function testCtx(over: Partial<Ctx> = {}): Promise<TestCtx> {
     readStdin: async () => "",
     connect,
     ppid: process.pid,
+    parentOf: async () => null,
     runMcp: async () => undefined,
     hookTimeoutMs: 2_000,
     ...over,
