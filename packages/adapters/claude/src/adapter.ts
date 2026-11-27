@@ -7,7 +7,7 @@ import {
   formatHookContext,
   type HookContext,
   type HookOutput,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import { editJson, isObject, type JsonEdit, type JsonObject, loadJson } from "./json-file.js";
 
 export const SERVER_NAME = "conveno";
@@ -213,7 +213,7 @@ const isHookEvent = (e: string): e is HookEvent => (HOOK_EVENTS as readonly stri
 async function hook(event: string, _input: unknown, ctx: HookContext): Promise<HookOutput> {
   if (!isHookEvent(event)) return EMPTY;
   try {
-    const { session } = await ctx.client["session.byHost"]({ hostPid: ctx.hostPid });
+    const { session } = await ctx.client["session.byHost"]({ pid: ctx.hostPid });
     if (!session) return EMPTY;
     const { messages } = await ctx.client["message.deliver"]({ sessionId: session.id });
     if (messages.length === 0) return EMPTY;

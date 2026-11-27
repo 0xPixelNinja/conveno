@@ -99,15 +99,16 @@ Each CLI session starts its own MCP server. The servers talk to one small local 
 
 ## Quickstart
 
-Conveno is not on npm yet, so build it from source. You need Node 24 or later and pnpm.
+You need Node 24 or later.
 
 ```sh
-git clone https://github.com/0xPixelNinja/conveno && cd conveno
-pnpm install && pnpm build
-node packages/cli/dist/bin.js init   # shows the diff for each CLI, then asks
+npm i -g @conveno/cli
+conveno init   # shows the diff for each CLI, then asks
 ```
 
-Open two CLI sessions, for example Claude Code and Codex. In one, ask it to run `list_sessions`, then to `send` a message to the other. Run `conveno status` to see both. If `conveno` is not on your `PATH`, call it as `node packages/cli/dist/bin.js`.
+Open two CLI sessions, for example Claude Code and Codex. In one, ask it to run `list_sessions`, then to `send` a message to the other. Run `conveno status` to see both.
+
+To build from source instead, see [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Supported CLIs
 

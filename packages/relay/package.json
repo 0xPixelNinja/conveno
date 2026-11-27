@@ -1,5 +1,5 @@
 {
-  "name": "@0xpixelninja/conveno-relay",
+  "name": "@conveno/relay",
   "version": "0.0.0",
   "private": true,
   "description": "Cloudflare Worker + Durable Object relay (AGPL-3.0)",

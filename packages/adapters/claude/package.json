@@ -1,18 +1,23 @@
 {
-  "name": "@0xpixelninja/conveno-adapter-claude",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Conveno adapter for Claude Code",
+  "name": "@conveno/adapter-claude",
+  "version": "0.1.0",
+  "description": "Conveno adapter for Claude Code.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPixelNinja/conveno.git",
     "directory": "packages/adapters/claude"
   },
-  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "homepage": "https://conveno.dev",
   "bugs": {
     "url": "https://github.com/0xPixelNinja/conveno/issues"
   },
+  "keywords": [
+    "conveno",
+    "claude-code",
+    "adapter",
+    "hooks"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,19 +28,25 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node ../../../scripts/copy-license.mjs"
   },
   "dependencies": {
-    "@0xpixelninja/conveno-core": "workspace:*",
-    "@0xpixelninja/conveno-protocol": "workspace:*",
+    "@conveno/core": "workspace:*",
+    "@conveno/protocol": "workspace:*",
     "jsonc-parser": "3.3.1"
   }
 }

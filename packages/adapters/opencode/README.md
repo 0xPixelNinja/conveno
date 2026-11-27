@@ -1,4 +1,4 @@
-# @0xpixelninja/conveno-adapter-opencode
+# @conveno/adapter-opencode
 
 Conveno adapter for OpenCode. Exports `opencodeAdapter` (named and default).
 

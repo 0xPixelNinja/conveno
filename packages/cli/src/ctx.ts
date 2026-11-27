@@ -1,7 +1,7 @@
-import type { Theme } from "@0xpixelninja/conveno-brand";
-import type { connect } from "@0xpixelninja/conveno-client";
-import type { Adapter, AdapterEnv } from "@0xpixelninja/conveno-core";
-import type { CliKind } from "@0xpixelninja/conveno-protocol";
+import type { Theme } from "@conveno/brand";
+import type { connect } from "@conveno/client";
+import type { Adapter, AdapterEnv, Ancestry } from "@conveno/core";
+import type { CliKind } from "@conveno/protocol";
 
 /** Everything a command touches outside its own arguments. Tests build one with fakes. */
 export interface Ctx {
@@ -29,9 +29,19 @@ export interface Ctx {
   now(): Date;
   readStdin(): Promise<string>;
   connect: typeof connect;
-  ppid: number;
-  /** Parent of a process, or null when unknown. Best effort, used to find the CLI above a shell. */
-  parentOf(pid: number): Promise<number | null>;
+  /**
+   * This process's ancestors and its host CLI pid, read within `timeoutMs`. Never rejects: when
+   * the process table cannot be read it answers the direct parent with `complete: false`.
+   */
+  ancestry(timeoutMs: number): Promise<Ancestry>;
+  /** Is a process with this pid running. */
+  isAlive(pid: number): boolean;
+  /** Command line of a process, or null when the OS does not say. */
+  commandLineOf(pid: number): Promise<string | null>;
+  /** Ask the OS to end a process (SIGTERM, or TerminateProcess on Windows). Throws on failure. */
+  kill(pid: number): void;
+  /** How long `daemon stop` waits for the daemon to go away. */
+  stopTimeoutMs: number;
   runMcp(opts: { cli: CliKind; daemonEntry?: string }): Promise<void>;
   /** Run a hook within this many ms or give up. */
   hookTimeoutMs: number;

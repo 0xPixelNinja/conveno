@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AdapterEnv } from "@0xpixelninja/conveno-core";
+import type { AdapterEnv } from "@conveno/core";
 import { parse } from "jsonc-parser";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { opencodeAdapter } from "./index.js";

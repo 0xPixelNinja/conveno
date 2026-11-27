@@ -1,4 +1,4 @@
-import type { CliKind, Message } from "@0xpixelninja/conveno-protocol";
+import type { CliKind, Message } from "@conveno/protocol";
 
 /** The sentence every framed message carries. Tests assert it is never dropped. */
 export const NOT_FROM_USER_NOTICE =

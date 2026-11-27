@@ -8,7 +8,7 @@ import {
   formatHookContext,
   type HookContext,
   type HookOutput,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   addServer,
   ConfigParseError,
@@ -19,7 +19,7 @@ import {
   serverOf,
 } from "./toml.js";
 
-export const PACKAGE_NAME = "@0xpixelninja/conveno-adapter-codex";
+export const PACKAGE_NAME = "@conveno/adapter-codex";
 
 const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit"] as const;
 type HookEvent = (typeof HOOK_EVENTS)[number];
@@ -220,7 +220,7 @@ const EMPTY: HookOutput = { stdout: "", exitCode: 0 };
 async function hook(event: string, _input: unknown, ctx: HookContext): Promise<HookOutput> {
   if (event !== "SessionStart" && event !== "UserPromptSubmit") return EMPTY;
   try {
-    const { session } = await ctx.client["session.byHost"]({ hostPid: ctx.hostPid });
+    const { session } = await ctx.client["session.byHost"]({ pid: ctx.hostPid });
     if (!session) return EMPTY;
     const { messages } = await ctx.client["message.deliver"]({ sessionId: session.id });
     const additionalContext = formatHookContext(messages);

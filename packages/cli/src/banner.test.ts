@@ -1,4 +1,4 @@
-import { createTheme } from "@0xpixelninja/conveno-brand";
+import { createTheme } from "@conveno/brand";
 import { describe, expect, it } from "vitest";
 import { versionLine } from "./banner.js";
 
@@ -9,7 +9,7 @@ describe("versionLine", () => {
       isTTY: true,
       platform: "linux",
     });
-    expect(versionLine(theme)).toBe("c● conveno 0.0.0");
+    expect(versionLine(theme)).toBe("c● conveno 0.1.0");
   });
   it("uses ASCII when asked", () => {
     const theme = createTheme({
@@ -18,7 +18,7 @@ describe("versionLine", () => {
       platform: "linux",
       ascii: true,
     });
-    expect(versionLine(theme)).toBe("c* conveno 0.0.0");
+    expect(versionLine(theme)).toBe("c* conveno 0.1.0");
   });
   it("colours the point with the entry role", () => {
     const theme = createTheme({

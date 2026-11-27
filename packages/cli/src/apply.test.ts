@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   ApplyError,
   applyChanges,
+  mirrored,
   type PlannedChange,
   realIo,
   StaleError,
@@ -162,9 +163,7 @@ describe("applyChanges is all or nothing", () => {
     expect(err.rolledBack).toBe(false);
     expect(err.notRestored).toEqual([a.change.path]);
     expect(existsSync(err.backupDir)).toBe(true);
-    expect(
-      await readFile(join(err.backupDir, "files", a.change.path.replace(/^[/\\]+/, "")), "utf8"),
-    ).toBe("1");
+    expect(await readFile(join(err.backupDir, mirrored(a.change.path)), "utf8")).toBe("1");
   });
 
   it("restores earlier files and reports nothing changed when a file went stale", async () => {

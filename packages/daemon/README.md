@@ -1,8 +1,8 @@
-# @0xpixelninja/conveno-daemon
+# @conveno/daemon
 
 `convenod`: the local daemon. It serves the Conveno IPC protocol (JSON-RPC 2.0 over NDJSON) on a
 Unix socket or Windows named pipe, stores sessions and messages in SQLite, and tracks which sessions
-are alive. All rules (naming, liveness, orchestrator, mailbox) come from `@0xpixelninja/conveno-core`.
+are alive. All rules (naming, liveness, orchestrator, mailbox) come from `@conveno/core`.
 
 ## API
 
@@ -34,7 +34,9 @@ SIGINT or SIGTERM after closing cleanly.
 - Storage: `<data>/conveno.db` through `node:sqlite`, WAL mode, schema tracked in a `migrations` table.
 - Single instance: `<data>/daemon.lock` holds the pid and socket path of the owner. A lock is stale
   unless its pid is alive and the socket recorded in the lock answers (or the lock is under 5 s old). On POSIX a leftover socket file is removed only when nothing answers on it.
-- Liveness: every 15 s sessions with no heartbeat for 45 s, or whose `hostPid` is gone, go `offline`.
+- Shutdown: `daemon.shutdown` replies `{ ok: true }`, then stops listening, closes the store, removes the socket (POSIX) and the lock file, and exits 0. `conveno daemon stop` uses it.
+- Hook lookup: `session.byHost` takes the hook's host pid and returns the one online session whose `hostPid` equals it. No walking to ancestors; none or two matches give `null`.
+- Liveness: every 15 s sessions with no heartbeat for 45 s, or whose `hostPid` (the CLI hosting the MCP server) is gone, go `offline`.
   The orchestrator role is vacated, never passed on. After a daemon restart each session gets a full
   window to heartbeat again. A heartbeat from an offline session brings it back if its host process
   lives and its name is free; otherwise it must register again.

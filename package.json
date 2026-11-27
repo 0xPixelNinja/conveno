@@ -1,5 +1,5 @@
 {
-  "name": "conveno",
+  "name": "conveno-monorepo",
   "version": "0.0.0",
   "private": true,
   "description": "Vendor-neutral mesh for AI coding CLI sessions",
@@ -23,7 +23,9 @@
     "lint": "biome check .",
     "typecheck": "turbo run typecheck",
     "format": "biome format --write .",
-    "deps:check": "node scripts/check-latest.mjs"
+    "deps:check": "node scripts/check-latest.mjs",
+    "smoke:pack": "node scripts/pack-smoke.mjs",
+    "check:release": "node scripts/check-release.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.9",

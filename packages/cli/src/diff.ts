@@ -1,4 +1,4 @@
-import type { Theme } from "@0xpixelninja/conveno-brand";
+import type { Theme } from "@conveno/brand";
 
 type Op = { t: " " | "-" | "+"; line: string };
 

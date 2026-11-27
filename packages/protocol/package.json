@@ -1,18 +1,23 @@
 {
-  "name": "@0xpixelninja/conveno-protocol",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Wire protocol: zod schemas, framing and IPC helpers for Conveno",
+  "name": "@conveno/protocol",
+  "version": "0.1.0",
+  "description": "Wire protocol for Conveno: zod schemas, framing and IPC helpers.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPixelNinja/conveno.git",
     "directory": "packages/protocol"
   },
-  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "homepage": "https://conveno.dev",
   "bugs": {
     "url": "https://github.com/0xPixelNinja/conveno/issues"
   },
+  "keywords": [
+    "conveno",
+    "protocol",
+    "zod",
+    "ipc"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,15 +28,21 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
     "ulid": "3.0.2",

@@ -14,7 +14,7 @@ import {
   dataPaths,
   newAuthNonce,
   proofsMatch,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   type ClientKind,
   createLineDecoder,
@@ -28,7 +28,7 @@ import {
   RpcErrorCode,
   RpcResponse,
   socketPathTooLongMessage,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 
 export interface ConnectOptions {
   kind: ClientKind;
@@ -38,7 +38,7 @@ export interface ConnectOptions {
   socketPath?: string;
   /** Spawn the daemon when nothing is listening, at first connect and when reconnecting. Default true. */
   autoStart?: boolean;
-  /** Path to the daemon's entry script. Default: resolve `@0xpixelninja/conveno-daemon/bin`. */
+  /** Path to the daemon's entry script. Default: resolve `@conveno/daemon/bin`. */
   daemonEntry?: string;
   /** Per-request timeout in milliseconds. Default 5000. */
   requestTimeoutMs?: number;
@@ -57,6 +57,7 @@ const CLIENT_METHODS = [
   "session.rename",
   "session.setStatus",
   "session.byHost",
+  "daemon.shutdown",
   "session.list",
   "orchestrator.claim",
   "message.send",
@@ -70,7 +71,7 @@ const CLIENT_METHODS = [
  * Methods that must not be sent twice. If the connection drops after one of these went out, the
  * daemon may have acted on it, so the caller gets an error instead of a silent retry.
  */
-const NOT_REPLAYABLE = new Set<string>(["message.send", "session.register"]);
+const NOT_REPLAYABLE = new Set<string>(["message.send", "session.register", "daemon.shutdown"]);
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const errCode = (e: unknown) => (e as NodeJS.ErrnoException | undefined)?.code;
@@ -341,7 +342,7 @@ async function handshake(
 function resolveDaemonEntry(explicit?: string): string {
   if (explicit) return explicit;
   try {
-    return fileURLToPath(import.meta.resolve("@0xpixelninja/conveno-daemon/bin"));
+    return fileURLToPath(import.meta.resolve("@conveno/daemon/bin"));
   } catch {
     throw new ClientError(
       'Cannot find the Conveno daemon program. Pass daemonEntry to connect(), or run "conveno daemon start" yourself.',

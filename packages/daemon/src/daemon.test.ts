@@ -10,11 +10,13 @@ import {
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clientProof, daemonProof, newAuthNonce } from "@0xpixelninja/conveno-core";
-import { PROTOCOL_VERSION, RpcErrorCode } from "@0xpixelninja/conveno-protocol";
+import { DatabaseSync } from "node:sqlite";
+import { clientProof, daemonProof, newAuthNonce } from "@conveno/core";
+import { PROTOCOL_VERSION, RpcErrorCode } from "@conveno/protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DaemonAlreadyRunningError } from "./lifecycle.js";
 import { startDaemon } from "./server.js";
+import { MIGRATIONS, Store } from "./store.js";
 import { type Harness, RawClient, register, startHarness } from "./test-utils.js";
 
 let h: Harness;
@@ -42,7 +44,7 @@ describe("handshake and auth", () => {
     const nonce = newAuthNonce();
     const r = await hello(c, nonce);
     expect(r.result?.protocolVersion).toBe(PROTOCOL_VERSION);
-    expect(r.result?.daemonVersion).toBe("0.0.0");
+    expect(r.result?.daemonVersion).toBe("0.1.0");
     expect(r.result?.proof).toBe(daemonProof(h.token(), nonce));
     expect(r.result?.challenge).toMatch(/^[0-9a-f]{64}$/);
     const other = await hello(await h.client());
@@ -237,6 +239,7 @@ describe("sessions", () => {
       cliVersion: "1.2.3",
       pid: 4001,
       hostPid: 4000,
+      hostPids: [4000, 3999],
     });
     expect(session).toMatchObject({
       cli: "opencode",
@@ -247,6 +250,7 @@ describe("sessions", () => {
       spawnDepth: 0,
       pid: 4001,
       hostPid: 4000,
+      hostPids: [4000, 3999],
       startedAt: "2026-11-27T09:00:00.000Z",
       lastSeenAt: "2026-11-27T09:00:00.000Z",
     });
@@ -339,16 +343,90 @@ describe("sessions", () => {
     expect(await names({ includeOffline: true })).toHaveLength(3);
   });
 
-  it("finds online sessions by host pid, newest first, never offline ones", async () => {
+  describe("session.byHost", () => {
+    const byHost = async (c: RawClient, pid: number) =>
+      (await c.call("session.byHost", { pid })).session as { id: string } | null;
+
+    it("matches the online session whose host pid equals the hook's, and nothing else", async () => {
+      const c = await h.authed();
+      expect(await byHost(c, 800)).toBeNull();
+      // MCP server behind cmd.exe (900): the CLI is 800, its shell 700.
+      const claude = (await register(c, { hostPid: 800, hostPids: [900, 800, 700] })).session;
+      expect((await byHost(c, 800))?.id).toBe(claude.id);
+      expect(await byHost(c, 555)).toBeNull();
+    });
+
+    it("never walks to ancestors: a pid that only appears in a raw chain does not match", async () => {
+      const c = await h.authed();
+      await register(c, { hostPid: 800, hostPids: [900, 800, 700] });
+      // 700 is the shared shell and 900 the launcher. An unregistered CLI must match neither.
+      expect(await byHost(c, 700)).toBeNull();
+      expect(await byHost(c, 900)).toBeNull();
+    });
+
+    it("keeps two CLIs in one terminal apart", async () => {
+      const c = await h.authed();
+      const a = (await register(c, { hostPid: 800, hostPids: [900, 800, 700] })).session;
+      const b = (await register(c, { hostPid: 810, hostPids: [910, 810, 700] })).session;
+      expect((await byHost(c, 800))?.id).toBe(a.id);
+      expect((await byHost(c, 810))?.id).toBe(b.id);
+      expect(await byHost(c, 820)).toBeNull();
+    });
+
+    it("returns null when two sessions share one host pid, never guessing", async () => {
+      const c = await h.authed();
+      await register(c, { hostPid: 800 });
+      await register(c, { hostPid: 800 });
+      expect(await byHost(c, 800)).toBeNull();
+    });
+
+    it("ignores offline sessions, so a stale one does not make a match ambiguous", async () => {
+      const c = await h.authed();
+      const old = (await register(c, { hostPid: 800 })).session;
+      const live = (await register(c, { hostPid: 800 })).session;
+      expect(await byHost(c, 800)).toBeNull();
+      await c.call("session.unregister", { sessionId: old.id });
+      expect((await byHost(c, 800))?.id).toBe(live.id);
+      await c.call("session.unregister", { sessionId: live.id });
+      expect(await byHost(c, 800)).toBeNull();
+    });
+
+    it("stores hostPid and the raw chain, and lists them", async () => {
+      const c = await h.authed();
+      const none = (await register(c)).session;
+      expect(none.hostPid).toBeUndefined();
+      expect(none.hostPids).toBeUndefined();
+      const chained = (await register(c, { hostPid: 20, hostPids: [30, 20, 10] })).session;
+      expect(chained).toMatchObject({ hostPid: 20, hostPids: [30, 20, 10] });
+      const listed = (await c.call("session.list", {})).sessions.find(
+        (s: any) => s.id === chained.id,
+      );
+      expect(listed).toMatchObject({ hostPid: 20, hostPids: [30, 20, 10] });
+    });
+
+    it("rejects a missing, non-positive or chain-shaped pid, and a bad register chain", async () => {
+      const c = await h.authed();
+      for (const params of [{}, { pid: 0 }, { pids: [1] }, { pid: "1" }]) {
+        expect((await c.rpc("session.byHost", params)).error?.code).toBe(
+          RpcErrorCode.InvalidParams,
+        );
+      }
+      expect(
+        (await c.rpc("session.register", { cli: "claude", cwd: "/x", hostPids: [] })).error?.code,
+      ).toBe(RpcErrorCode.InvalidParams);
+    });
+  });
+
+  it("liveness follows hostPid only; the raw chain's other pids may die or outlive the CLI", async () => {
     const c = await h.authed();
-    expect((await c.call("session.byHost", { hostPid: 777 })).session).toBeNull();
-    const old = (await register(c, { hostPid: 777 })).session;
-    const newer = (await register(c, { hostPid: 777 })).session;
-    expect((await c.call("session.byHost", { hostPid: 777 })).session.id).toBe(newer.id);
-    await c.call("session.unregister", { sessionId: newer.id });
-    expect((await c.call("session.byHost", { hostPid: 777 })).session.id).toBe(old.id);
-    await c.call("session.unregister", { sessionId: old.id });
-    expect((await c.call("session.byHost", { hostPid: 777 })).session).toBeNull();
+    const a = (await register(c, { hostPid: 5102, hostPids: [5101, 5102, 5103] })).session;
+    h.dead.add(5101);
+    h.dead.add(5103);
+    h.daemon.sweep();
+    expect((await c.call("session.list", {})).sessions.map((s: any) => s.id)).toEqual([a.id]);
+    h.dead.add(5102);
+    h.daemon.sweep();
+    expect((await c.call("session.list", {})).sessions).toEqual([]);
   });
 
   it("heartbeat updates lastSeenAt; unknown sessions are NotFound", async () => {
@@ -1154,5 +1232,85 @@ describe("single instance and stale files", () => {
       socketPath: h.socketPath,
       sweepIntervalMs: 3_600_000,
     });
+  });
+});
+
+describe("daemon.shutdown", () => {
+  it("needs the handshake like every other method", async () => {
+    const c = await h.client();
+    expect((await c.rpc("daemon.shutdown", {})).error?.code).toBe(RpcErrorCode.Unauthorized);
+    // The daemon is still up.
+    expect((await (await h.authed()).call("session.list", {})).sessions).toEqual([]);
+  });
+
+  it("replies ok, stops listening, closes the store, removes socket and lock, then calls onShutdown", async () => {
+    await h.stop();
+    let shutdowns = 0;
+    h = await startHarness({ onShutdown: () => shutdowns++ });
+    const lock = join(h.dir, "daemon.lock");
+    const other = await h.authed();
+    const c = await h.authed();
+    const a = (await register(c, { name: "alpha" })).session;
+    expect(statSync(lock).isFile()).toBe(true);
+    if (process.platform !== "win32") expect(statSync(h.socketPath).isSocket()).toBe(true);
+
+    // The reply arrives before the connection is torn down.
+    const reply = await c.rpc("daemon.shutdown");
+    expect(reply.result).toEqual({ ok: true });
+    await c.waitClosed();
+    await other.waitClosed();
+    await vi.waitFor(() => expect(shutdowns).toBe(1));
+
+    await expect(RawClient.connect(h.socketPath)).rejects.toThrow();
+    expect(() => statSync(lock)).toThrow();
+    if (process.platform !== "win32") expect(() => statSync(h.socketPath)).toThrow();
+
+    // The store was closed cleanly: a new daemon takes the lock and sees the same session.
+    await h.restart();
+    const again = await h.authed();
+    const names = (await again.call("session.list", { includeOffline: true })).sessions.map(
+      (s: any) => s.name,
+    );
+    expect(names).toEqual([a.name]);
+  });
+
+  it("calls onShutdown, not onIdleExit", async () => {
+    await h.stop();
+    let idle = 0;
+    let down = 0;
+    h = await startHarness({ onIdleExit: () => idle++, onShutdown: () => down++ });
+    const c = await h.authed();
+    await c.rpc("daemon.shutdown");
+    await vi.waitFor(() => expect(down).toBe(1));
+    expect(idle).toBe(0);
+  });
+});
+
+describe("store migrations", () => {
+  it("keeps host_pid and adds a one-entry hostPids chain from it", () => {
+    const dir = mkdtempSync(join(tmpdir(), "convenod-mig-"));
+    const path = join(dir, "conveno.db");
+    try {
+      const old = new DatabaseSync(path);
+      old.exec(MIGRATIONS[0]?.sql ?? "");
+      old.exec("CREATE TABLE migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
+      old.prepare("INSERT INTO migrations (name, applied_at) VALUES ('001_initial', 'then')").run();
+      old
+        .prepare(
+          `INSERT INTO sessions (id, name, cli, device_id, cwd, host_pid, status, delivery_tier, spawn_depth, started_at, last_seen_at)
+           VALUES ('S1', 'old', 'claude', 'D1', '/w', 4321, 'idle', 'next_turn', 0, 't', 't'),
+                  ('S2', 'none', 'claude', 'D1', '/w', NULL, 'idle', 'next_turn', 0, 't', 't')`,
+        )
+        .run();
+      old.close();
+
+      const store = new Store(path);
+      const rows = store.allSessions();
+      expect(rows.find((r) => r.name === "old")).toMatchObject({ hostPid: 4321, hostPids: [4321] });
+      expect(rows.find((r) => r.name === "none")?.hostPids).toBeUndefined();
+      store.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

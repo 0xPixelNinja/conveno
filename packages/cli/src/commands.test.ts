@@ -2,14 +2,22 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { chmod, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import claudeAdapter from "@0xpixelninja/conveno-adapter-claude";
-import codexAdapter from "@0xpixelninja/conveno-adapter-codex";
-import { connect } from "@0xpixelninja/conveno-client";
-import { dataPaths } from "@0xpixelninja/conveno-core";
+import claudeAdapter from "@conveno/adapter-claude";
+import codexAdapter from "@conveno/adapter-codex";
+import { connect } from "@conveno/client";
+import { dataPaths } from "@conveno/core";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { main } from "./main.js";
 import { convenoCommand, resolveDaemonEntry } from "./runtime.js";
-import { fakeAdapter, seed, startTestDaemon, type TestCtx, testCtx } from "./test-utils.js";
+import {
+  ancestryOf,
+  type FakeProcs,
+  fakeAdapter,
+  seed,
+  startTestDaemon,
+  type TestCtx,
+  testCtx,
+} from "./test-utils.js";
 
 beforeAll(() => {
   process.env.TZ = "UTC";
@@ -43,7 +51,7 @@ describe("help, version, unknown", () => {
   it("prints the version", async () => {
     const c = await make();
     expect(await main(["--version"], c)).toBe(0);
-    expect(c.outText()).toBe("0.0.0\n");
+    expect(c.outText()).toBe("0.1.0\n");
   });
 
   it("prints plain, short help", async () => {
@@ -278,7 +286,12 @@ describe("status", () => {
           repo: { root: "/work/api" },
           ...over,
         } as never);
-      const a = await reg({ cli: "claude", pid: process.pid, hostPid: process.pid });
+      const a = await reg({
+        cli: "claude",
+        pid: process.pid,
+        hostPid: process.pid,
+        hostPids: [process.pid],
+      });
       await reg({ cli: "codex" });
       await reg({ cli: "opencode", cwd: "/work/docs", repo: { root: "/work/docs" } });
       await client["orchestrator.claim"]({ sessionId: a.session.id });
@@ -311,6 +324,30 @@ describe("doctor", () => {
     expect(await main(["doctor"], c)).toBe(0);
     expect(c.outText()).toMatchSnapshot("stdout");
     expect(c.errText()).toMatchSnapshot("stderr");
+  });
+
+  it("says what is lost when process ancestry is unavailable, as a warning, not a failure", async () => {
+    const c = await make({
+      platform: "win32",
+      exec: execFor({ claude: "2.1.4" }),
+      ancestry: async () => ({
+        entries: [{ pid: 4242 }],
+        pids: [4242],
+        hostPid: 4242,
+        complete: false,
+      }),
+    });
+    expect(await main(["doctor"], c)).toBe(0);
+    expect(c.errText()).toContain("Process ancestry is unavailable.");
+    expect(c.errText()).toContain("WMI denies it to non-admin remote logons");
+    expect(c.errText()).toContain("conveno.cmd");
+    expect(c.outText()).toMatch(/\d+ warnings?/);
+  });
+
+  it("stays quiet about ancestry when it works", async () => {
+    const c = await make({ exec: execFor({ claude: "2.1.4" }) });
+    await main(["doctor"], c);
+    expect(c.errText()).not.toContain("ancestry");
   });
 
   it("is green after init with a daemon up", async () => {
@@ -358,67 +395,274 @@ describe("daemon", () => {
     }
   });
 
-  it.each(["linux", "win32"] as const)(
-    "stop sends the lock file's pid a stop signal (%s)",
-    async (platform) => {
-      const taskkills: string[][] = [];
-      const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
-        stdio: "ignore",
-      });
-      // On Windows, stop shells out to taskkill. The default fake exec only answers --version, so
-      // stand in for taskkill by ending the child, and check the arguments it was given.
+  describe("stop", () => {
+    const DAEMON_CMD = "/usr/bin/node /opt/conveno/node_modules/@conveno/daemon/dist/bin.js";
+
+    /** What the context's `exec` was asked to run. Stop must never reach for taskkill. */
+    const neverExec = (calls: string[][]) => async (cmd: string, args: string[]) => {
+      calls.push([cmd, ...args]);
+      return { code: 1, stdout: "" };
+    };
+
+    /** A fake daemon behind `connect`: answers until `daemon.shutdown`, then vanishes. */
+    function fakeDaemon(
+      c: TestCtx,
+      opts: { shutdown?: () => Promise<unknown>; lingers?: boolean } = {},
+    ) {
+      const state = { up: true, shutdowns: 0 };
+      const lock = dataPaths(c.platform, c.dataDir).lock;
+      c.connect = (async () => {
+        if (!state.up) throw new Error("ECONNREFUSED");
+        return {
+          close: async () => undefined,
+          "daemon.shutdown": async () => {
+            state.shutdowns++;
+            if (opts.shutdown) return opts.shutdown();
+            if (!opts.lingers) {
+              state.up = false;
+              await rm(lock, { force: true });
+            }
+            return { ok: true };
+          },
+        };
+      }) as never;
+      return state;
+    }
+
+    it.each(["linux", "win32"] as const)(
+      "asks the daemon to shut down over the control channel, with no signal and no taskkill (%s)",
+      async (platform) => {
+        const execs: string[][] = [];
+        const killed: number[] = [];
+        const c = await make({
+          platform,
+          exec: neverExec(execs),
+          kill: (pid) => void killed.push(pid),
+        });
+        const lock = dataPaths(c.platform, c.dataDir).lock;
+        try {
+          await seed(lock, JSON.stringify({ pid: 4242 }));
+          const state = fakeDaemon(c);
+          expect(await main(["daemon", "stop"], c)).toBe(0);
+          expect(state.shutdowns).toBe(1);
+          expect(c.outText()).toContain("Stopped the daemon (pid 4242)");
+          expect(existsSync(lock)).toBe(false);
+          expect(killed).toEqual([]);
+          expect(execs).toEqual([]);
+        } finally {
+          await rm(lock, { force: true });
+        }
+      },
+    );
+
+    it("waits for the daemon process to exit, not only for its socket and lock", async () => {
+      let checks = 0;
+      // The process outlives its socket and lock for three polls, as a daemon still closing its
+      // database does.
+      const c = await make({ isAlive: (pid) => pid === 4242 && ++checks <= 3 });
+      const lock = dataPaths(c.platform, c.dataDir).lock;
+      try {
+        await seed(lock, JSON.stringify({ pid: 4242 }));
+        fakeDaemon(c);
+        expect(await main(["daemon", "stop"], c)).toBe(0);
+        expect(checks).toBeGreaterThan(3);
+        expect(c.outText()).toContain("Stopped the daemon (pid 4242)");
+      } finally {
+        await rm(lock, { force: true });
+      }
+    });
+
+    it("connects without autoStart", async () => {
+      const seen: { autoStart?: boolean }[] = [];
+      const c = await make();
+      const inner = fakeDaemon(c);
+      const wrapped = c.connect;
+      c.connect = ((o: { autoStart?: boolean }) => (seen.push(o), wrapped(o as never))) as never;
+      expect(await main(["daemon", "stop"], c)).toBe(0);
+      expect(inner.shutdowns).toBe(1);
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((o) => o.autoStart === false)).toBe(true);
+    });
+
+    it("stops a real daemon and waits until its socket and lock are gone", async () => {
+      // This daemon runs inside the test process, so the pid in its lock (ours) never exits.
+      // Count that pid as exited once the daemon has let go of its lock, as a real one would.
+      let lock = "";
       const c = await make({
-        platform,
-        // Something answers the Conveno handshake on the socket.
-        connect: (async () => ({ close: async () => undefined })) as never,
-        exec: async (cmd, args) => {
-          taskkills.push([cmd, ...args]);
-          child.kill();
-          return { code: 0, stdout: "" };
+        isAlive: (pid) => pid !== process.pid || existsSync(lock),
+      });
+      const d = await startTestDaemon(c);
+      lock = dataPaths(c.platform, c.dataDir).lock;
+      try {
+        expect(existsSync(lock)).toBe(true);
+        expect(await main(["daemon", "stop"], c)).toBe(0);
+        expect(c.outText()).toContain("Stopped the daemon");
+        expect(existsSync(lock)).toBe(false);
+        if (process.platform !== "win32") expect(existsSync(c.socketPath as string)).toBe(false);
+        expect(await main(["daemon", "status"], c)).toBe(1);
+      } finally {
+        await d.stop();
+      }
+    });
+
+    it("fails, without killing anything, when the daemon says ok but keeps answering", async () => {
+      const killed: number[] = [];
+      const c = await make({ stopTimeoutMs: 250, kill: (pid) => void killed.push(pid) });
+      await seed(dataPaths(c.platform, c.dataDir).lock, JSON.stringify({ pid: 4242 }));
+      fakeDaemon(c, { lingers: true });
+      expect(await main(["daemon", "stop"], c)).toBe(1);
+      expect(c.errText()).toContain("is still running after");
+      expect(c.errText()).toContain("ref e_daemon_stop");
+      expect(killed).toEqual([]);
+    });
+
+    it("fails, without killing anything, when the daemon refuses the request", async () => {
+      const killed: number[] = [];
+      const c = await make({ kill: (pid) => void killed.push(pid) });
+      await seed(dataPaths(c.platform, c.dataDir).lock, JSON.stringify({ pid: 4242 }));
+      fakeDaemon(c, {
+        shutdown: async () => {
+          throw new Error(
+            "Method not found: daemon.shutdown. This version of the Conveno daemon does not support it.",
+          );
         },
       });
-      const exited = new Promise<void>((r) => child.once("exit", () => r()));
-      try {
-        await seed(dataPaths(c.platform, c.dataDir).lock, JSON.stringify({ pid: child.pid }));
-        expect(await main(["daemon", "stop"], c)).toBe(0);
-        await exited;
-        expect(c.outText()).toContain(`Stopped the daemon (pid ${child.pid})`);
-        if (c.platform === "win32") {
-          expect(taskkills).toEqual([["taskkill", "/PID", String(child.pid), "/T", "/F"]]);
-        } else {
-          expect(taskkills).toEqual([]);
-        }
-      } finally {
-        child.kill("SIGKILL");
-        // A win32 data path on a POSIX host is a relative file name; remove it.
-        await rm(dataPaths(c.platform, c.dataDir).lock, { force: true });
-      }
-    },
-  );
-
-  it("stop never signals a pid when nothing answers as the daemon, and removes the stale lock", async () => {
-    // An unrelated live process whose pid sits in the lock file.
-    const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
-      stdio: "ignore",
+      expect(await main(["daemon", "stop"], c)).toBe(1);
+      expect(c.errText()).toContain("did not accept the stop request");
+      expect(c.errText()).toContain("Method not found");
+      expect(killed).toEqual([]);
     });
-    const c = await make();
-    const lock = dataPaths(c.platform, c.dataDir).lock;
-    try {
-      await seed(lock, JSON.stringify({ pid: child.pid }));
+
+    it("with no daemon and no lock says so", async () => {
+      const c = await make();
+      expect(await main(["daemon", "stop"], c)).toBe(0);
+      expect(c.outText()).toContain("Nothing to stop");
+    });
+
+    it("removes a lock whose pid is dead, and stops nothing", async () => {
+      const killed: number[] = [];
+      const c = await make({ isAlive: () => false, kill: (pid) => void killed.push(pid) });
+      const lock = dataPaths(c.platform, c.dataDir).lock;
+      await seed(lock, JSON.stringify({ pid: 4242 }));
       expect(await main(["daemon", "stop"], c)).toBe(0);
       expect(c.outText()).toContain("Removed the stale lock file");
       expect(existsSync(lock)).toBe(false);
-      expect(child.exitCode).toBeNull();
-      expect(child.killed).toBe(false);
-    } finally {
-      child.kill("SIGKILL");
-    }
-  });
+      expect(killed).toEqual([]);
+    });
 
-  it("stop with no daemon says so", async () => {
-    const c = await make();
-    expect(await main(["daemon", "stop"], c)).toBe(0);
-    expect(c.outText()).toContain("Nothing to stop");
+    it("never signals an unrelated live process that holds the lock's pid, and removes the stale lock", async () => {
+      // A real live process whose pid sits in the lock file, with no daemon on the socket.
+      const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+        stdio: "ignore",
+      });
+      const killed: number[] = [];
+      const c = await make({
+        isAlive: (pid) => pid === child.pid,
+        commandLineOf: async () => `${process.execPath} -e setInterval(() => {}, 1000)`,
+        kill: (pid) => void killed.push(pid),
+      });
+      const lock = dataPaths(c.platform, c.dataDir).lock;
+      try {
+        await seed(lock, JSON.stringify({ pid: child.pid }));
+        expect(await main(["daemon", "stop"], c)).toBe(0);
+        expect(c.outText()).toContain("Removed the stale lock file");
+        expect(existsSync(lock)).toBe(false);
+        expect(killed).toEqual([]);
+        expect(child.exitCode).toBeNull();
+        expect(child.killed).toBe(false);
+      } finally {
+        child.kill("SIGKILL");
+      }
+    });
+
+    it("does not kill or unlock when it cannot verify the process, and says so plainly", async () => {
+      const killed: number[] = [];
+      const c = await make({
+        isAlive: () => true,
+        commandLineOf: async () => null,
+        kill: (pid) => void killed.push(pid),
+      });
+      const lock = dataPaths(c.platform, c.dataDir).lock;
+      await seed(lock, JSON.stringify({ pid: 4242 }));
+      expect(await main(["daemon", "stop"], c)).toBe(1);
+      expect(killed).toEqual([]);
+      expect(existsSync(lock)).toBe(true);
+      expect(c.errText()).toContain("pid 4242 could not be checked");
+      expect(c.errText()).toContain("stopped nothing");
+      expect(c.errText()).toContain("ref e_daemon_lock");
+    });
+
+    it.each(["linux", "win32"] as const)(
+      "ends a verified daemon that does not answer with process.kill, not taskkill (%s)",
+      async (platform) => {
+        const execs: string[][] = [];
+        const alive = new Set([4242]);
+        const killed: number[] = [];
+        const c = await make({
+          platform,
+          exec: neverExec(execs),
+          isAlive: (pid) => alive.has(pid),
+          commandLineOf: async () => DAEMON_CMD,
+          kill: (pid) => {
+            killed.push(pid);
+            alive.delete(pid);
+          },
+        });
+        const lock = dataPaths(c.platform, c.dataDir).lock;
+        try {
+          await seed(lock, JSON.stringify({ pid: 4242 }));
+          expect(await main(["daemon", "stop"], c)).toBe(0);
+          expect(killed).toEqual([4242]);
+          expect(execs).toEqual([]);
+          expect(c.outText()).toContain("Stopped the daemon (pid 4242)");
+          // A terminated process cannot remove its own lock.
+          expect(existsSync(lock)).toBe(false);
+        } finally {
+          await rm(lock, { force: true });
+        }
+      },
+    );
+
+    it("recognises the daemon by the entry script this install resolved", async () => {
+      const killed: number[] = [];
+      const alive = new Set([4242]);
+      const c = await make({
+        daemonEntry: "/work/conveno/packages/daemon/dist/bin.js",
+        isAlive: (pid) => alive.has(pid),
+        commandLineOf: async () => "node /work/conveno/packages/daemon/dist/bin.js",
+        kill: (pid) => (killed.push(pid), void alive.delete(pid)),
+      });
+      await seed(dataPaths(c.platform, c.dataDir).lock, JSON.stringify({ pid: 4242 }));
+      expect(await main(["daemon", "stop"], c)).toBe(0);
+      expect(killed).toEqual([4242]);
+    });
+
+    it("fails plainly when the kill is refused or the process stays alive", async () => {
+      const refused = await make({
+        isAlive: () => true,
+        commandLineOf: async () => DAEMON_CMD,
+        kill: () => {
+          throw new Error("EPERM: operation not permitted");
+        },
+      });
+      await seed(dataPaths(refused.platform, refused.dataDir).lock, JSON.stringify({ pid: 4242 }));
+      expect(await main(["daemon", "stop"], refused)).toBe(1);
+      expect(refused.errText()).toContain("Could not stop the daemon (pid 4242)");
+      expect(refused.errText()).toContain("EPERM");
+
+      const stubborn = await make({
+        stopTimeoutMs: 200,
+        isAlive: () => true,
+        commandLineOf: async () => DAEMON_CMD,
+        kill: () => undefined,
+      });
+      await seed(
+        dataPaths(stubborn.platform, stubborn.dataDir).lock,
+        JSON.stringify({ pid: 4242 }),
+      );
+      expect(await main(["daemon", "stop"], stubborn)).toBe(1);
+      expect(stubborn.errText()).toContain("is still running after");
+    });
   });
 
   it("needs a subcommand", async () => {
@@ -447,11 +691,53 @@ describe("mcp", () => {
 });
 
 describe("hook", () => {
-  it("delivers queued messages through the adapter, using ppid as the host pid", async () => {
-    const c = await make({
-      ppid: process.pid,
-      readStdin: async () => '{"hook_event_name":"SessionStart"}',
-    });
+  // A Windows tree. npm installs conveno as conveno.cmd, so each side runs through a cmd.exe shim.
+  //   powershell 200 > claude 300 (the CLI)
+  //     > cmd.exe 400 (shim) > node 500            the MCP server
+  //     > bash 405 -c "conveno hook" > cmd.exe 410 (shim) > node 510   a hook
+  //   powershell 200 > claude 301 (another CLI, no Conveno session) > bash 406 > cmd.exe 411 > node 511
+  const SHIM = String.raw`C:\Users\u\AppData\Roaming\npm\conveno.cmd`;
+  const winProcs: FakeProcs = {
+    200: [100, "powershell.exe"],
+    300: [200, String.raw`C:\Users\u\AppData\Roaming\npm\claude.exe`],
+    400: [300, String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""${SHIM}" mcp --cli claude"`],
+    500: [
+      400,
+      String.raw`"C:\Program Files\nodejs\node.exe" C:\Users\u\AppData\Roaming\npm\node_modules\@conveno\cli\dist\bin.js mcp --cli claude`,
+    ],
+    405: [300, `bash -c "conveno hook claude UserPromptSubmit"`],
+    410: [
+      405,
+      String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""${SHIM}" hook claude UserPromptSubmit"`,
+    ],
+    510: [
+      410,
+      String.raw`"C:\Program Files\nodejs\node.exe" C:\Users\u\AppData\Roaming\npm\node_modules\@conveno\cli\dist\bin.js hook claude UserPromptSubmit`,
+    ],
+    301: [200, String.raw`C:\Users\u\AppData\Roaming\npm\claude.exe`],
+    406: [301, `bash -c "conveno hook claude UserPromptSubmit"`],
+    411: [
+      406,
+      String.raw`C:\WINDOWS\system32\cmd.exe /d /s /c ""${SHIM}" hook claude UserPromptSubmit"`,
+    ],
+    511: [
+      411,
+      String.raw`"C:\Program Files\nodejs\node.exe" C:\Users\u\AppData\Roaming\npm\node_modules\@conveno\cli\dist\bin.js hook claude UserPromptSubmit`,
+    ],
+  };
+  /** What the MCP server in `winProcs` registers: found by the same logic the hook uses. */
+  const mcpHost = async () => {
+    const a = await ancestryOf(winProcs, { pid: 500, ppid: 400 })(1_000);
+    return { hostPid: a.hostPid, hostPids: a.pids };
+  };
+
+  /** A daemon with two sessions, the other messaging the one registered with `mine`. */
+  async function withPair(
+    c: TestCtx,
+    mine: { hostPid?: number | undefined; hostPids?: number[] },
+    run: () => Promise<void>,
+    other: { hostPid?: number; hostPids?: number[] } = {},
+  ) {
     const d = await startTestDaemon(c);
     const client = await connect({
       kind: "mcp",
@@ -459,29 +745,130 @@ describe("hook", () => {
       socketPath: c.socketPath as string,
       autoStart: false,
     });
+    const reg = (over: Record<string, unknown>) =>
+      client["session.register"]({ cwd: "/work/api", pid: process.pid, ...over } as never);
     try {
-      const me = await client["session.register"]({
-        cli: "claude",
-        cwd: "/work/api",
-        hostPid: process.pid,
-        pid: process.pid,
-      });
-      const other = await client["session.register"]({ cli: "codex", cwd: "/work/api" });
+      const me = await reg({ cli: "claude", ...mine });
+      const peer = await reg({ cli: "codex", ...other });
       await client["message.send"]({
-        sessionId: other.session.id,
+        sessionId: peer.session.id,
         to: me.session.name,
         kind: "text",
         body: { text: "rename the migration" },
       } as never);
+      await run();
+    } finally {
+      await client.close();
+      await d.stop();
+    }
+  }
+
+  const hookCtx = (over: Partial<Parameters<typeof testCtx>[0]> = {}) =>
+    make({ readStdin: async () => '{"hook_event_name":"UserPromptSubmit"}', ...over });
+
+  it("delivers queued messages through the adapter, matching the hook's host pid to the session", async () => {
+    const asked: number[] = [];
+    const c = await make({
+      ancestry: async (ms) => (
+        asked.push(ms),
+        {
+          entries: [{ pid: process.pid }],
+          pids: [process.pid],
+          hostPid: process.pid,
+          complete: true,
+        }
+      ),
+      readStdin: async () => '{"hook_event_name":"SessionStart"}',
+    });
+    await withPair(c, { hostPid: process.pid, hostPids: [process.pid] }, async () => {
       expect(await main(["hook", "claude", "SessionStart"], c)).toBe(0);
       const printed = JSON.parse(c.outText());
       expect(printed.hookSpecificOutput.hookEventName).toBe("SessionStart");
       expect(printed.hookSpecificOutput.additionalContext).toContain("rename the migration");
       expect(c.errText()).toBe("");
-    } finally {
-      await client.close();
-      await d.stop();
-    }
+      // One lookup, inside the hook budget.
+      expect(asked).toEqual([1_200]);
+    });
+  });
+
+  it("finds the CLI through conveno.cmd shims and bash -c on Windows", async () => {
+    const mcp = await mcpHost();
+    // Registered as the CLI itself, not the cmd.exe shim in between.
+    expect(mcp).toEqual({ hostPid: 300, hostPids: [400, 300, 200, 100] });
+    const c = await hookCtx({
+      platform: "win32",
+      ancestry: ancestryOf(winProcs, { pid: 510, ppid: 410 }),
+    });
+    await withPair(c, mcp, async () => {
+      expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
+      expect(c.outText()).toContain("rename the migration");
+      expect(c.errText()).toBe("");
+    });
+  });
+
+  it("matches nothing for an unregistered CLI that shares a shell and terminal with a registered one", async () => {
+    const c = await hookCtx({
+      platform: "win32",
+      ancestry: ancestryOf(winProcs, { pid: 511, ppid: 411 }),
+    });
+    await withPair(c, await mcpHost(), async () => {
+      expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
+      expect(c.outText()).toBe("");
+      expect(c.errText()).toBe("");
+    });
+  });
+
+  it("delivers nothing when two sessions sit under one CLI process, never guessing", async () => {
+    const mcp = await mcpHost();
+    const c = await hookCtx({
+      platform: "win32",
+      ancestry: ancestryOf(winProcs, { pid: 510, ppid: 410 }),
+    });
+    await withPair(
+      c,
+      mcp,
+      async () => {
+        expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
+        expect(c.outText()).toBe("");
+      },
+      mcp,
+    );
+  });
+
+  it("falls back to the direct parent when the process list is denied, without a word on stderr", async () => {
+    // WMI refuses a non-admin NETWORK logon. With no shim the direct parent is the CLI and still matches.
+    const direct: FakeProcs = { 300: [200, "claude.exe"], 510: [300, "node bin.js hook"] };
+    const c = await hookCtx({
+      ancestry: ancestryOf(direct, { pid: 510, ppid: 300 }, { denied: true }),
+    });
+    await withPair(c, { hostPid: 300, hostPids: [300] }, async () => {
+      expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
+      expect(c.outText()).toContain("rename the migration");
+      expect(c.errText()).toBe("");
+    });
+
+    // Behind a shim the direct parent (410) is not the registered CLI (300): exact equality fails.
+    const shim = await hookCtx({
+      platform: "win32",
+      ancestry: ancestryOf(winProcs, { pid: 510, ppid: 410 }, { denied: true }),
+    });
+    await withPair(shim, await mcpHost(), async () => {
+      expect(await main(["hook", "claude", "UserPromptSubmit"], shim)).toBe(0);
+      expect(shim.outText()).toBe("");
+      expect(shim.errText()).toBe("");
+    });
+  });
+
+  it("stays inside the hook budget when the process-table query never answers", async () => {
+    const c = await make({
+      hookTimeoutMs: 80,
+      ancestry: () => new Promise(() => undefined),
+      connect: (async () => ({ close: async () => undefined })) as never,
+    });
+    const t0 = Date.now();
+    expect(await main(["hook", "claude", "UserPromptSubmit"], c)).toBe(0);
+    expect(Date.now() - t0).toBeLessThan(1_500);
+    expect(c.outText()).toBe("");
   });
 
   it("prints nothing, exits 0 and does not start a daemon when none is running", async () => {
@@ -526,6 +913,23 @@ describe("conveno command and daemon entry", () => {
       "/usr/bin/node",
       "/x/bin.js",
     ]);
+  });
+
+  it("uses plain `conveno` on Windows when the PATH shim starts this install", () => {
+    const shim = "C:\\npm\\conveno.cmd";
+    const bin = "C:\\npm\\node_modules\\@conveno\\cli\\dist\\bin.js";
+    const text = `@ECHO off\r\n"%_prog%"  "%dp0%\\node_modules\\@conveno\\cli\\dist\\bin.js" %*\r\n`;
+    const io = {
+      isFile: (p: string) => p.toLowerCase() === shim.toLowerCase(),
+      readFile: (p: string) => (p.toLowerCase() === shim.toLowerCase() ? text : undefined),
+      realpath: (p: string) => p,
+    };
+    expect(convenoCommand({ PATH: "C:\\npm" }, "win32", bin, "C:\\node.exe", io)).toEqual([
+      "conveno",
+    ]);
+    expect(
+      convenoCommand({ PATH: "C:\\npm" }, "win32", "D:\\elsewhere\\bin.js", "C:\\node.exe", io),
+    ).toEqual(["C:\\node.exe", "D:\\elsewhere\\bin.js"]);
   });
 
   it.skipIf(process.platform === "win32")(

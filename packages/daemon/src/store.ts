@@ -1,5 +1,5 @@
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import type { MailboxEntry, MailboxState } from "@0xpixelninja/conveno-core";
+import type { MailboxEntry, MailboxState } from "@conveno/core";
 import {
   type CliKind,
   type DeliveryTier,
@@ -11,7 +11,7 @@ import {
   type Session,
   type SessionId,
   type SessionStatus,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 
 /** One row of the `sessions` table, in the shape the daemon works with. */
 export interface SessionRow {
@@ -25,6 +25,8 @@ export interface SessionRow {
   repoRemoteUrlHash?: string;
   pid?: number;
   hostPid?: number;
+  /** The MCP server's raw ancestor chain, nearest first. */
+  hostPids?: number[];
   status: SessionStatus;
   statusText?: string;
   deliveryTier: DeliveryTier;
@@ -34,7 +36,7 @@ export interface SessionRow {
   lastSeenAt: string;
 }
 
-const MIGRATIONS: { name: string; sql: string }[] = [
+export const MIGRATIONS: { name: string; sql: string }[] = [
   {
     name: "001_initial",
     sql: `
@@ -81,11 +83,31 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       INSERT INTO orchestrator (slot, session_id) VALUES (1, NULL);
     `,
   },
+  {
+    // The raw ancestor chain of the MCP server, next to the exact host pid (JSON array, nearest first).
+    name: "002_host_pids",
+    sql: `
+      ALTER TABLE sessions ADD COLUMN host_pids TEXT;
+      UPDATE sessions SET host_pids = '[' || host_pid || ']' WHERE host_pid IS NOT NULL;
+    `,
+  },
 ];
 
 type Row = Record<string, unknown>;
 const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
+
+function pidList(v: unknown): number[] | undefined {
+  if (typeof v !== "string") return undefined;
+  try {
+    const list: unknown = JSON.parse(v);
+    if (!Array.isArray(list)) return undefined;
+    const pids = list.filter((p): p is number => Number.isInteger(p) && p > 0);
+    return pids.length > 0 ? pids : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 function toSessionRow(r: Row): SessionRow {
   const row: SessionRow = {
@@ -110,6 +132,8 @@ function toSessionRow(r: Row): SessionRow {
   if (pid !== undefined) row.pid = pid;
   const hostPid = num(r.host_pid);
   if (hostPid !== undefined) row.hostPid = hostPid;
+  const hostPids = pidList(r.host_pids);
+  if (hostPids !== undefined) row.hostPids = hostPids;
   const statusText = str(r.status_text);
   if (statusText !== undefined) row.statusText = statusText;
   const spawnedBy = str(r.spawned_by);
@@ -141,6 +165,7 @@ export function toSession(row: SessionRow, isOrchestrator: boolean): Session {
   }
   if (row.pid !== undefined) s.pid = row.pid;
   if (row.hostPid !== undefined) s.hostPid = row.hostPid;
+  if (row.hostPids !== undefined) s.hostPids = row.hostPids;
   if (row.statusText !== undefined) s.statusText = row.statusText;
   if (row.spawnedBy !== undefined) s.spawnedBy = row.spawnedBy;
   return s;
@@ -234,8 +259,8 @@ export class Store {
   insertSession(s: SessionRow): void {
     this.run(
       `INSERT INTO sessions (id, name, cli, cli_version, device_id, cwd, repo_root, repo_remote_hash,
-        pid, host_pid, status, status_text, delivery_tier, spawned_by, spawn_depth, started_at, last_seen_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        pid, host_pid, host_pids, status, status_text, delivery_tier, spawned_by, spawn_depth, started_at, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       s.id,
       s.name,
       s.cli,
@@ -246,6 +271,7 @@ export class Store {
       s.repoRemoteUrlHash ?? null,
       s.pid ?? null,
       s.hostPid ?? null,
+      s.hostPids ? JSON.stringify(s.hostPids) : null,
       s.status,
       s.statusText ?? null,
       s.deliveryTier,

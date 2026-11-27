@@ -1,4 +1,4 @@
-import { RpcErrorCode } from "@0xpixelninja/conveno-protocol";
+import { RpcErrorCode } from "@conveno/protocol";
 import { describe, expect, it } from "vitest";
 import { ConvenoError, NO_ORCHESTRATOR_MESSAGE } from "./errors.js";
 import { claimOrchestrator, effectiveHolder, holderAfterDeparture } from "./orchestrator.js";

@@ -1,5 +1,5 @@
-import type { Theme } from "@0xpixelninja/conveno-brand";
-import type { DeliveryTier, Session } from "@0xpixelninja/conveno-protocol";
+import type { Theme } from "@conveno/brand";
+import type { DeliveryTier, Session } from "@conveno/protocol";
 import { COMMANDS, parseFlags } from "./args.js";
 import { type Ctx, connectOpts } from "./ctx.js";
 import { cmd, columns, plural, tilde, warnBlock } from "./fmt.js";

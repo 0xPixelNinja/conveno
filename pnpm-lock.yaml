@@ -210,10 +210,10 @@ importers:
 
   packages/adapters/claude:
     dependencies:
-      '@0xpixelninja/conveno-core':
+      '@conveno/core':
         specifier: workspace:*
         version: link:../../core
-      '@0xpixelninja/conveno-protocol':
+      '@conveno/protocol':
         specifier: workspace:*
         version: link:../../protocol
       jsonc-parser:
@@ -222,10 +222,10 @@ importers:
 
   packages/adapters/codex:
     dependencies:
-      '@0xpixelninja/conveno-core':
+      '@conveno/core':
         specifier: workspace:*
         version: link:../../core
-      '@0xpixelninja/conveno-protocol':
+      '@conveno/protocol':
         specifier: workspace:*
         version: link:../../protocol
       '@decimalturn/toml-patch':
@@ -238,7 +238,7 @@ importers:
 
   packages/adapters/opencode:
     dependencies:
-      '@0xpixelninja/conveno-core':
+      '@conveno/core':
         specifier: workspace:*
         version: link:../../core
       jsonc-parser:
@@ -249,46 +249,46 @@ importers:
 
   packages/cli:
     dependencies:
-      '@0xpixelninja/conveno-adapter-claude':
+      '@conveno/adapter-claude':
         specifier: workspace:*
         version: link:../adapters/claude
-      '@0xpixelninja/conveno-adapter-codex':
+      '@conveno/adapter-codex':
         specifier: workspace:*
         version: link:../adapters/codex
-      '@0xpixelninja/conveno-adapter-opencode':
+      '@conveno/adapter-opencode':
         specifier: workspace:*
         version: link:../adapters/opencode
-      '@0xpixelninja/conveno-brand':
+      '@conveno/brand':
         specifier: workspace:*
         version: link:../brand
-      '@0xpixelninja/conveno-client':
+      '@conveno/client':
         specifier: workspace:*
         version: link:../client
-      '@0xpixelninja/conveno-core':
+      '@conveno/core':
         specifier: workspace:*
         version: link:../core
-      '@0xpixelninja/conveno-daemon':
+      '@conveno/daemon':
         specifier: workspace:*
         version: link:../daemon
-      '@0xpixelninja/conveno-mcp':
+      '@conveno/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@0xpixelninja/conveno-protocol':
+      '@conveno/protocol':
         specifier: workspace:*
         version: link:../protocol
 
   packages/client:
     dependencies:
-      '@0xpixelninja/conveno-core':
+      '@conveno/core':
         specifier: workspace:*
         version: link:../core
-      '@0xpixelninja/conveno-protocol':
+      '@conveno/protocol':
         specifier: workspace:*
         version: link:../protocol
 
   packages/core:
     dependencies:
-      '@0xpixelninja/conveno-protocol':
+      '@conveno/protocol':
         specifier: workspace:*
         version: link:../protocol
       zod:
@@ -299,49 +299,49 @@ importers:
 
   packages/daemon:
     dependencies:
-      '@0xpixelninja/conveno-core':
+      '@conveno/core':
         specifier: workspace:*
         version: link:../core
-      '@0xpixelninja/conveno-protocol':
+      '@conveno/protocol':
         specifier: workspace:*
         version: link:../protocol
 
   packages/e2e:
     dependencies:
-      '@0xpixelninja/conveno-adapter-claude':
+      '@conveno/adapter-claude':
         specifier: workspace:*
         version: link:../adapters/claude
-      '@0xpixelninja/conveno-adapter-codex':
+      '@conveno/adapter-codex':
         specifier: workspace:*
         version: link:../adapters/codex
-      '@0xpixelninja/conveno-client':
+      '@conveno/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@conveno/client':
         specifier: workspace:*
         version: link:../client
-      '@0xpixelninja/conveno-core':
+      '@conveno/core':
         specifier: workspace:*
         version: link:../core
-      '@0xpixelninja/conveno-mcp':
+      '@conveno/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@0xpixelninja/conveno-protocol':
+      '@conveno/protocol':
         specifier: workspace:*
         version: link:../protocol
       '@modelcontextprotocol/sdk':
         specifier: 1.32.2
         version: 1.32.2(zod@4.6.7)
-      conveno:
-        specifier: workspace:*
-        version: link:../cli
 
   packages/mcp:
     dependencies:
-      '@0xpixelninja/conveno-client':
+      '@conveno/client':
         specifier: workspace:*
         version: link:../client
-      '@0xpixelninja/conveno-core':
+      '@conveno/core':
         specifier: workspace:*
         version: link:../core
-      '@0xpixelninja/conveno-protocol':
+      '@conveno/protocol':
         specifier: workspace:*
         version: link:../protocol
       '@modelcontextprotocol/sdk':

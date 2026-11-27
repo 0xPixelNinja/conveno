@@ -1,7 +1,7 @@
-# @0xpixelninja/conveno-mcp
+# @conveno/mcp
 
 stdio MCP server that lets an AI coding session talk to other sessions on the same machine. It
-connects to the daemon through `@0xpixelninja/conveno-client`. The session registers when the MCP
+connects to the daemon through `@conveno/client`. The session registers when the MCP
 handshake completes, sends a heartbeat every 15 s, and unregisters when the server closes.
 
 ## Tools
@@ -17,7 +17,7 @@ handshake completes, sends a heartbeat every 15 s, and unregisters when the serv
 
 ## Exports
 
-- `createServer(options)`: build the server from a client, the host CLI's PID and a working directory
+- `createServer(options)`: build the server from a client, the host CLI pid and raw ancestor chain (`host`, from `readAncestry`) and a working directory
 - `runStdio(options)`: connect the server to stdio and run until stdin closes or SIGTERM arrives
 - `formatSessionTable`, `formatAge`: the plain-text output used by `list_sessions`
 - `PACKAGE_NAME`

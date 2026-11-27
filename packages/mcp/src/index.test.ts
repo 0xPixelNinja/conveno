@@ -1,12 +1,9 @@
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  ConvenoError,
-  HEARTBEAT_INTERVAL_MS,
-  NOT_FROM_USER_NOTICE,
-} from "@0xpixelninja/conveno-core";
-import { RpcErrorCode } from "@0xpixelninja/conveno-protocol";
+import { ConvenoError, HEARTBEAT_INTERVAL_MS, NOT_FROM_USER_NOTICE } from "@conveno/core";
+import { RpcErrorCode } from "@conveno/protocol";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +21,12 @@ let root: string;
 const peers: Peer[] = [];
 
 async function startPeer(cwd: string, cli: "claude" | "codex" = "claude"): Promise<Peer> {
-  const mcp = createServer({ cli, client: daemon.client(), hostPid: 4242, cwd });
+  const mcp = createServer({
+    cli,
+    client: daemon.client(),
+    host: { hostPid: 4242, hostPids: [4242, 4241] },
+    cwd,
+  });
   const client = new Client({ name: "test", version: "0" });
   const [a, b] = InMemoryTransport.createLinkedPair();
   await Promise.all([mcp.connect(a), client.connect(b)]);
@@ -56,7 +58,13 @@ afterEach(async () => {
 
 describe("package", () => {
   it("exports its package name", () => {
-    expect(PACKAGE_NAME).toBe("@0xpixelninja/conveno-mcp");
+    expect(PACKAGE_NAME).toBe("@conveno/mcp");
+  });
+
+  it("reports the version in package.json", async () => {
+    const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+    const peer = await startPeer(root);
+    expect(peer.client.getServerVersion()?.version).toBe(manifest.version);
   });
 });
 
@@ -91,6 +99,7 @@ describe("tools", () => {
     expect(s?.cliVersion).toBe("1.2.3");
     expect(s?.pid).toBe(process.pid);
     expect(s?.hostPid).toBe(4242);
+    expect(s?.hostPids).toEqual([4242, 4241]);
     expect(s?.repo?.root).toBe(join(root, "myrepo"));
     expect(s?.name).toBe("codex@myrepo-1");
   });
@@ -187,7 +196,12 @@ describe("session recovery", () => {
     expect([...daemon.sessions.keys()][0]).not.toBe(oldId);
     const regs = daemon.calls.filter((c) => c.method === "session.register");
     expect(regs).toHaveLength(2);
-    expect(regs[1]?.params).toMatchObject({ cli: "claude", cwd: root, hostPid: 4242 });
+    expect(regs[1]?.params).toMatchObject({
+      cli: "claude",
+      cwd: root,
+      hostPid: 4242,
+      hostPids: [4242, 4241],
+    });
   });
 
   it("says what happened when registering again does not help", async () => {
@@ -203,7 +217,12 @@ describe("session recovery", () => {
         );
       },
     };
-    const mcp = createServer({ cli: "claude", client: failing as never, hostPid: 1, cwd: root });
+    const mcp = createServer({
+      cli: "claude",
+      client: failing as never,
+      host: { hostPid: 1, hostPids: [1] },
+      cwd: root,
+    });
     const client = new Client({ name: "t", version: "0" });
     const [x, y] = InMemoryTransport.createLinkedPair();
     await Promise.all([mcp.connect(x), client.connect(y)]);

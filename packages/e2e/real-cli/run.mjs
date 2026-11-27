@@ -12,7 +12,7 @@ import { join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { DatabaseSync } from "node:sqlite";
 // One resolver for the CLI and this script. Node strips the types from this file.
-import { planSpawn } from "../../cli/src/win-spawn.ts";
+import { planSpawn } from "../../core/src/win-spawn.ts";
 
 const USAGE = `Usage: node run.mjs [options]
 

@@ -4,9 +4,9 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { connect } from "@0xpixelninja/conveno-client";
-import { type ConvenoClient, dataDir } from "@0xpixelninja/conveno-core";
-import { type CliKind, defaultSocketPath } from "@0xpixelninja/conveno-protocol";
+import { connect } from "@conveno/client";
+import { type ConvenoClient, dataDir } from "@conveno/core";
+import { type CliKind, defaultSocketPath } from "@conveno/protocol";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -127,7 +127,7 @@ export interface FakeSession {
   repo: string;
   client: Client;
   transport: StdioClientTransport;
-  /** Pid of the fake host CLI process (the MCP server's parent). */
+  /** Pid of the fake host CLI process: the MCP server's parent, the first of its registered hostPids. */
   hostPid: number;
   /** Call an MCP tool; returns its text and whether it was an error. */
   call(name: string, args?: Record<string, unknown>): Promise<{ text: string; isError: boolean }>;

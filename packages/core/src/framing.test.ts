@@ -1,4 +1,4 @@
-import { type Message, newMessageId, newSessionId } from "@0xpixelninja/conveno-protocol";
+import { type Message, newMessageId, newSessionId } from "@conveno/protocol";
 import { describe, expect, it } from "vitest";
 import {
   formatClock,

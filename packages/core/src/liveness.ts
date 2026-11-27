@@ -1,4 +1,4 @@
-import type { SessionStatus } from "@0xpixelninja/conveno-protocol";
+import type { SessionStatus } from "@conveno/protocol";
 
 export const HEARTBEAT_INTERVAL_MS = 15_000;
 export const OFFLINE_AFTER_MS = 45_000;
@@ -6,7 +6,12 @@ export const OFFLINE_AFTER_MS = 45_000;
 export interface LivenessInput {
   /** Epoch milliseconds of the last heartbeat (or registration). */
   lastSeenMs: number;
-  /** PID of the CLI process hosting the session, when known. */
+  /**
+   * The session's `hostPid`: the CLI process hosting the MCP server. When it dies the session is
+   * over. Only this pid is watched. The MCP server's other ancestors (a launcher, a shell, a
+   * terminal) either exit with it or outlive it, so they say nothing about whether the session
+   * is alive.
+   */
   hostPid?: number | undefined;
 }
 

@@ -12,8 +12,8 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { type ConfigChange, dataPaths } from "@0xpixelninja/conveno-core";
-import type { CliKind } from "@0xpixelninja/conveno-protocol";
+import { type ConfigChange, dataPaths } from "@conveno/core";
+import type { CliKind } from "@conveno/protocol";
 import type { Ctx } from "./ctx.js";
 import { paintDiff, unifiedDiff } from "./diff.js";
 import { tilde } from "./fmt.js";
@@ -88,7 +88,7 @@ export function presentChanges(ctx: Ctx, items: PlannedChange[]): void {
 }
 
 /** `<backups>/files/<path without drive or leading separator>`. */
-const mirrored = (path: string): string =>
+export const mirrored = (path: string): string =>
   join("files", path.replace(/^[A-Za-z]:/, "").replace(/^[\\/]+/, ""));
 
 async function uniqueDir(base: string, stamp: string): Promise<string> {

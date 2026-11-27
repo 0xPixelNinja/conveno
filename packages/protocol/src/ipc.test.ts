@@ -36,6 +36,7 @@ describe("method table", () => {
         "session.setStatus",
         "session.list",
         "session.byHost",
+        "daemon.shutdown",
         "message.deliver",
         "orchestrator.claim",
         "message.send",
@@ -155,6 +156,7 @@ describe("session.*", () => {
         name: "codex-1",
         pid: 1,
         hostPid: 2,
+        hostPids: [2, 3],
         repo: { root: "/r" },
       }).ok,
     ).toBe(true);
@@ -269,14 +271,40 @@ describe("message.*", () => {
     expect(schema.safeParse({ message: messageFixture(), delivery: "inbox" }).success).toBe(false);
   });
 
-  it("byHost: needs a positive int host pid; result allows null", () => {
-    expect(req("session.byHost", { hostPid: 42 }).ok).toBe(true);
-    expect(req("session.byHost", { hostPid: 0 }).ok).toBe(false);
+  it("register: hostPid is one positive int, hostPids a chain of 1 to 8", () => {
+    const reg = (over: Record<string, unknown>) =>
+      req("session.register", { cli: "codex", cwd: "/r", ...over });
+    expect(reg({ hostPid: 42, hostPids: [400, 42] }).ok).toBe(true);
+    expect(reg({ hostPids: [1, 2, 3, 4, 5, 6, 7, 8] }).ok).toBe(true);
+    expect(reg({ hostPid: 0 }).ok).toBe(false);
+    expect(reg({ hostPid: 1.5 }).ok).toBe(false);
+    expect(reg({ hostPids: [] }).ok).toBe(false);
+    expect(reg({ hostPids: [1, 2, 3, 4, 5, 6, 7, 8, 9] }).ok).toBe(false);
+    expect(reg({ hostPids: [0] }).ok).toBe(false);
+    expect(reg({ hostPids: 42 }).ok).toBe(false);
+  });
+
+  it("byHost: needs one positive int pid; result allows null", () => {
+    expect(req("session.byHost", { pid: 42 }).ok).toBe(true);
+    expect(req("session.byHost", { pid: 0 }).ok).toBe(false);
+    expect(req("session.byHost", { pid: 1.5 }).ok).toBe(false);
+    expect(req("session.byHost", { pids: [42] }).ok).toBe(false);
     expect(req("session.byHost", {}).ok).toBe(false);
     const r = ipcMethods["session.byHost"].result;
     expect(r.safeParse({ session: null }).success).toBe(true);
-    expect(r.safeParse({ session: sessionFixture({ hostPid: 42 }) }).success).toBe(true);
+    expect(
+      r.safeParse({ session: sessionFixture({ hostPid: 42, hostPids: [400, 42] }) }).success,
+    ).toBe(true);
+    expect(r.safeParse({ session: sessionFixture({ hostPids: [] }) }).success).toBe(false);
     expect(r.safeParse({}).success).toBe(false);
+  });
+
+  it("daemon.shutdown: takes no params and answers ok", () => {
+    expect(req("daemon.shutdown").ok).toBe(true);
+    expect(req("daemon.shutdown", {}).ok).toBe(true);
+    const r = ipcMethods["daemon.shutdown"].result;
+    expect(r.safeParse({ ok: true }).success).toBe(true);
+    expect(r.safeParse({ ok: false }).success).toBe(false);
   });
 
   it("deliver: defaults and bounds", () => {

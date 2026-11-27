@@ -1,12 +1,12 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import claudeAdapter from "@0xpixelninja/conveno-adapter-claude";
-import { createTheme } from "@0xpixelninja/conveno-brand";
-import { connect } from "@0xpixelninja/conveno-client";
-import type { Adapter } from "@0xpixelninja/conveno-core";
-import { type DaemonHandle, startDaemon } from "@0xpixelninja/conveno-daemon";
+import claudeAdapter from "@conveno/adapter-claude";
+import { createTheme } from "@conveno/brand";
+import { connect } from "@conveno/client";
+import { type Adapter, type Ancestry, type ProcessIo, readAncestry } from "@conveno/core";
+import { type DaemonHandle, startDaemon } from "@conveno/daemon";
 import type { Ctx } from "./ctx.js";
 
 export const FIXED_NOW = new Date("2026-11-27T14:02:11.000Z");
@@ -31,7 +31,8 @@ const socketIn = (dir: string): string =>
 
 /** A context rooted in fresh temp directories, with every side effect captured. */
 export async function testCtx(over: Partial<Ctx> = {}): Promise<TestCtx> {
-  const root = await mkdtemp(join(tmpdir(), "conveno-cli-"));
+  // Resolve symlinks and 8.3 short names (macOS /var, Windows RUNNER~1) so paths match what the code sees.
+  const root = await realpath(await mkdtemp(join(tmpdir(), "conveno-cli-")));
   const home = join(root, "home");
   await mkdir(home, { recursive: true });
   const stdout: string[] = [];
@@ -64,8 +65,25 @@ export async function testCtx(over: Partial<Ctx> = {}): Promise<TestCtx> {
     now: () => FIXED_NOW,
     readStdin: async () => "",
     connect,
-    ppid: process.pid,
-    parentOf: async () => null,
+    ancestry: async () => ({
+      entries: [{ pid: process.pid }],
+      pids: [process.pid],
+      hostPid: process.pid,
+      complete: true,
+    }),
+    isAlive: (pid) => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    commandLineOf: async () => null,
+    kill: () => {
+      throw new Error("test context: kill was not expected");
+    },
+    stopTimeoutMs: 1_000,
     runMcp: async () => undefined,
     hookTimeoutMs: 2_000,
     ...over,
@@ -113,4 +131,42 @@ export function fakeAdapter(over: Partial<Adapter> & { cli?: Adapter["cli"] } = 
     hook: async () => ({ stdout: "", exitCode: 0 }),
     ...over,
   };
+}
+
+/** A fake process table: pid -> [ppid, command line]. */
+export type FakeProcs = Record<number, [ppid: number, command: string]>;
+
+/** OS access over a fake table, for Windows and macOS style queries (one spawn, whole table). */
+export function tableIo(platform: NodeJS.Platform, procs: FakeProcs, denied = false): ProcessIo {
+  return {
+    platform,
+    readFile: async () => {
+      throw new Error("ENOENT");
+    },
+    run: async () =>
+      denied
+        ? null
+        : Object.entries(procs)
+            .map(([pid, [ppid, command]]) => `${pid} ${ppid} ${command}`)
+            .join("\r\n"),
+  };
+}
+
+/**
+ * A context `ancestry` that reads the real launcher logic over a fake table, as the process
+ * `pid` whose direct parent is `ppid`.
+ */
+export function ancestryOf(
+  procs: FakeProcs,
+  self: { pid: number; ppid: number },
+  opts: { platform?: NodeJS.Platform; denied?: boolean; launcherPaths?: string[] } = {},
+): (timeoutMs: number) => Promise<Ancestry> {
+  return (timeoutMs) =>
+    readAncestry({
+      pid: self.pid,
+      ppid: self.ppid,
+      timeoutMs,
+      io: tableIo(opts.platform ?? "win32", procs, opts.denied),
+      ...(opts.launcherPaths ? { launcherPaths: opts.launcherPaths } : {}),
+    });
 }

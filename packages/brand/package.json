@@ -1,18 +1,23 @@
 {
-  "name": "@0xpixelninja/conveno-brand",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Conveno brand tokens, terminal theme and icon names, generated from brand/tokens.json",
+  "name": "@conveno/brand",
+  "version": "0.1.0",
+  "description": "Conveno brand tokens, terminal theme and icon names.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/0xPixelNinja/conveno.git",
     "directory": "packages/brand"
   },
-  "homepage": "https://github.com/0xPixelNinja/conveno#readme",
+  "homepage": "https://conveno.dev",
   "bugs": {
     "url": "https://github.com/0xPixelNinja/conveno/issues"
   },
+  "keywords": [
+    "conveno",
+    "brand",
+    "design-tokens",
+    "terminal"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,15 +31,21 @@
     "./sprite.svg": "./dist/generated/sprite.svg"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "generate": "node scripts/generate.mjs",
-    "build": "node scripts/generate.mjs && tsdown && node scripts/copy-assets.mjs",
-    "typecheck": "node scripts/generate.mjs && tsc -p tsconfig.json",
-    "test": "node scripts/generate.mjs && vitest run"
+    "build": "tsdown && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
   }
 }

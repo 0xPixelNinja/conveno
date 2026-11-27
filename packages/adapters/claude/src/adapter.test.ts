@@ -6,8 +6,8 @@ import {
   type ConfigChange,
   type ConvenoClient,
   formatHookContext,
-} from "@0xpixelninja/conveno-core";
-import { type Message, newMessageId, newSessionId } from "@0xpixelninja/conveno-protocol";
+} from "@conveno/core";
+import { type Message, newMessageId, newSessionId } from "@conveno/protocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import claudeDefault, { claudeAdapter } from "./index.js";
 
@@ -397,7 +397,7 @@ describe("hook", () => {
         },
       });
     }
-    expect(client["session.byHost"]).toHaveBeenCalledWith({ hostPid: 4242 });
+    expect(client["session.byHost"]).toHaveBeenCalledWith({ pid: 4242 });
     expect(client["message.deliver"]).toHaveBeenCalledWith({ sessionId: me.id });
   });
 

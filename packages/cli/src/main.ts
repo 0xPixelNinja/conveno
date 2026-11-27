@@ -1,4 +1,4 @@
-import { CLI_KINDS, type CliKind } from "@0xpixelninja/conveno-protocol";
+import { CLI_KINDS, type CliKind } from "@conveno/protocol";
 import { COMMAND_NAMES, COMMANDS, commandHelp, parseFlags } from "./args.js";
 import type { Ctx } from "./ctx.js";
 import { runDaemon } from "./daemon.js";

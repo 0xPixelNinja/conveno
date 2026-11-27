@@ -1,5 +1,5 @@
 {
-  "name": "@0xpixelninja/conveno-e2e",
+  "name": "@conveno/e2e",
   "version": "0.0.0",
   "private": true,
   "description": "Cross-platform end-to-end tests for Conveno (private, not published)",
@@ -23,13 +23,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@0xpixelninja/conveno-adapter-claude": "workspace:*",
-    "@0xpixelninja/conveno-adapter-codex": "workspace:*",
-    "@0xpixelninja/conveno-client": "workspace:*",
-    "@0xpixelninja/conveno-core": "workspace:*",
-    "@0xpixelninja/conveno-mcp": "workspace:*",
-    "@0xpixelninja/conveno-protocol": "workspace:*",
-    "conveno": "workspace:*",
+    "@conveno/adapter-claude": "workspace:*",
+    "@conveno/adapter-codex": "workspace:*",
+    "@conveno/client": "workspace:*",
+    "@conveno/core": "workspace:*",
+    "@conveno/mcp": "workspace:*",
+    "@conveno/protocol": "workspace:*",
+    "@conveno/cli": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.2"
   }
 }

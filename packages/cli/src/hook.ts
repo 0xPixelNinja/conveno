@@ -1,23 +1,12 @@
-import type { ConvenoClient } from "@0xpixelninja/conveno-core";
+import type { ConvenoClient } from "@conveno/core";
 import { type Ctx, connectOpts } from "./ctx.js";
 
-/** How many processes above the hook to try: the shell, the CLI, and a few wrappers. */
-export const MAX_ANCESTORS = 6;
-
 /**
- * The pid that registered as a session: the hook's parent, or the nearest ancestor the daemon
- * knows. Under `/bin/sh -c "conveno hook ..."` the parent is a shell that does not exec the
- * command, so the CLI is one level further up.
+ * Time allowed for the one process-table query behind the host pid. It runs beside reading
+ * stdin and connecting, so it fits well inside the 2 s hook budget. When it fails or runs out, the
+ * hook falls back to its direct parent as the host.
  */
-async function findHostPid(ctx: Ctx, client: ConvenoClient): Promise<number | undefined> {
-  let pid: number | null = ctx.ppid;
-  for (let level = 0; level < MAX_ANCESTORS && pid !== null && pid > 1; level++) {
-    const { session } = await client["session.byHost"]({ hostPid: pid });
-    if (session) return pid;
-    if (level < MAX_ANCESTORS - 1) pid = await ctx.parentOf(pid).catch(() => null);
-  }
-  return undefined;
-}
+export const HOOK_ANCESTRY_TIMEOUT_MS = 1_200;
 
 /**
  * `conveno hook <cli> <event>`: reads the CLI's hook JSON on stdin and prints what the adapter
@@ -31,6 +20,8 @@ export async function runHook(ctx: Ctx, argv: string[]): Promise<number> {
 
   let client: ConvenoClient | undefined;
   let timer: NodeJS.Timeout | undefined;
+  // Start the process-table query first so it overlaps with reading stdin and connecting.
+  const ancestry = ctx.ancestry(HOOK_ANCESTRY_TIMEOUT_MS);
   const work = (async (): Promise<string> => {
     let input: unknown = {};
     try {
@@ -40,7 +31,7 @@ export async function runHook(ctx: Ctx, argv: string[]): Promise<number> {
       input = {};
     }
     client = await ctx.connect(connectOpts(ctx, false));
-    const hostPid = await findHostPid(ctx, client);
+    const { hostPid } = await ancestry;
     if (hostPid === undefined) return "";
     const out = await adapter.hook(event, input, { client, hostPid });
     return out.stdout;

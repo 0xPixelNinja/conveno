@@ -1,4 +1,4 @@
-import { RpcErrorCode, type SessionId } from "@0xpixelninja/conveno-protocol";
+import { RpcErrorCode, type SessionId } from "@conveno/protocol";
 import { ConvenoError } from "./errors.js";
 import { isOnline } from "./liveness.js";
 import type { NamedSession } from "./naming.js";

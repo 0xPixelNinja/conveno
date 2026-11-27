@@ -1,4 +1,4 @@
-import type { CliKind } from "@0xpixelninja/conveno-protocol";
+import type { CliKind } from "@conveno/protocol";
 import type { ConvenoClient } from "./client.js";
 
 export interface ConfigChange {
@@ -33,6 +33,7 @@ export interface AdapterEnv {
 
 export interface HookContext {
   client: ConvenoClient;
+  /** The CLI process above the hook, passed to `session.byHost`. */
   hostPid: number;
 }
 

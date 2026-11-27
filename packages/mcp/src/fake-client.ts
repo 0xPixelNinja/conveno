@@ -1,4 +1,4 @@
-import type { ConvenoClient } from "@0xpixelninja/conveno-core";
+import type { ConvenoClient } from "@conveno/core";
 import {
   ackEntries,
   ConvenoError,
@@ -9,7 +9,7 @@ import {
   readInbox,
   resolveRecipient,
   validateRename,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   type DeviceId,
   type Message,
@@ -19,7 +19,7 @@ import {
   RpcErrorCode,
   type Session,
   type SessionId,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 
 /** In-memory ConvenoClient for tests: daemon behaviour built from core's rules. One instance can serve several sessions. */
 export class FakeDaemon {
@@ -71,6 +71,7 @@ export class FakeDaemon {
             ...(p.repo ? { repo: p.repo } : {}),
             ...(p.pid ? { pid: p.pid } : {}),
             ...(p.hostPid ? { hostPid: p.hostPid } : {}),
+            ...(p.hostPids ? { hostPids: p.hostPids } : {}),
             status: "idle",
             isOrchestrator: false,
             deliveryTier: "inbox",
@@ -111,9 +112,11 @@ export class FakeDaemon {
           return { session: this.withOrch(next) };
         },
       ),
-      "session.byHost": rec("session.byHost", (p: { hostPid: number }) => ({
-        session: this.all().find((s) => s.hostPid === p.hostPid && s.status !== "offline") ?? null,
-      })),
+      "session.byHost": rec("session.byHost", (p: { pid: number }) => {
+        const holders = this.all().filter((s) => s.hostPid === p.pid && s.status !== "offline");
+        return { session: holders.length === 1 ? (holders[0] ?? null) : null };
+      }),
+      "daemon.shutdown": rec("daemon.shutdown", () => ({ ok: true as const })),
       "session.list": rec(
         "session.list",
         (p: {

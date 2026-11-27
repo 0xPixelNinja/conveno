@@ -1,4 +1,4 @@
-import { ORCHESTRATOR_ALIAS, RpcErrorCode, SessionId } from "@0xpixelninja/conveno-protocol";
+import { ORCHESTRATOR_ALIAS, RpcErrorCode, SessionId } from "@conveno/protocol";
 import {
   ConvenoError,
   NO_ORCHESTRATOR_MESSAGE,

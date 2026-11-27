@@ -1,5 +1,5 @@
 // Fake host CLI. Spawns the MCP server with the stdio it was given, so the MCP server's
-// parent pid (hostPid) is this process. Stays alive until killed or its child exits.
+// nearest host pid (the first of its hostPids) is this process. Stays alive until killed or its child exits.
 //
 // Optional hook runner: when FAKE_TRIGGER and FAKE_SH_CMD are set, the host waits for the
 // trigger file to appear, then runs FAKE_SH_CMD through `sh -c` (like a real CLI runs a hook),

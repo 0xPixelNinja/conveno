@@ -17,11 +17,19 @@ You need Node 24 or later (see `.nvmrc`) and pnpm 12.
 pnpm install
 ```
 
+To run the CLI from a checkout, build first and call the bin directly:
+
+```sh
+pnpm build
+node packages/cli/dist/bin.js init
+```
+
 | Script | What it does |
 |---|---|
 | `pnpm lint` | Biome check (format, imports, lint) |
 | `pnpm format` | Biome format, writes changes |
 | `pnpm typecheck` | `tsc` in every package, through turbo |
+| `pnpm smoke:pack` | Pack the publishable packages, install them with npm in a temp project and run the installed `conveno` |
 | `pnpm build` | `tsdown` in every package, through turbo |
 | `pnpm test` | `vitest run` in every package, through turbo |
 
@@ -29,8 +37,8 @@ CI runs install, lint, typecheck, build and test on Ubuntu, macOS and Windows wi
 Run them locally in that order before you push. Code must work on all three operating systems, so
 use `node:path` and avoid shell-specific commands.
 
-`packages/brand` generates its TypeScript and CSS from `brand/` each time you build, typecheck or test
-it. Edit `brand/tokens.json`, not the generated files.
+`packages/brand` generates its TypeScript and CSS from `brand/` in a turbo `generate` task that build, typecheck
+and test depend on. Edit `brand/tokens.json`, not the generated files.
 
 ## Commits
 

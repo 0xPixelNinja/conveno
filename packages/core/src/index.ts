@@ -8,5 +8,7 @@ export * from "./mailbox.js";
 export * from "./naming.js";
 export * from "./orchestrator.js";
 export * from "./paths.js";
+export * from "./process-info.js";
 export * from "./recipient.js";
 export * from "./repo.js";
+export * from "./win-spawn.js";

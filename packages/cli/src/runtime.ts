@@ -1,19 +1,19 @@
 import { execFile } from "node:child_process";
 import { existsSync, realpathSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import claudeAdapter from "@0xpixelninja/conveno-adapter-claude";
-import codexAdapter from "@0xpixelninja/conveno-adapter-codex";
-import opencodeAdapter from "@0xpixelninja/conveno-adapter-opencode";
-import { createTheme, type Theme } from "@0xpixelninja/conveno-brand";
-import { connect } from "@0xpixelninja/conveno-client";
-import { dataDir } from "@0xpixelninja/conveno-core";
-import { runStdio } from "@0xpixelninja/conveno-mcp";
+import claudeAdapter from "@conveno/adapter-claude";
+import codexAdapter from "@conveno/adapter-codex";
+import opencodeAdapter from "@conveno/adapter-opencode";
+import { createTheme, type Theme } from "@conveno/brand";
+import { connect } from "@conveno/client";
+import { dataDir, planSpawn, readAncestry, readCommandLine } from "@conveno/core";
+import { defaultIsAlive } from "@conveno/daemon";
+import { runStdio } from "@conveno/mcp";
 import type { Ctx } from "./ctx.js";
-import { planSpawn } from "./win-spawn.js";
+import { type ShimIo, windowsConvenoIsThisInstall } from "./shim.js";
 
 /**
  * Path to the daemon entry script, resolved from this package's own dependencies so it works from
@@ -21,7 +21,7 @@ import { planSpawn } from "./win-spawn.js";
  */
 export function resolveDaemonEntry(): string | undefined {
   try {
-    return fileURLToPath(import.meta.resolve("@0xpixelninja/conveno-daemon/bin"));
+    return fileURLToPath(import.meta.resolve("@conveno/daemon/bin"));
   } catch {
     return undefined;
   }
@@ -40,13 +40,17 @@ const real = (p: string): string | undefined => {
   }
 };
 
-/** The first `conveno` on PATH, when it is a link to this very install. */
+/**
+ * The first `conveno` on PATH, when it is a link to this very install. On Windows that is a
+ * `.cmd` or `.ps1` shim, which is read to see which script it starts.
+ */
 export function pathConvenoIsThisInstall(
   env: Readonly<Record<string, string | undefined>>,
   binPath: string,
   platform: NodeJS.Platform,
+  shimIo?: ShimIo,
 ): boolean {
-  if (platform === "win32") return false; // .cmd shims cannot be compared with the script
+  if (platform === "win32") return windowsConvenoIsThisInstall(env, binPath, shimIo);
   const mine = real(binPath);
   if (!mine) return false;
   for (const dir of (env.PATH ?? "").split(delimiter)) {
@@ -62,65 +66,11 @@ export function convenoCommand(
   platform: NodeJS.Platform,
   binPath = cliBinPath(),
   nodePath = process.execPath,
+  shimIo?: ShimIo,
 ): string[] {
-  return pathConvenoIsThisInstall(env, binPath, platform) ? ["conveno"] : [nodePath, binPath];
-}
-
-function run(cmd: string, args: string[], timeout: number): Promise<string | null> {
-  return new Promise((resolve) => {
-    execFile(cmd, args, { timeout, windowsHide: true, encoding: "utf8" }, (err, stdout) =>
-      resolve(err ? null : stdout),
-    );
-  });
-}
-
-let windowsTable: Promise<Map<number, number>> | undefined;
-
-/** One query for the whole process table, so walking six levels costs one PowerShell start. */
-function windowsParents(): Promise<Map<number, number>> {
-  windowsTable ??= (async () => {
-    const map = new Map<number, number>();
-    const out = await run(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }',
-      ],
-      1_500,
-    );
-    for (const line of (out ?? "").split(/\r?\n/)) {
-      const m = /^(\d+) (\d+)$/.exec(line.trim());
-      if (m) map.set(Number(m[1]), Number(m[2]));
-    }
-    return map;
-  })();
-  return windowsTable;
-}
-
-/** Parent pid of `pid`: /proc on Linux, `ps` on macOS, a CIM query on Windows. Null when unknown. */
-export async function parentOf(
-  pid: number,
-  platform: NodeJS.Platform = process.platform,
-): Promise<number | null> {
-  if (!Number.isInteger(pid) || pid <= 1) return null;
-  let ppid: number;
-  if (platform === "linux") {
-    try {
-      const stat = await readFile(`/proc/${pid}/stat`, "utf8");
-      // `pid (comm) state ppid ...`: comm may hold spaces and parentheses, so cut after the last `)`.
-      ppid = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
-    } catch {
-      return null;
-    }
-  } else if (platform === "win32") {
-    ppid = (await windowsParents()).get(pid) ?? Number.NaN;
-  } else {
-    const out = await run("ps", ["-o", "ppid=", "-p", String(pid)], 500);
-    ppid = Number((out ?? "").trim());
-  }
-  return Number.isInteger(ppid) && ppid > 0 ? ppid : null;
+  return pathConvenoIsThisInstall(env, binPath, platform, shimIo)
+    ? ["conveno"]
+    : [nodePath, binPath];
 }
 
 function exec(cmd: string, args: string[]): Promise<{ code: number; stdout: string }> {
@@ -194,8 +144,12 @@ export function createRuntimeCtx(): Ctx {
     now: () => new Date(),
     readStdin: readAllStdin,
     connect,
-    ppid: process.ppid,
-    parentOf,
+    ancestry: (timeoutMs) =>
+      readAncestry({ timeoutMs, launcherPaths: process.argv[1] ? [process.argv[1]] : [] }),
+    isAlive: defaultIsAlive,
+    commandLineOf: (pid) => readCommandLine(pid),
+    kill: (pid) => process.kill(pid),
+    stopTimeoutMs: 5_000,
     runMcp: runStdio,
     hookTimeoutMs: 2_000,
   };

@@ -2,7 +2,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { NOT_FROM_USER_NOTICE } from "@0xpixelninja/conveno-core";
+import { NOT_FROM_USER_NOTICE } from "@conveno/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   type DaemonProc,

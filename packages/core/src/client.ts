@@ -1,9 +1,4 @@
-import type {
-  EventPayload,
-  IpcParams,
-  IpcResult,
-  ipcMethods,
-} from "@0xpixelninja/conveno-protocol";
+import type { EventPayload, IpcParams, IpcResult, ipcMethods } from "@conveno/protocol";
 import type { z } from "zod";
 
 /** IPC methods a client can call after the handshake (`hello` is the client's own business). */
@@ -14,6 +9,7 @@ export type ClientMethodName =
   | "session.rename"
   | "session.setStatus"
   | "session.byHost"
+  | "daemon.shutdown"
   | "session.list"
   | "orchestrator.claim"
   | "message.send"

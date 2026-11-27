@@ -1,4 +1,4 @@
-import type { CliKind } from "@0xpixelninja/conveno-protocol";
+import type { CliKind } from "@conveno/protocol";
 import {
   applyChanges,
   type EntryAction,

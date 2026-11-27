@@ -1,5 +1,5 @@
 import { access } from "node:fs/promises";
-import { connect } from "@0xpixelninja/conveno-client";
+import { connect } from "@conveno/client";
 import {
   baseName,
   type ConvenoClient,
@@ -8,29 +8,41 @@ import {
   formatInbox,
   HEARTBEAT_INTERVAL_MS,
   NOT_FROM_USER_NOTICE,
+  readAncestry,
   validateRename,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   type CliKind,
+  HOST_PIDS_MAX,
   INBOX_MAX_LIMIT,
   MessageId,
   RpcErrorCode,
   type Session,
   type SessionName,
   STATUS_TEXT_MAX,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-export const PACKAGE_NAME = "@0xpixelninja/conveno-mcp";
-const SERVER_VERSION = "0.0.0";
+export const PACKAGE_NAME = "@conveno/mcp";
+const SERVER_VERSION = "0.1.0";
+
+export interface HostInfo {
+  /** The CLI process: the first ancestor that is not part of launching Conveno. */
+  hostPid?: number | undefined;
+  /** The raw ancestor chain, nearest first. */
+  hostPids: number[];
+}
 
 export interface CreateServerOptions {
   cli: CliKind;
   client: ConvenoClient;
-  /** PID of the CLI process hosting this server (usually `process.ppid`). */
-  hostPid: number;
+  /**
+   * The CLI process hosting this server and the raw ancestor chain it was found in (see
+   * `readAncestry`). A promise lets the server start before the process table has been read.
+   */
+  host: HostInfo | Promise<HostInfo>;
   cwd: string;
 }
 
@@ -127,7 +139,7 @@ const DELIVERY_NOTE: Record<string, string> = {
  * tool call), heartbeats every 15 s, and unregisters when the server closes.
  */
 export function createServer(opts: CreateServerOptions): McpServer {
-  const { cli, client, hostPid, cwd } = opts;
+  const { cli, client, host, cwd } = opts;
   const mcp = new McpServer({ name: "conveno", version: SERVER_VERSION });
 
   let registering: Promise<Session> | undefined;
@@ -137,11 +149,13 @@ export function createServer(opts: CreateServerOptions): McpServer {
   const register = async (): Promise<Session> => {
     const repo = await detectRepo(cwd, { exists: pathExists });
     const cliVersion = process.env.CONVENO_CLI_VERSION?.trim().slice(0, 64);
+    const { hostPid, hostPids } = await host;
     const res = await client["session.register"]({
       cli,
       cwd,
       pid: process.pid,
-      hostPid,
+      ...(hostPid !== undefined ? { hostPid } : {}),
+      ...(hostPids.length > 0 ? { hostPids: hostPids.slice(0, HOST_PIDS_MAX) } : {}),
       ...(cliVersion ? { cliVersion } : {}),
       ...(repo.root ? { repo: { root: repo.root } } : {}),
     });
@@ -403,6 +417,12 @@ export function createServer(opts: CreateServerOptions): McpServer {
 
 /** Run the MCP server over stdio until stdin closes or SIGTERM arrives. */
 export async function runStdio(opts: { cli: CliKind; daemonEntry?: string }): Promise<void> {
+  // Read once, with no time budget. Started first so it overlaps with starting the daemon;
+  // nothing waits on it but this session's registration.
+  const host = readAncestry({
+    timeoutMs: 30_000,
+    launcherPaths: process.argv[1] ? [process.argv[1]] : [],
+  }).then((a): HostInfo => ({ hostPid: a.hostPid, hostPids: a.pids }));
   const client = await connect({
     kind: "mcp",
     autoStart: true,
@@ -411,7 +431,7 @@ export async function runStdio(opts: { cli: CliKind; daemonEntry?: string }): Pr
   const mcp = createServer({
     cli: opts.cli,
     client,
-    hostPid: process.ppid,
+    host,
     cwd: process.cwd(),
   });
 

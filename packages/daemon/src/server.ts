@@ -1,4 +1,4 @@
-import { chmodSync, existsSync } from "node:fs";
+import { chmodSync, existsSync, rmSync } from "node:fs";
 import { createServer, type Server, type Socket } from "node:net";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -29,7 +29,7 @@ import {
   takeWithinBytes,
   tooManyUnreadMessage,
   validateRename,
-} from "@0xpixelninja/conveno-core";
+} from "@conveno/core";
 import {
   createLineDecoder,
   type DeliveryTier,
@@ -55,7 +55,7 @@ import {
   SessionId,
   sanitizeLine,
   socketPathTooLongMessage,
-} from "@0xpixelninja/conveno-protocol";
+} from "@conveno/protocol";
 import {
   acquireLock,
   clearStaleSocket,
@@ -66,7 +66,7 @@ import {
 } from "./lifecycle.js";
 import { type SessionRow, Store, toSession } from "./store.js";
 
-export const DAEMON_VERSION = "0.0.0";
+export const DAEMON_VERSION = "0.1.0";
 export const DEFAULT_IDLE_EXIT_MS = 10 * 60_000;
 export const SWEEP_INTERVAL_MS = 15_000;
 /** A connection that has not finished the handshake by then is closed. */
@@ -90,6 +90,8 @@ export interface DaemonOptions {
   sweepIntervalMs?: number;
   /** Called after the daemon shut itself down because it was idle. */
   onIdleExit?: () => void;
+  /** Called after the daemon shut down because a client sent `daemon.shutdown`. */
+  onShutdown?: () => void;
   /** Close connections that have not finished the handshake after this long. Default 5 s. */
   authTimeoutMs?: number;
 }
@@ -130,6 +132,7 @@ class Daemon {
     private readonly isAlive: (pid: number) => boolean,
     private readonly idleExitMs: number,
     private readonly requestIdleExit: () => void,
+    private readonly requestShutdown: () => void,
     private readonly authTimeoutMs: number = AUTH_TIMEOUT_MS,
   ) {
     this.deviceId = store.deviceId();
@@ -161,10 +164,13 @@ class Daemon {
     socket.on("error", () => socket.destroy());
   }
 
-  private send(conn: Conn, obj: unknown): void {
-    if (conn.socket.destroyed) return;
+  private send(conn: Conn, obj: unknown, flushed?: () => void): void {
+    if (conn.socket.destroyed) {
+      flushed?.();
+      return;
+    }
     try {
-      conn.socket.write(encodeFrame(obj));
+      conn.socket.write(encodeFrame(obj), flushed);
     } catch {
       // The frame could not be encoded (too large). Answer the same request with an error so
       // the caller is not left waiting; notifications have no id and are dropped.
@@ -223,7 +229,9 @@ class Daemon {
     }
     try {
       const result = await this.dispatch(conn, req);
-      this.send(conn, makeResult(req.id, result));
+      // The shutdown reply must reach the client before the connection is torn down.
+      const flushed = req.method === "daemon.shutdown" ? this.requestShutdown : undefined;
+      this.send(conn, makeResult(req.id, result), flushed);
     } catch (e) {
       this.sendError(conn, req.id, e);
       if (req.method === "hello" || req.method === "auth") conn.socket.end();
@@ -266,7 +274,9 @@ class Daemon {
       case "session.list":
         return this.list(req.params);
       case "session.byHost":
-        return this.byHost(req.params.hostPid);
+        return this.byHost(req.params.pid);
+      case "daemon.shutdown":
+        return { ok: true as const };
       case "orchestrator.claim":
         return this.claim(req.params.sessionId);
       case "message.send":
@@ -403,6 +413,7 @@ class Daemon {
       }
       if (p.pid !== undefined) r.pid = p.pid;
       if (p.hostPid !== undefined) r.hostPid = p.hostPid;
+      if (p.hostPids !== undefined) r.hostPids = p.hostPids;
       if (p.spawnedBy !== undefined) r.spawnedBy = p.spawnedBy;
       this.store.insertSession(r);
       return r;
@@ -504,12 +515,18 @@ class Daemon {
     return { sessions: rows.map((r) => this.view(r)) };
   }
 
-  private byHost(hostPid: number) {
-    const rows = this.store
+  /**
+   * Find the session a hook belongs to: the one online session whose `hostPid` equals `pid`.
+   * Exact equality only, with no walk to farther ancestors, so a hook from a CLI that has no
+   * session matches nothing. Two sessions under one CLI process are ambiguous, so the result is
+   * null; the daemon never guesses.
+   */
+  private byHost(pid: number) {
+    const holders = this.store
       .allSessions()
-      .filter((r) => r.status !== "offline" && r.hostPid === hostPid);
-    const newest = rows[rows.length - 1];
-    return { session: newest ? this.view(newest) : null };
+      .filter((r) => r.status !== "offline" && r.hostPid === pid);
+    const only = holders.length === 1 ? holders[0] : undefined;
+    return { session: only ? this.view(only) : null };
   }
 
   /* ---- orchestrator ---- */
@@ -717,6 +734,9 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
       () => {
         void close().then(() => opts.onIdleExit?.());
       },
+      () => {
+        void close().then(() => opts.onShutdown?.());
+      },
       opts.authTimeoutMs ?? AUTH_TIMEOUT_MS,
     );
 
@@ -737,9 +757,13 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
     function close(): Promise<void> {
       closing ??= (async () => {
         if (timer) clearInterval(timer);
+        // Stop accepting first, then drop the open connections, then let go of the files.
+        const stopped = new Promise<void>((resolve) => srv.close(() => resolve()));
         for (const c of daemon.conns) c.socket.destroy();
-        await new Promise<void>((resolve) => srv.close(() => resolve()));
+        await stopped;
         liveStore.close();
+        if (platform !== "win32" && !socketPath.startsWith("\\\\"))
+          rmSync(socketPath, { force: true });
         releaseLock();
       })();
       return closing;
