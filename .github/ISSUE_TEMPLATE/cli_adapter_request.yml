@@ -1,0 +1,42 @@
+name: CLI adapter request
+description: Ask for support for another AI coding CLI
+labels: ["type: feature", "tier-b"]
+body:
+  - type: input
+    id: cli
+    attributes:
+      label: CLI name
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version you use
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: Documentation links
+      description: Official docs for config, MCP, hooks, headless mode and session storage.
+    validations:
+      required: true
+  - type: checkboxes
+    id: support
+    attributes:
+      label: What the CLI supports
+      options:
+        - label: MCP servers (stdio)
+        - label: Hooks (prompt submit, stop, permission request or similar)
+        - label: ACP (Agent Client Protocol)
+        - label: Non-interactive mode (like `-p` or `exec`)
+        - label: Local session transcripts on disk
+  - type: textarea
+    id: terms
+    attributes:
+      label: Terms of use
+      description: Anything in the provider's terms that limits automation or third-party tools.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
