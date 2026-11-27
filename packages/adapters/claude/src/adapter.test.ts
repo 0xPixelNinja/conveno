@@ -34,6 +34,7 @@ const env = (over: Partial<AdapterEnv> = {}): AdapterEnv => ({
   cwd: home,
   exec: async () => ({ code: 0, stdout: "2.1.0 (Claude Code)\n" }),
   conveno: { command: ["conveno"] },
+  env: {},
   ...over,
 });
 
@@ -56,7 +57,6 @@ const readJson = async (p: string) => JSON.parse(await readFile(p, "utf8"));
 
 beforeEach(async () => {
   home = await mkdtemp(join(tmpdir(), "conveno-claude-"));
-  vi.stubEnv("CLAUDE_CONFIG_DIR", "");
 });
 afterEach(async () => {
   vi.unstubAllEnvs();
@@ -96,8 +96,7 @@ describe("detect", () => {
   });
 
   it("honors CLAUDE_CONFIG_DIR", async () => {
-    vi.stubEnv("CLAUDE_CONFIG_DIR", join(home, "alt"));
-    const d = await claudeAdapter.detect(env());
+    const d = await claudeAdapter.detect(env({ env: { CLAUDE_CONFIG_DIR: join(home, "alt") } }));
     expect(d.configPaths).toEqual([
       join(home, "alt", ".claude.json"),
       join(home, "alt", "settings.json"),

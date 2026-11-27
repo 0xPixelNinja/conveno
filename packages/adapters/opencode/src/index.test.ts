@@ -21,6 +21,7 @@ function envFor(exec?: AdapterEnv["exec"]): AdapterEnv {
     cwd: home,
     exec: exec ?? (async () => ({ code: 0, stdout: "2.4.2\n" })),
     conveno: { command: ["conveno"] },
+    env: {},
   };
 }
 
